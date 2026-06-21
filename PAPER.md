@@ -25,7 +25,13 @@
   - Tại sao kube-scheduler mặc định không đủ tốt cho heterogeneous cluster? Có số liệu cụ thể không (ví dụ: Datadog report 30-40% CPU utilization)?
   - "Static planning" khác gì "dynamic scheduling"? Khi nào static planning có lợi thế hơn?
   - Motivation chính cho analogy hàng hải: bạn tìm thấy mối liên hệ này từ đâu? Từ kinh nghiệm thực tế hay từ literature review?
-  - Contribution statement: bài báo này đóng góp gì mới so với các công trình trước? (thường liệt kê 3-4 bullet points)
+
+  Contribution statement — gợi ý 4 contributions:
+  1. (Algorithmic) Một hybrid pipeline FFD + GA + CSP Forward Checking cho K8s scheduling offline, lấy cảm hứng từ maritime stowage planning.
+  2. (Practical) Một CLI tool tạo ra pre-deployment blueprint có thể kubectl apply trực tiếp, không cần can thiệp vào cluster đang chạy.
+  3. (Methodological) Chứng minh rằng analogy giữa container stowage planning và K8s pod scheduling là valid và productive — mỗi constraint trong maritime domain đều có mapping 1:1 sang K8s domain.
+  4. (Process) Đề xuất rằng giá trị của offline scheduling optimization không chỉ nằm ở solution quality, mà ở việc tạo ra một **auditable, iterable artifact** (blueprint) cho phép collaborative infrastructure decision-making — tương tự cách Git biến code deployment thành code review, và Terraform biến infrastructure provisioning thành reviewable plan.
+     Một bản thiết kế được tính toán bởi combinatorial optimization qua hàng nghìn thế hệ tiến hóa, có cơ sở toán học để bảo vệ mọi quyết định placement, thay thế cho các quyết định scheduling dựa trên trực giác cá nhân (architect intuition) vốn không thể audit, không thể reproduce, và không thể challenge.
 -->
 
 ## 2. Related Work

@@ -11,7 +11,33 @@ Inspired by how supercomputers solve the stowage planning problem for *MSC Irina
 The default scheduler of K8s (`kube-scheduler`) is designed to make dynamic decisions in milliseconds. It works by "seeing an empty spot and putting things in it," leading to severe resource fragmentation on expensive heterogeneous clusters.
 
 **Kuberina takes a different approach:**
-Instead of racing against time, Kuberina is a **static planning** tool. It compute in minutes to fully solve the Constraint Satisfaction Problem (CSP) and Multi-dimensional Bin Packing, thereby generating a perfect blueprint.
+Instead of racing against time, Kuberina is a **static planning** tool. It computes in seconds to solve the Constraint Satisfaction Problem (CSP) and Multi-dimensional Bin Packing, thereby generating an optimal blueprint.
+
+## 🔁 Kuberina as an Infrastructure Decision Protocol
+
+**The real problem isn't optimization — it's that scheduling decisions are invisible.**
+
+Today, `kube-scheduler` makes placement decisions inside a black box. No one reviews them. No one debates them. When Node 7 hits 98% CPU while Node 12 sits at 15%, nobody can explain why — because the decision was never written down.
+
+Kuberina changes this by producing a **reviewable blueprint** — a concrete YAML artifact that your team can open, inspect, challenge, and iterate on:
+
+```
+# A typical Kuberina workflow:
+kuberina plan → blueprint.yaml          # 10 seconds
+
+# Team review:
+"Move Loki to Node 4, it's stressing frontend disk I/O."
+"Rejected — Node 4 has Redis, kernel tuning conflict. Add a rule instead."
+
+kuberina plan → blueprint-v2.yaml       # 10 seconds
+# Repeat until consensus.
+
+kubectl apply -f blueprint-final.yaml   # Peer-reviewed. Mathematically grounded.
+```
+
+This is the same paradigm shift that **Git** brought to code (reviewable diffs instead of FTP uploads) and **Terraform** brought to infrastructure (`terraform plan` instead of clicking in the AWS console). Kuberina brings it to **Kubernetes scheduling**: every pod placement is computed by combinatorial optimization, written down, and open to debate.
+
+A blueprint backed by 2,000 generations of evolutionary optimization across millions of stowage scenarios is infinitely more defensible than a whiteboard drawing from an architect whose reasoning is "10 years of experience" and "trust me."
 
 ## 🚀 Core Features
 
