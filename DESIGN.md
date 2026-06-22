@@ -110,10 +110,174 @@
   4. ClusterTopology struct: []Node + metadata
 
   Câu hỏi:
-  1. Resource model: dùng resource.Quantity của K8s (milliCPU, bytes) hay đơn vị đơn giản hơn?
-  2. Pod group (Gang): model thế nào? Một wrapper struct chứa []Pod + constraint "all-or-nothing"?
   3. DaemonSet pods: pre-process (trừ hao capacity trước) hay model như Pod bình thường với constraint đặc biệt?
 -->
+
+1. `Node` struct: Name, Labels, Taints, Allocatable (CPU, RAM, GPU), Zone/Rack topology
+2. `Pod` struct: Name, Namespace, Resource Requests, Resource Limits, Affinities, Tolerations, QoS class, Priority
+3. `Blueprint` struct: Map[Pod]Node assignment, Fitness score, Generation number
+4. `ClusterTopology` struct: []Node + metadata
+
+### Resource model: 
+
+Dùng đơn vị chuẩn K8s `resource.Quantity` — CPU ghi `500m` (milliCPU) hoặc `4` (cores), RAM/Disk ghi `8Gi` / `512Mi`, GPU ghi `nvidia.com/gpu: 1`. 
+
+Internally parse bằng `k8s.io/apimachinery/pkg/api/resource.Quantity`. 
+
+Cả input YAML và output YAML đều dùng notation này — người đọc blueprint thấy `memory: 8Gi` thay vì `memory: 8589934592`.
+
+### Pod group (Gang)
+
+Gang Scheduling trong K8s: một nhóm Pod **bắt buộc phải được schedule cùng lúc**, hoặc không Pod nào được schedule hết (all-or-nothing).
+
+Use case kinh điển: Distributed AI Training — cần 8 Pod, mỗi Pod chiếm 1 GPU, tất cả phải chạy đồng thời trên các Node có `NVLink/InfiniBand` để communicate trong quá trình training. Nếu chỉ xếp được 7/8 Pod → Pod thứ 8 pending → cả 7 Pod kia ngồi chờ vô ích → resource deadlock.
+
+#### Analogy hàng hải: Block Booking, không phải OOG
+
+> **Tại sao không dùng OOG (Out of Gauge)?** OOG là 1 kiện hàng siêu trọng (turbine gió, máy biến thế) — một vật thể vật lý duy nhất chiếm nhiều slots liền kề. Nếu map gang scheduling sang OOG, ta sẽ gom 8 Pod thành 1 macro-block không chia được → **sai**, vì mỗi Pod trong gang vẫn là thực thể riêng biệt:
+> - Mỗi Pod tiêu hao resource **riêng** trên Node nó đậu (CPU, RAM, GPU)
+> - Mỗi Pod vẫn gây noisy neighbor với các Pod khác trên cùng Node
+> - Mỗi Pod có thể có resource request khác nhau (worker 80GB VRAM vs parameter server 16GB VRAM)
+> - Mỗi Pod vẫn phải thỏa mãn affinity/anti-affinity cá nhân
+>
+> **Analogy đúng: Block Booking / Slot Charter.** Một shipper đặt trước 20 container trên chuyến tàu. Hãng tàu phải xếp được **tất cả 20**, hoặc **từ chối cả booking**. Nhưng mỗi container trong lô vẫn có trọng lượng riêng, vẫn có thể là reefer/hazmat, vẫn ảnh hưởng trọng tâm bay nó đậu. Constraint "all-or-nothing" nằm ở **tầng thương mại** (booking), không ở tầng vật lý (kích thước).
+
+#### Hệ quả cho Chromosome Encoding: Pod-level, không phải Group-level
+
+Vì gang pods **không phải monolithic block**, mỗi pod vẫn cần là một biến quyết định riêng biệt trong chromosome. Trong CSP, đây gọi là **coupled variables** — nhiều biến có ràng buộc liên kết, nhưng mỗi biến vẫn có domain riêng.
+
+```go
+// PodGroup represents a gang-scheduled unit — all pods must be placed, or none.
+// Maritime analogy: Block Booking — a batch of individual containers bound by
+// a commercial "all-or-nothing" constraint, NOT a single monolithic OOG cargo.
+// Each pod still individually affects the node it lands on.
+type PodGroup struct {
+    Name        string
+    Pods        []int          // indices into the global Pod slice
+    MinMembers  int            // all-or-nothing: MinMembers == len(Pods)
+
+    // Constraint: which nodes are eligible for this group?
+    // e.g., all pods need GPU nodes with NVLink topology
+    NodeSelector map[string]string
+
+    // Scheduling mode
+    Colocate     bool          // true = prefer same node/rack (NVLink locality)
+}
+```
+
+Chromosome encoding giữ nguyên pod-level — mỗi gang pod là 1 phần tử riêng trong `Assignment[]`:
+
+```go
+type Blueprint struct {
+    Assignment []int           // len = ALL pods (gang + non-gang), value = node index
+    Fitness    float64
+    NodeLoad   []ResourceVector // cached per-node resource usage for fast fitness eval
+}
+// Gang constraint enforce ở tầng trên (CSP + fitness), không ở tầng encoding.
+```
+
+#### GA Operators: Gang-aware Mutation & Crossover
+
+**Mutation** — move từng pod riêng, rollback nếu phá gang:
+
+```go
+func mutate(b *Blueprint, groups []PodGroup, rate float64) {
+    for i, nodeID := range b.Assignment {
+        if rand.Float64() > rate { continue }
+
+        if g := findGroup(i, groups); g != nil {
+            // Pod thuộc gang → thử move, kiểm tra gang feasibility
+            newNode := randomEligibleNode(i)
+            b.Assignment[i] = newNode
+            if !gangStillFeasible(b, g) {
+                b.Assignment[i] = nodeID  // rollback
+            }
+        } else {
+            // Pod thường → mutation bình thường
+            b.Assignment[i] = randomEligibleNode(i)
+        }
+    }
+}
+```
+
+**Crossover** — uniform crossover + gang repair:
+
+```go
+func crossover(p1, p2 *Blueprint, groups []PodGroup) *Blueprint {
+    child := uniformCrossover(p1, p2)
+
+    // Crossover có thể cắt ngang 1 gang: lấy pod 1-4 từ p1, pod 5-8 từ p2
+    // → kết hợp có thể vỡ capacity trên 1 node nào đó.
+    // Repair: fallback lấy toàn bộ gang assignment từ parent tốt hơn.
+    for _, g := range groups {
+        if !gangStillFeasible(child, &g) {
+            source := betterParent(p1, p2)
+            for _, podIdx := range g.Pods {
+                child.Assignment[podIdx] = source.Assignment[podIdx]
+            }
+        }
+    }
+    return child
+}
+```
+
+**Fitness** — gang vi phạm = hard constraint, giết solution:
+
+```go
+func gangPenalty(b *Blueprint, groups []PodGroup) float64 {
+    for _, g := range groups {
+        placed := 0
+        for _, podIdx := range g.Pods {
+            if nodeHasCapacityFor(b.Assignment[podIdx], podIdx, b.NodeLoad) {
+                placed++
+            }
+        }
+        if placed < g.MinMembers {
+            return -math.MaxFloat64  // kill this solution
+        }
+    }
+    return 0
+}
+```
+
+#### CSP Forward Checking for Pod Group
+
+Trước khi GA mutation di chuyển bất kỳ pod nào trong gang, check cả gang trước — đúng tinh thần hàng hải: *"trước khi nhận booking 20 container, kiểm tra tàu còn đủ slots cho tất cả 20 cái không."*
+
+```go
+func canPlaceGang(group PodGroup, candidateNodes []int, nodeCapacity []ResourceVector) bool {
+    // 1. Check: đủ nodes eligible cho tất cả pods trong gang?
+    eligible := filterBySelector(candidateNodes, group.NodeSelector)
+    if len(eligible) < len(group.Pods) {
+        return false  // prune immediately — không đủ nodes
+    }
+
+    // 2. Check: tổng remaining capacity >= tổng resource demand?
+    totalDemand := sumResources(group.Pods)
+    totalAvail := sumRemainingCapacity(eligible)
+    if !totalAvail.FitsAll(totalDemand) {
+        return false  // prune immediately — không đủ tổng resource
+    }
+
+    // 3. If colocate=true: có node/rack nào chứa được cả gang không?
+    if group.Colocate {
+        for _, n := range eligible {
+            if nodeCapacity[n].FitsAll(totalDemand) {
+                return true
+            }
+        }
+        return false  // không rack nào đủ chỗ cho cả nhóm
+    }
+
+    return true
+}
+```
+
+
+### DaemonSet pods
+
+pre-process (trừ hao capacity trước) hay model như Pod bình thường với constraint đặc biệt?
+
 
 ## 5. Input Schema
 
@@ -169,6 +333,26 @@
 
   Câu hỏi: User có thể override các giá trị này qua CLI flags hoặc config file không? Hay chỉ có developer mới tune được?
 -->
+
+### FFD Parameters
+- alpha, beta, gamma (resource weights cho synthetic volume)
+- Node sorting order
+
+### GA Parameters  
+- Population size (128/256/512/1024 — decision logic?)
+- Max generations
+- Mutation rate
+- Crossover rate
+- Elitism percentage
+- Early stopping threshold
+- Random seed (for reproducibility)
+
+### Fitness Weights
+- w_node_count
+- w_fragmentation
+- w_affinity_violation
+- w_utilization_variance
+- Penalty cho hard constraint violation
 
 ## 8. CLI Interface Design
 
