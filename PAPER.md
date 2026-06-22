@@ -71,14 +71,89 @@ Bảng dưới đây thể hiện sự tương đồng 1:1 giữa các quy tắc
 
 ### 3.2. Formal Definition
 
-<!-- [Q-Claude] Bảng analogy ở trên rất trực quan, nhưng một bài báo cần phần formal definition chặt chẽ hơn:
-  - Định nghĩa tập hợp: N = {n_1, ..., n_m} (Nodes), P = {p_1, ..., p_k} (Pods), R = {CPU, RAM, GPU, ...} (Resource dimensions)
-  - Objective function: minimize gì? Bạn viết "minimize number of Nodes y_j" nhưng fitness function lại có nhiều thành phần (fragmentation, affinity, balance). Vậy đây là single-objective hay multi-objective optimization?
-  - Hard constraints vs soft constraints: liệt kê formal dạng bất đẳng thức
-  - Bảng notation cho tất cả ký hiệu toán học dùng trong paper
+#### Notation
 
-  Câu hỏi: Bạn có muốn formulate bài toán dưới dạng ILP chuẩn (với decision variables x_ij, y_j) không, hay chỉ describe GA-based heuristic?
--->
+| Symbol | Definition |
+|---|---|
+| $\mathcal{N} = \{n_1, \ldots, n_m\}$ | Set of Nodes in the cluster |
+| $\mathcal{P} = \{p_1, \ldots, p_k\}$ | Set of Pods to schedule (excluding DaemonSet pods) |
+| $\mathcal{R} = \{\text{CPU}, \text{RAM}, \text{GPU}, \ldots\}$ | Set of resource dimensions |
+| $\mathcal{G} = \{G_1, \ldots, G_q\}$ | Set of Pod Groups (gangs) |
+| $\mathcal{D} = \{d_1, \ldots, d_h\}$ | Set of DaemonSets |
+| $x_{ij} \in \{0, 1\}$ | Decision variable: 1 if pod $p_i$ is assigned to node $n_j$ |
+| $y_j \in \{0, 1\}$ | 1 if node $n_j$ has at least one pod assigned |
+| $\text{req}_i^r$ | Resource request of pod $p_i$ for resource $r \in \mathcal{R}$ |
+| $C_j^r$ | Allocatable capacity of node $n_j$ for resource $r$, **after DaemonSet pre-deduction** |
+| $U_j^r$ | Utilization of node $n_j$ for resource $r$: $U_j^r = \sum_{i} x_{ij} \cdot \text{req}_i^r / C_j^r$ |
+
+#### Phase 0: DaemonSet Pre-deduction (Fixed Variables)
+
+DaemonSets are not decision variables — they are the ship's own systems (ballast, monitoring, comms), pre-deducted before optimization begins:
+
+$$C_j^r = C_{j,\text{raw}}^r - \sum_{d \in \mathcal{D}} \mathbb{1}[\text{eligible}(d, n_j)] \cdot \text{res}_d^r$$
+
+where $\mathbb{1}[\text{eligible}(d, n_j)]$ is 1 if DaemonSet $d$ runs on node $n_j$ (based on nodeSelector and tolerations). After this step, $\mathcal{P}$ and $C_j^r$ are the only inputs to the optimizer.
+
+#### Decision Variables (Chromosome Encoding)
+
+Each solution (Blueprint) is encoded as a pod-level assignment vector:
+
+$$\mathbf{s} = [x_1, x_2, \ldots, x_k] \quad \text{where } x_i \in \{1, \ldots, m\} \text{ is the node index for pod } p_i$$
+
+Gang pods are **not** aggregated into macro-blocks. Each pod in a gang remains an individual decision variable (coupled variable in CSP), because each pod independently consumes resources on its assigned node.
+
+#### Objective Function (Single-objective, Weighted Sum)
+
+$$\min F(\mathbf{s}) = w_1 \cdot f_{\text{nodes}}(\mathbf{s}) + w_2 \cdot f_{\text{frag}}(\mathbf{s}) + w_3 \cdot f_{\text{affinity}}(\mathbf{s}) + w_4 \cdot f_{\text{var}}(\mathbf{s}) + \Phi(\mathbf{s})$$
+
+where:
+
+| Component | Formula | Maritime Analogy |
+|---|---|---|
+| $f_{\text{nodes}}$ | $\sum_{j=1}^{m} y_j$ (number of active nodes) | Minimize number of bays used |
+| $f_{\text{frag}}$ | $\sum_{j: y_j=1} \sum_{r} \max(0, C_j^r - \sum_i x_{ij} \cdot \text{req}_i^r)$ (wasted capacity) | Minimize empty slots in used bays |
+| $f_{\text{affinity}}$ | Number of soft affinity/anti-affinity rule violations | Destination port grouping violations |
+| $f_{\text{var}}$ | $\text{Var}(\{U_j^r : y_j = 1\})$ (utilization variance across active nodes) | Vessel trim & stability |
+| $\Phi(\mathbf{s})$ | Hard constraint penalty: $-\infty$ if any hard constraint violated | Immediate rejection of illegal stowage |
+
+#### Hard Constraints (CSP — must not violate)
+
+1. **Capacity**: No node exceeds allocatable resources on any dimension.
+
+$$\forall j, \forall r \in \mathcal{R}: \quad \sum_{i=1}^{k} x_{ij} \cdot \text{req}_i^r \le C_j^r$$
+
+2. **Assignment**: Every pod is assigned to exactly one node.
+
+$$\forall i: \quad \sum_{j=1}^{m} x_{ij} = 1$$
+
+3. **Taint/Toleration**: Pod can only be placed on a tainted node if it has the matching toleration.
+
+$$\forall i, j: \quad x_{ij} = 1 \implies \text{Taints}(n_j) \subseteq \text{Tolerations}(p_i)$$
+
+4. **NodeSelector / NodeAffinity (required)**: Pod can only be placed on nodes matching its selector.
+
+$$\forall i, j: \quad x_{ij} = 1 \implies \text{Labels}(n_j) \supseteq \text{Selector}(p_i)$$
+
+5. **Gang All-or-Nothing (Block Booking)**: For each pod group $G_q = \{p_{q_1}, \ldots, p_{q_t}\}$, either all pods are feasibly placed, or none.
+
+$$\forall G_q \in \mathcal{G}: \quad \sum_{i \in G_q} \mathbb{1}[\text{feasible}(p_i)] = |G_q| \quad \text{or} \quad 0$$
+
+This is a coupled constraint — each $x_{q_l, j}$ is a separate decision variable, but the group constraint binds them. (Maritime analogy: Block Booking, not OOG — individual containers with a commercial all-or-nothing commitment.)
+
+#### Soft Constraints (Fitness — optimize but don't reject)
+
+1. **Pod Affinity (preferred)**: Reward co-locating communicating pods on same node/zone.
+2. **Pod Anti-Affinity (preferred)**: Penalize co-locating conflicting pods.
+3. **Topology Spread**: Penalize uneven distribution across zones/racks.
+4. **Utilization Balance**: Minimize variance of utilization across active nodes (vessel stability).
+
+#### Complexity
+
+The problem is a Multi-Dimensional Bin Packing Problem (MDBP), known to be **NP-hard** (Garey & Johnson, 1979). The search space is:
+
+$$|\mathcal{S}| = m^k$$
+
+For a medium cluster ($m = 100, k = 500$): $|\mathcal{S}| = 10^{1000}$ — brute-force is infeasible. This motivates the hybrid FFD (warm-start) + GA (heuristic optimization) + CSP (constraint enforcement) approach.
 
 ## 4. Proposed Method
 

@@ -276,8 +276,63 @@ func canPlaceGang(group PodGroup, candidateNodes []int, nodeCapacity []ResourceV
 
 ### DaemonSet pods
 
-pre-process (trừ hao capacity trước) hay model như Pod bình thường với constraint đặc biệt?
+DaemonSets **pre-process: trừ hao capacity trước khi GA/FFD chạy.**
 
+#### Analogy hàng hải: Hệ thống nội tại của tàu
+
+DaemonSet là **hệ thống vận hành của chính con tàu** — tồn tại trước khi bất kỳ container nào được bốc lên:
+
+| Hệ thống tàu | DaemonSet tương ứng |
+|---|---|
+| Hệ thống bơm nước dằn (Ballast) — chống lật | `kube-proxy` — networking cơ bản trên mọi node |
+| Hệ thống quan trắc (sensors, gauges) | `node-exporter`, `datadog-agent` — monitoring |
+| Hệ thống liên lạc (radio, AIS) | `calico-node`, `cilium` — CNI networking |
+| Hệ thống làm mát turbine | `csi-node-driver` — storage driver |
+| Hệ thống cảnh báo va chạm | `falco`, `kube-audit` — security monitoring |
+
+Không ai "xếp" những hệ thống này vào tàu — chúng **là** tàu. Stowage planner nhìn vào tàu và thấy: "tàu này capacity 24,000 TEU, nhưng trừ hệ thống nội tại (bơm, ống dẫn, lối đi) → capacity thực cho hàng hóa là 23,200 TEU." Rồi mới bắt đầu planning.
+
+#### Cách xử lý trong Kuberina
+
+DaemonSets **không nằm trong search space** — chúng là **fixed variables**, không phải decision variables:
+
+```go
+// Phase 0: Pre-deduct DaemonSet resource consumption from node capacity.
+// This runs BEFORE FFD and GA — the optimizer never sees DaemonSet pods.
+func preDeductDaemonSets(nodes []Node, daemonSets []DaemonSet) {
+    for i := range nodes {
+        for _, ds := range daemonSets {
+            if ds.ShouldRunOn(&nodes[i]) {  // check nodeSelector, tolerations
+                nodes[i].Allocatable.CPU -= ds.Resources.CPU
+                nodes[i].Allocatable.RAM -= ds.Resources.RAM
+                // GPU DaemonSets rất hiếm, nhưng handle cho đúng
+                nodes[i].Allocatable.GPU -= ds.Resources.GPU
+            }
+        }
+    }
+    // Sau bước này, nodes[i].Allocatable = capacity THỰC cho workload pods.
+    // FFD và GA chỉ thấy capacity đã trừ hao.
+}
+```
+
+```go
+// DaemonSet represents a system-level workload that runs on every eligible node.
+// Maritime analogy: Ship's own systems (ballast pumps, comms, sensors).
+// NOT cargo — pre-deducted from capacity, not part of the optimization problem.
+type DaemonSet struct {
+    Name         string
+    Resources    ResourceVector         // resource consumed per node
+    NodeSelector map[string]string      // which nodes this DS runs on
+    Tolerations  []Toleration           // DS thường tolerate mọi taint
+}
+```
+
+#### Tại sao không model DaemonSet như Pod bình thường?
+
+Nếu cho DaemonSet pods vào GA search space:
+- **Lãng phí compute**: GA sẽ thử "move" kube-proxy từ Node 1 sang Node 3 → vô nghĩa, kube-proxy phải chạy trên MỌI node
+- **Search space phình to vô ích**: 10 loại DaemonSet × 100 nodes = 1000 pods thêm vào chromosome → tăng từ 500 lên 1500 biến, mà kết quả bắt buộc chỉ có 1 cách duy nhất
+- **Violates reality**: DaemonSet không phải "quyết định scheduling" — chúng là tiền đề (precondition)
 
 ## 5. Input Schema
 
