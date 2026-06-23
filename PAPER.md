@@ -47,6 +47,25 @@
   Câu hỏi quan trọng: Bạn đã có danh sách references chưa? Nếu chưa, tôi có thể giúp tìm các paper liên quan.
 -->
 
+### 3.1. Google Autopilot
+
+Google Autopilot là một giải pháp bị giới hạn về mặt thời gian (time-bounding). Nó sử dụng các cửa sổ trượt (moving windows) và thuật toán học máy dựa trên dữ liệu tiêu thụ tài nguyên trong quá khứ. Nếu nó set limit RAM quá thấp và một container bị chết (OOM), nó sẽ ghi nhận "chi phí" của sai lầm đó. Ở chu kỳ tính toán tiếp theo, nó sẽ tăng limit lên để bù đắp. Tuy nhiên, Autopilot giả định tài nguyên của cluster là vô hạn: nó không quan tâm máy chủ vật lý có đủ chỗ hay không. Thiếu thì cứ tăng limit, Borg sẽ tự động đi tìm (hoặc đẻ thêm) máy mới để chứa. Ràng buộc duy nhất của nó là làm sao để bám sát theo sự thay đổi của tải qua thời gian.
+
+Kuberina thì ngược lại so với Autopilot, nó bị giới hạn bởi phần cứng vật lý mà toàn bộ cụm tài nguyên có (resource-bounding). Kuberina không giả định rằng mây sẽ tự đẻ ra máy. Nó nhận đầu vào là các giới hạn cứng: có 10 Node, tổng cộng 640GB RAM và 8 card A100 và thuật toán không được quyền vượt qua các ràng buộc này. Vì bị khóa chặt trong một hộp tài nguyên cố định, Kuberina không "đoán thời gian", mà nó chơi trò hình học không gian (Đóng gói đa chiều - MDBP). Nó thử xoay, lật, nhét các khối workloads vào các khe hở của Node sao cho vừa khít nhất.
+
+| Đặc tính | Google Autopilot (Time-Bounding) | Kuberina (Resource-Bounding) |
+| --- | --- | --- |
+| **Vùng hoạt động** | Runtime | Pre-deployment |
+| **Hệ quy chiếu** | Trục Thời Gian | Trục Không Gian |
+| **Dữ liệu đầu vào** | Metrics lịch sử (CPU/RAM tiêu thụ thực) | Yêu cầu tài nguyên tĩnh (declarative Requests/Limits) |
+| **Cách xử lý sai lầm** | Sửa sai ở chu kỳ thời gian tiếp theo (Learn from failure) | Cấm sai lầm bằng cách cắt tỉa nhánh (Pruning) thuật toán trước khi deploy. |
+| **Hàm mục tiêu** | Bám sát tải thực tế, tự động nới lỏng/siết chặt. | Nhét được số lượng Pod tối đa vào một dung lượng Node cố định. |
+
+
+Điều này không có nghĩa là Kuberina không thể học hỏi từ Autopilot. Trên thực tế, Autopilot và Kuberina là hai mặt bổ sung cho nhau. Kuberina giải quyết bài toán theo trục không gian (giả lập mọi khả năng ở hiện tại trước khi triển khai). Nó vẽ ra một cái khung hoàn hảo, nhưng cứng nhắc. Nếu đời thực đột nhiên chệch nhịp, Kuberina's `blueprint` tĩnh sẽ gặp rủi ro. Autopilot giải quyết bài toán theo trục thời gian (sửa sai bằng cách học từ quá khứ). Nó cực kỳ linh hoạt, nhưng vì nó "mù" về tổng thể giới hạn vật lý và có thể vô tình nới rộng giới hạn (Limit) của một số Pod đến mức làm vỡ cụm máy chủ. Khi kết hợp lại: Kuberina sẽ đóng vai trò xây dựng hai bờ đê vật lý (Resource-bounding), Autopilot sẽ là dòng nước chảy bên trong con đê đó (Time-bounding). 
+
+Chúng tôi gọi hiện tượng nảy sinh từ sự kết hợp giữa hai phần mềm này là "resource canal". The core of Autopilot's algorithm is an `Arg Min` function (tìm giá trị nhỏ nhất) của hàm chi phí: Chi phí Overrun (cấp thiếu tài nguyên dẫn đến OOM/chậm) và chi phí Underrun (cấp thừa tài nguyên dẫn đến lãng phí máy chủ). Khi Autopilot chạy trong "resource canal" do Kuberina tạo ra, hàm chi phí này không còn là phép thử-sai mù quáng nữa. Kuberina đã chặn đứng cực trị của Underrun và Overrun ngay từ đầu, khiến thuật toán học tăng cường (RL) của Autopilot hội tụ (converge) nhanh gấp hàng chục lần.
+
 ## 3. Problem Formulation
 
 ### 3.1. Analogy: Maritime Stowage Planning and Kubernetes Scheduling
