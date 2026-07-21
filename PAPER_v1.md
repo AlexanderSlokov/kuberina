@@ -189,6 +189,48 @@ Kết quả đầu ra của Kuberina (Điểm fitness giảm mạnh từ $59.42$
 - **Node Beta (CPU: 76%, RAM: 31%):** Chứa `pihole`, `home-assistant`, `zigbee2mqtt`, `nextcloud`, `postgres`, `mosquitto`, `vaultwarden`.
 - **Node Gamma:** **Trống hoàn toàn (0%).**
 
+Kết quả từ công cụ:
+
+```bash
+2026-07-22 00:37:41,538 [INFO] Loaded 3 nodes, 3 daemonsets, 10 pods, 0 groups
+
+═══ Phase 0: DaemonSet Pre-deduction (Ballast Water) ═══
+  thinkcentre-alpha: 4.0 → 3.55 CPU, 16.0 → 15.744 GiB RAM (-0.45 CPU, -0.256 GiB overhead)
+  thinkcentre-beta: 4.0 → 3.55 CPU, 16.0 → 15.744 GiB RAM (-0.45 CPU, -0.256 GiB overhead)
+  thinkcentre-gamma: 4.0 → 3.55 CPU, 16.0 → 15.744 GiB RAM (-0.45 CPU, -0.256 GiB overhead)
+
+2026-07-22 00:37:41,539 [INFO] Phase 1 (FFD): seed fitness = 59.4225
+2026-07-22 00:37:41,562 [INFO] Gen 0: best_fitness=44.2511
+2026-07-22 00:37:42,123 [INFO] Gen 50: best_fitness=44.2448
+2026-07-22 00:37:42,135 [INFO] Early stop at generation 51 (no improvement for 50 gens)
+
+═══ Final Blueprint (Stowage Plan) ═══
+  Fitness: 44.2448
+  Time: 0.61s
+
+  thinkcentre-alpha:
+    - jellyfin
+    - grafana
+    - prometheus
+    CPU: 2.80/3.55 (79%)
+    RAM: 4.012/15.744 GiB (25%)
+
+  thinkcentre-beta:
+    - pihole
+    - home-assistant
+    - zigbee2mqtt
+    - nextcloud
+    - postgres
+    - mosquitto
+    - vaultwarden
+    CPU: 2.70/3.55 (76%)
+    RAM: 4.832/15.744 GiB (31%)
+
+  thinkcentre-gamma:
+    CPU: 0.00/3.55 (0%)
+    RAM: 0.000/15.744 GiB (0%)
+```
+
 ### **4. Phân tích Đối chiếu (Comparative Analysis)**
 Nếu một Kỹ sư Hệ thống hoặc một mô hình Ngôn ngữ AI tự suy luận thủ công để lập lịch cho 10 dịch vụ này, chúng ta có xu hướng phân bổ đều tải (load balancing) ra cả 3 node để đảm bảo an toàn, hoặc dễ dàng xếp nhầm `jellyfin` chung với `postgres` do không thể liên tục tính nhẩm ma trận dung lượng 3 chiều. 
 
