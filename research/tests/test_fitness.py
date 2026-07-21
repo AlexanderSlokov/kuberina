@@ -83,7 +83,7 @@ def test_utilization_variance_balanced() -> None:
 
 
 def test_hard_penalty_on_overcapacity() -> None:
-    """Blueprint violating capacity should get -inf fitness."""
+    """Blueprint violating capacity should get +inf fitness."""
     pods = [Pod(name="p", namespace="ns", requests=ResourceVector(cpu=5.0))]
     nodes = [Node(name="n", allocatable=ResourceVector(cpu=4.0, ram=16.0))]
     bp = Blueprint(
@@ -91,4 +91,4 @@ def test_hard_penalty_on_overcapacity() -> None:
         node_load=[ResourceVector(cpu=5.0)],
     )
     fitness = compute_fitness(bp, pods, nodes, [], FitnessWeights())
-    assert math.isinf(fitness) and fitness < 0
+    assert math.isinf(fitness) and fitness > 0

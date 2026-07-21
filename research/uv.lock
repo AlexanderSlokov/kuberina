@@ -21,7 +21,7 @@ wheels = [
 ]
 
 [[package]]
-name = "kuberina-research"
+name = "kuberina"
 version = "0.0.0"
 source = { editable = "." }
 dependencies = [

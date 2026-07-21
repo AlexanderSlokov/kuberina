@@ -38,7 +38,7 @@ def compute_fitness(
         >>> # (see test_fitness.py for full examples)
     """
     penalty = compute_hard_penalty(blueprint, pods, nodes, groups)
-    if math.isinf(penalty) and penalty < 0:
+    if math.isinf(penalty) and penalty > 0:
         return penalty
 
     f_nodes = count_active_nodes(blueprint.assignment, len(nodes))
@@ -176,7 +176,7 @@ def compute_hard_penalty(
         >>> # (see test_fitness.py for violation examples)
     """
     if not check_capacity_all_nodes(blueprint.assignment, pods, nodes):
-        return -math.inf
+        return math.inf
 
     penalty = _gang_penalty(blueprint, pods, nodes, groups)
     return penalty
@@ -204,5 +204,5 @@ def _gang_penalty(
             if node_cap.fits(blueprint.node_load[node_idx]):
                 placed += 1
         if placed < group.min_members:
-            return -math.inf
+            return math.inf
     return 0.0

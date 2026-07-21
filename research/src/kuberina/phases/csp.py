@@ -117,7 +117,7 @@ def can_place_gang(
         True
     """
     eligible = _filter_eligible_nodes(group, nodes, pods)
-    if len(eligible) < len(group.pod_indices):
+    if not eligible:
         return False
 
     total_demand = _sum_gang_demand(group, pods)

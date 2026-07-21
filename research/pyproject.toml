@@ -1,5 +1,5 @@
 [project]
-name = "kuberina-research"
+name = "kuberina"
 version = "0.0.0"
 description = "Kuberina v0.0.0 MVP — Maritime stowage-inspired K8s scheduling optimizer"
 readme = "README.md"
@@ -14,8 +14,8 @@ dependencies = [
 [project.scripts]
 kuberina = "kuberina.__main__:main"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=8.0",
 ]
 
