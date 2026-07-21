@@ -1,0 +1,27 @@
+[project]
+name = "kuberina"
+version = "0.0.0"
+description = "Kuberina v0.0.0 MVP — Maritime stowage-inspired K8s scheduling optimizer"
+readme = "README.md"
+authors = [
+    { name = "Aleksandr Slokov", email = "thanhzeus2016@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+kuberina = "kuberina.__main__:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.30,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
