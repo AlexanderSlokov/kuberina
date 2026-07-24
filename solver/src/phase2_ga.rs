@@ -62,13 +62,30 @@ pub fn run_ga(
             break;
         }
 
-        if generation % 50 == 0 {
+        if generation % 10 == 0 {
             let pct = (generation + 1) as f64 / config.max_generations as f64 * 100.0;
             let filled = (pct / 5.0) as usize;
             let bar: String = "█".repeat(filled) + &"░".repeat(20 - filled);
+            
+            if generation > 0 {
+                eprint!("\x1B[4A"); // Move cursor up 4 lines
+            }
+            
             eprintln!(
-                "Gen {:>4}/{} | best={:.4} | stale={:<3} | {} {:.0}%",
+                "\x1B[2KGen {:>4}/{} | best={:.4} | stale={:<3} | {} {:.0}%",
                 generation, config.max_generations, best.fitness, stale_count, bar, pct,
+            );
+            eprintln!(
+                "\x1B[2K  [Scorecard] Cap: {:.0} | Sel: {:.0} | Gang: {:.0}",
+                best.scorecard.capacity_penalty, best.scorecard.selector_penalty, best.scorecard.gang_penalty
+            );
+            eprintln!(
+                "\x1B[2K              Frag: {:.2} | Aff: {:.0} | Var: {:.4}",
+                best.scorecard.fragmentation, best.scorecard.affinity_violations, best.scorecard.utilization_variance
+            );
+            eprintln!(
+                "\x1B[2K  [Nodes] Active: {:.0} / {}",
+                best.scorecard.active_nodes, nodes.len()
             );
         }
 
@@ -114,7 +131,9 @@ fn evaluate_all(
 ) {
     population.par_iter_mut().for_each(|bp| {
         bp.node_load = compute_node_loads(&bp.assignment, pods, nodes.len());
-        bp.fitness = compute_fitness(bp, pods, nodes, groups, weights);
+        let (fitness, sc) = compute_fitness(bp, pods, nodes, groups, weights);
+        bp.fitness = fitness;
+        bp.scorecard = sc;
     });
 }
 
@@ -269,29 +288,90 @@ fn mutate(
             continue;
         }
 
-        let old_node = blueprint.assignment[i];
-        let eligible = eligible_nodes_for_pod(&pods[i], nodes);
-        if eligible.is_empty() {
-            continue;
-        }
+        let is_swap = rng.random_bool(0.5);
 
-        let &new_node = eligible.choose(rng).unwrap();
-        let group_idx = group_lookup[i];
-        let mut was_feasible = false;
-        
-        if let Some(g_idx) = group_idx {
-            // WHY: Record if the gang was feasible BEFORE we try to move a pod.
-            was_feasible = gang_is_feasible(blueprint, &groups[g_idx], nodes);
-        }
+        if is_swap {
+            // Swap operator
+            let j = rng.random_range(0..pods.len());
+            if i == j {
+                continue;
+            }
 
-        blueprint.assignment[i] = new_node;
+            let node_i = blueprint.assignment[i];
+            let node_j = blueprint.assignment[j];
+            if node_i == node_j {
+                continue;
+            }
 
-        if let Some(g_idx) = group_idx {
-            blueprint.node_load = compute_node_loads(&blueprint.assignment, pods, num_nodes);
-            // WHY: Only rollback if the gang WAS feasible and we BROKE it.
-            // If it was already broken (e.g. FFD fallback to node 0), let it move!
-            if was_feasible && !gang_is_feasible(blueprint, &groups[g_idx], nodes) {
-                blueprint.assignment[i] = old_node; // rollback
+            // Check if nodes are eligible for each other
+            if !can_place_pod_on_node(&pods[i], &nodes[node_j]) || 
+               !can_place_pod_on_node(&pods[j], &nodes[node_i]) {
+                continue;
+            }
+
+            let group_i = group_lookup[i];
+            let group_j = group_lookup[j];
+
+            let mut was_feasible_i = false;
+            let mut was_feasible_j = false;
+
+            if let Some(g_idx) = group_i {
+                was_feasible_i = gang_is_feasible(blueprint, &groups[g_idx], nodes);
+            }
+            if let Some(g_idx) = group_j {
+                was_feasible_j = gang_is_feasible(blueprint, &groups[g_idx], nodes);
+            }
+
+            // Perform swap
+            blueprint.assignment[i] = node_j;
+            blueprint.assignment[j] = node_i;
+
+            let mut rollback = false;
+
+            if group_i.is_some() || group_j.is_some() {
+                blueprint.node_load = compute_node_loads(&blueprint.assignment, pods, num_nodes);
+                
+                if let Some(g_idx) = group_i {
+                    if was_feasible_i && !gang_is_feasible(blueprint, &groups[g_idx], nodes) {
+                        rollback = true;
+                    }
+                }
+                
+                if let Some(g_idx) = group_j {
+                    if was_feasible_j && !gang_is_feasible(blueprint, &groups[g_idx], nodes) {
+                        rollback = true;
+                    }
+                }
+            }
+
+            if rollback {
+                blueprint.assignment[i] = node_i;
+                blueprint.assignment[j] = node_j;
+            }
+
+        } else {
+            // Move operator
+            let old_node = blueprint.assignment[i];
+            let eligible = eligible_nodes_for_pod(&pods[i], nodes);
+            if eligible.is_empty() {
+                continue;
+            }
+
+            let &new_node = eligible.choose(rng).unwrap();
+            let group_idx = group_lookup[i];
+            let mut was_feasible = false;
+            
+            if let Some(g_idx) = group_idx {
+                was_feasible = gang_is_feasible(blueprint, &groups[g_idx], nodes);
+            }
+
+            blueprint.assignment[i] = new_node;
+
+            if let Some(g_idx) = group_idx {
+                blueprint.node_load = compute_node_loads(&blueprint.assignment, pods, num_nodes);
+                if was_feasible && !gang_is_feasible(blueprint, &groups[g_idx], nodes) {
+                    blueprint.assignment[i] = old_node; // rollback
+                }
             }
         }
     }

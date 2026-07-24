@@ -71,7 +71,9 @@ fn run_plan(infra_path: &str, workloads_path: &str) {
     let ffd_weights = FfdWeights::default();
     let mut seed = ffd_warmstart(&pods, &nodes, &ffd_weights);
     let fitness_weights = FitnessWeights::default();
-    seed.fitness = compute_fitness(&seed, &pods, &nodes, &groups, &fitness_weights);
+    let (fitness, sc) = compute_fitness(&seed, &pods, &nodes, &groups, &fitness_weights);
+    seed.fitness = fitness;
+    seed.scorecard = sc.clone();
     eprintln!("Phase 1 (FFD): seed fitness = {:.4}", seed.fitness);
 
     // Phase 2: GA optimization (evolutionary stowage planning)
@@ -132,20 +134,23 @@ fn print_phase0_summary(
     }
 }
 
-fn print_blueprint(
-    blueprint: &kuberina_solver::model::Blueprint,
-    pods: &[kuberina_solver::model::Pod],
-    nodes: &[kuberina_solver::model::Node],
-    elapsed: f64,
-) {
+fn print_blueprint(best: &Blueprint, pods: &[Pod], nodes: &[Node], elapsed: f64) {
     println!("\n═══ Final Blueprint (Stowage Plan) ═══");
-    println!("  Fitness: {:.4}", blueprint.fitness);
+    println!("  Fitness: {:.4}", best.fitness);
     println!("  Time: {:.2}s", elapsed);
+    println!("  Scorecard:");
+    println!("    Capacity Penalty: {:.0}", best.scorecard.capacity_penalty);
+    println!("    Selector Penalty: {:.0}", best.scorecard.selector_penalty);
+    println!("    Gang Penalty: {:.0}", best.scorecard.gang_penalty);
+    println!("    Active Nodes: {:.0}", best.scorecard.active_nodes);
+    println!("    Fragmentation: {:.2}", best.scorecard.fragmentation);
+    println!("    Affinity Violations: {:.0}", best.scorecard.affinity_violations);
+    println!("    Utilization Variance: {:.4}", best.scorecard.utilization_variance);
     println!();
 
     let num_nodes = nodes.len();
     let mut node_pods: Vec<Vec<&str>> = vec![vec![]; num_nodes];
-    for (pod_idx, &node_idx) in blueprint.assignment.iter().enumerate() {
+    for (pod_idx, &node_idx) in best.assignment.iter().enumerate() {
         node_pods[node_idx].push(&pods[pod_idx].name);
     }
 

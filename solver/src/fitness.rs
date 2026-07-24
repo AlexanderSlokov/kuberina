@@ -20,19 +20,28 @@ pub fn compute_fitness(
     nodes: &[Node],
     groups: &[PodGroup],
     weights: &FitnessWeights,
-) -> f64 {
-    let penalty = compute_hard_penalty(blueprint, pods, nodes, groups);
+) -> (f64, Scorecard) {
+    let mut sc = Scorecard::default();
+
+    let penalty = compute_hard_penalty(blueprint, pods, nodes, groups, &mut sc);
 
     let f_nodes = count_active_nodes(&blueprint.assignment, nodes.len()) as f64;
     let f_frag = compute_fragmentation(&blueprint.node_load, nodes);
     let f_aff = compute_affinity_violations(&blueprint.assignment, pods) as f64;
     let f_var = compute_utilization_variance(&blueprint.node_load, nodes);
 
-    penalty
+    sc.active_nodes = f_nodes;
+    sc.fragmentation = f_frag;
+    sc.affinity_violations = f_aff;
+    sc.utilization_variance = f_var;
+
+    let fitness = penalty
         + weights.node_count * f_nodes
         + weights.fragmentation * f_frag
         + weights.affinity_violation * f_aff
-        + weights.utilization_variance * f_var
+        + weights.utilization_variance * f_var;
+
+    (fitness, sc)
 }
 
 /// f_nodes: count nodes that have at least one pod assigned.
@@ -136,20 +145,28 @@ fn compute_hard_penalty(
     pods: &[Pod],
     nodes: &[Node],
     groups: &[PodGroup],
+    sc: &mut Scorecard,
 ) -> f64 {
     let mut total = 0.0_f64;
 
     let cap_overflow = compute_capacity_overflow(&blueprint.assignment, pods, nodes);
     if cap_overflow > 1e-9 {
-        total += 1_000_000.0 + cap_overflow * 10_000.0;
+        let p = 1_000_000.0 + cap_overflow * 10_000.0;
+        total += p;
+        sc.capacity_penalty = p;
     }
 
     let sel_violations = compute_selector_violations(&blueprint.assignment, pods, nodes);
     if sel_violations > 0 {
-        total += 500_000.0 + sel_violations as f64 * 50_000.0;
+        let p = 500_000.0 + sel_violations as f64 * 50_000.0;
+        total += p;
+        sc.selector_penalty = p;
     }
 
-    total += gang_penalty(blueprint, pods, nodes, groups);
+    let gp = gang_penalty(blueprint, pods, nodes, groups);
+    sc.gang_penalty = gp;
+    total += gp;
+
     total
 }
 
