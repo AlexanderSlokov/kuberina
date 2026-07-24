@@ -124,8 +124,8 @@ SERVICES: list[tuple] = [
     ("embedding-server",  "ai",        24, 5.0,  16.0, 1.0, {"gpu": "nvidia-a100"}, True),
     ("training-worker",   "ai",        16,12.0,  48.0, 4.0, {"gpu": "nvidia-a100"}, False),
     ("vision-pipeline",   "ai",        24, 4.0,  12.0, 1.0, {"gpu": "nvidia-a100"}, True),
-    ("recommendation-ml", "ai",        80, 3.0,  10.0, 0.0, {"gpu": "nvidia-a100"}, True),
-    ("feature-store",     "ai",       100, 2.0,   6.0, 0.0, {"gpu": "nvidia-a100"}, False),
+    ("recommendation-ml", "ai",        80, 3.0,  10.0, 0.0, {}, True),
+    ("feature-store",     "ai",       100, 2.0,   6.0, 0.0, {}, False),
 
     # ── Tier 2: Core platform (heavy CPU, anti-affinity spread) ────────
     ("api-gateway",       "platform", 100, 6.0,  12.0, 0.0, {},                     True),

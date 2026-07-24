@@ -1437,8 +1437,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: &id005
-    gpu: nvidia-a100
   antiAffinity:
   - recommendation-ml-0056
   - recommendation-ml-0078
@@ -1451,7 +1449,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0074
   - recommendation-ml-0025
@@ -1464,7 +1461,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0000
   - recommendation-ml-0067
@@ -1477,7 +1473,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0056
   - recommendation-ml-0009
@@ -1490,7 +1485,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0039
   - recommendation-ml-0065
@@ -1503,7 +1497,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0052
   - recommendation-ml-0038
@@ -1516,7 +1509,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0054
   - recommendation-ml-0049
@@ -1529,7 +1521,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0039
   - recommendation-ml-0052
@@ -1542,7 +1533,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0027
   - recommendation-ml-0056
@@ -1555,7 +1545,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0060
   - recommendation-ml-0057
@@ -1568,7 +1557,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0022
   - recommendation-ml-0011
@@ -1581,7 +1569,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0012
   - recommendation-ml-0031
@@ -1594,7 +1581,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0019
   - recommendation-ml-0003
@@ -1607,7 +1593,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0079
   - recommendation-ml-0009
@@ -1620,7 +1605,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0025
   - recommendation-ml-0050
@@ -1633,7 +1617,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0019
   - recommendation-ml-0000
@@ -1646,7 +1629,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0023
   - recommendation-ml-0067
@@ -1659,7 +1641,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0032
   - recommendation-ml-0015
@@ -1672,7 +1653,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0068
   - recommendation-ml-0072
@@ -1685,7 +1665,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0079
   - recommendation-ml-0065
@@ -1698,7 +1677,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0021
   - recommendation-ml-0061
@@ -1711,7 +1689,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0036
   - recommendation-ml-0067
@@ -1724,7 +1701,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0009
   - recommendation-ml-0037
@@ -1737,7 +1713,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0041
   - recommendation-ml-0070
@@ -1750,7 +1725,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0030
   - recommendation-ml-0050
@@ -1763,7 +1737,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0054
   - recommendation-ml-0053
@@ -1776,7 +1749,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0054
   - recommendation-ml-0007
@@ -1789,7 +1761,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0002
   - recommendation-ml-0074
@@ -1802,7 +1773,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0046
   - recommendation-ml-0039
@@ -1815,7 +1785,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0070
   - recommendation-ml-0078
@@ -1828,7 +1797,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0056
   - recommendation-ml-0063
@@ -1841,7 +1809,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0052
   - recommendation-ml-0021
@@ -1854,7 +1821,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0003
   - recommendation-ml-0051
@@ -1867,7 +1833,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0055
   - recommendation-ml-0017
@@ -1880,7 +1845,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0033
   - recommendation-ml-0049
@@ -1893,7 +1857,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0042
   - recommendation-ml-0044
@@ -1906,7 +1869,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0032
   - recommendation-ml-0010
@@ -1919,7 +1881,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0006
   - recommendation-ml-0045
@@ -1932,7 +1893,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0003
   - recommendation-ml-0031
@@ -1945,7 +1905,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0030
   - recommendation-ml-0016
@@ -1958,7 +1917,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0027
   - recommendation-ml-0060
@@ -1971,7 +1929,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0078
   - recommendation-ml-0014
@@ -1984,7 +1941,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0075
   - recommendation-ml-0003
@@ -1997,7 +1953,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0051
   - recommendation-ml-0025
@@ -2010,7 +1965,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0013
   - recommendation-ml-0038
@@ -2023,7 +1977,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0005
   - recommendation-ml-0044
@@ -2036,7 +1989,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0008
   - recommendation-ml-0065
@@ -2049,7 +2001,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0063
   - recommendation-ml-0013
@@ -2062,7 +2013,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0019
   - recommendation-ml-0056
@@ -2075,7 +2025,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0079
   - recommendation-ml-0069
@@ -2088,7 +2037,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0076
   - recommendation-ml-0034
@@ -2101,7 +2049,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0035
   - recommendation-ml-0058
@@ -2114,7 +2061,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0079
   - recommendation-ml-0048
@@ -2127,7 +2073,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0041
   - recommendation-ml-0023
@@ -2140,7 +2085,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0033
   - recommendation-ml-0043
@@ -2153,7 +2097,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0001
   - recommendation-ml-0067
@@ -2166,7 +2109,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0052
   - recommendation-ml-0063
@@ -2179,7 +2121,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0063
   - recommendation-ml-0058
@@ -2192,7 +2133,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0028
   - recommendation-ml-0051
@@ -2205,7 +2145,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0047
   - recommendation-ml-0061
@@ -2218,7 +2157,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0054
   - recommendation-ml-0071
@@ -2231,7 +2169,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0034
   - recommendation-ml-0039
@@ -2244,7 +2181,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0024
   - recommendation-ml-0040
@@ -2257,7 +2193,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0024
   - recommendation-ml-0027
@@ -2270,7 +2205,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0068
   - recommendation-ml-0077
@@ -2283,7 +2217,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0037
   - recommendation-ml-0029
@@ -2296,7 +2229,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0001
   - recommendation-ml-0069
@@ -2309,7 +2241,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0006
   - recommendation-ml-0071
@@ -2322,7 +2253,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0013
   - recommendation-ml-0001
@@ -2335,7 +2265,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0061
   - recommendation-ml-0056
@@ -2348,7 +2277,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0032
   - recommendation-ml-0061
@@ -2361,7 +2289,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0062
   - recommendation-ml-0009
@@ -2374,7 +2301,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0019
   - recommendation-ml-0073
@@ -2387,7 +2313,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0015
   - recommendation-ml-0071
@@ -2400,7 +2325,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0028
   - recommendation-ml-0066
@@ -2413,7 +2337,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0038
   - recommendation-ml-0076
@@ -2426,7 +2349,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0007
   - recommendation-ml-0079
@@ -2439,7 +2361,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0033
   - recommendation-ml-0010
@@ -2452,7 +2373,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0070
   - recommendation-ml-0009
@@ -2465,7 +2385,6 @@ pods:
     cpu: 3.0
     ram: 10.0
     gpu: 0.0
-  nodeSelector: *id005
   antiAffinity:
   - recommendation-ml-0057
   - recommendation-ml-0076
@@ -2478,8 +2397,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: &id006
-    gpu: nvidia-a100
   affinity:
   - embedding-server-0000
 - name: feature-store-0001
@@ -2488,7 +2405,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0001
 - name: feature-store-0002
@@ -2497,7 +2413,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0002
 - name: feature-store-0003
@@ -2506,7 +2421,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0003
 - name: feature-store-0004
@@ -2515,7 +2429,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0004
 - name: feature-store-0005
@@ -2524,7 +2437,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0005
 - name: feature-store-0006
@@ -2533,7 +2445,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0006
 - name: feature-store-0007
@@ -2542,7 +2453,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0007
 - name: feature-store-0008
@@ -2551,7 +2461,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0008
 - name: feature-store-0009
@@ -2560,7 +2469,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0009
 - name: feature-store-0010
@@ -2569,7 +2477,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0010
 - name: feature-store-0011
@@ -2578,7 +2485,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0011
 - name: feature-store-0012
@@ -2587,7 +2493,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0012
 - name: feature-store-0013
@@ -2596,7 +2501,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0013
 - name: feature-store-0014
@@ -2605,7 +2509,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0014
 - name: feature-store-0015
@@ -2614,7 +2517,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0015
 - name: feature-store-0016
@@ -2623,7 +2525,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0016
 - name: feature-store-0017
@@ -2632,7 +2533,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0017
 - name: feature-store-0018
@@ -2641,7 +2541,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0018
 - name: feature-store-0019
@@ -2650,7 +2549,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0019
 - name: feature-store-0020
@@ -2659,7 +2557,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0020
 - name: feature-store-0021
@@ -2668,7 +2565,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0021
 - name: feature-store-0022
@@ -2677,7 +2573,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0022
 - name: feature-store-0023
@@ -2686,7 +2581,6 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
   affinity:
   - embedding-server-0023
 - name: feature-store-0024
@@ -2695,532 +2589,456 @@ pods:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0025
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0026
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0027
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0028
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0029
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0030
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0031
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0032
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0033
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0034
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0035
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0036
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0037
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0038
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0039
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0040
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0041
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0042
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0043
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0044
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0045
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0046
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0047
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0048
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0049
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0050
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0051
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0052
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0053
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0054
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0055
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0056
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0057
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0058
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0059
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0060
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0061
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0062
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0063
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0064
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0065
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0066
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0067
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0068
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0069
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0070
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0071
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0072
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0073
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0074
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0075
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0076
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0077
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0078
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0079
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0080
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0081
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0082
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0083
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0084
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0085
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0086
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0087
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0088
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0089
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0090
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0091
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0092
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0093
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0094
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0095
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0096
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0097
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0098
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: feature-store-0099
   namespace: ai
   requests:
     cpu: 2.0
     ram: 6.0
     gpu: 0.0
-  nodeSelector: *id006
 - name: api-gateway-0000
   namespace: platform
   requests:
@@ -7567,7 +7385,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: &id007
+  nodeSelector: &id005
     disk: nvme
   antiAffinity:
   - postgres-primary-0029
@@ -7585,7 +7403,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0009
   - postgres-primary-0007
@@ -7602,7 +7420,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0006
   - postgres-primary-0024
@@ -7619,7 +7437,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0023
   - postgres-primary-0006
@@ -7636,7 +7454,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0026
   - postgres-primary-0010
@@ -7653,7 +7471,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0007
   - postgres-primary-0006
@@ -7670,7 +7488,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0029
   - postgres-primary-0013
@@ -7687,7 +7505,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0011
   - postgres-primary-0002
@@ -7704,7 +7522,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0005
   - postgres-primary-0004
@@ -7721,7 +7539,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0000
   - postgres-primary-0008
@@ -7738,7 +7556,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0025
   - postgres-primary-0008
@@ -7755,7 +7573,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0024
   - postgres-primary-0019
@@ -7772,7 +7590,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0011
   - postgres-primary-0023
@@ -7789,7 +7607,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0003
   - postgres-primary-0015
@@ -7806,7 +7624,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0022
   - postgres-primary-0017
@@ -7823,7 +7641,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0009
   - postgres-primary-0023
@@ -7840,7 +7658,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0020
   - postgres-primary-0007
@@ -7857,7 +7675,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0024
   - postgres-primary-0020
@@ -7874,7 +7692,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0017
   - postgres-primary-0015
@@ -7891,7 +7709,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0027
   - postgres-primary-0006
@@ -7908,7 +7726,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0025
   - postgres-primary-0019
@@ -7923,7 +7741,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0016
   - postgres-primary-0014
@@ -7938,7 +7756,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0018
   - postgres-primary-0003
@@ -7953,7 +7771,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0029
   - postgres-primary-0016
@@ -7968,7 +7786,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0004
   - postgres-primary-0005
@@ -7983,7 +7801,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0014
   - postgres-primary-0003
@@ -7998,7 +7816,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0018
   - postgres-primary-0015
@@ -8013,7 +7831,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0014
   - postgres-primary-0025
@@ -8028,7 +7846,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0013
   - postgres-primary-0014
@@ -8043,7 +7861,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id007
+  nodeSelector: *id005
   antiAffinity:
   - postgres-primary-0014
   - postgres-primary-0021
@@ -8058,7 +7876,7 @@ pods:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: &id008
+  nodeSelector: &id006
     disk: nvme
 - name: postgres-replica-0001
   namespace: database
@@ -8066,413 +7884,413 @@ pods:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0002
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0003
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0004
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0005
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0006
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0007
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0008
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0009
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0010
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0011
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0012
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0013
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0014
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0015
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0016
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0017
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0018
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0019
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0020
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0021
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0022
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0023
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0024
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0025
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0026
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0027
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0028
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0029
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0030
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0031
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0032
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0033
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0034
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0035
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0036
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0037
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0038
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0039
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0040
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0041
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0042
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0043
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0044
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0045
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0046
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0047
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0048
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0049
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0050
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0051
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0052
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0053
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0054
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0055
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0056
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0057
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0058
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: postgres-replica-0059
   namespace: database
   requests:
     cpu: 3.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id008
+  nodeSelector: *id006
 - name: redis-cache-0000
   namespace: cache
   requests:
@@ -9759,7 +9577,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: &id009
+  nodeSelector: &id007
     disk: nvme
   antiAffinity:
   - elasticsearch-0021
@@ -9774,7 +9592,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0004
   - elasticsearch-0005
@@ -9788,7 +9606,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0011
   - elasticsearch-0027
@@ -9802,7 +9620,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0028
   - elasticsearch-0011
@@ -9816,7 +9634,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0027
   - elasticsearch-0028
@@ -9830,7 +9648,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0010
   - elasticsearch-0011
@@ -9844,7 +9662,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0016
   - elasticsearch-0011
@@ -9858,7 +9676,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0024
   - elasticsearch-0023
@@ -9872,7 +9690,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0026
   - elasticsearch-0007
@@ -9886,7 +9704,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0027
   - elasticsearch-0026
@@ -9900,7 +9718,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0019
   - elasticsearch-0006
@@ -9914,7 +9732,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0025
   - elasticsearch-0018
@@ -9928,7 +9746,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0023
   - elasticsearch-0006
@@ -9942,7 +9760,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0027
   - elasticsearch-0023
@@ -9956,7 +9774,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0026
   - elasticsearch-0013
@@ -9970,7 +9788,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0021
   - elasticsearch-0009
@@ -9984,7 +9802,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0004
   - elasticsearch-0023
@@ -9998,7 +9816,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0002
   - elasticsearch-0014
@@ -10012,7 +9830,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0012
   - elasticsearch-0017
@@ -10026,7 +9844,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0013
   - elasticsearch-0017
@@ -10040,7 +9858,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0023
   - elasticsearch-0029
@@ -10053,7 +9871,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0020
   - elasticsearch-0002
@@ -10066,7 +9884,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0021
   - elasticsearch-0011
@@ -10079,7 +9897,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0001
   - elasticsearch-0018
@@ -10092,7 +9910,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0025
   - elasticsearch-0010
@@ -10105,7 +9923,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0000
   - elasticsearch-0003
@@ -10118,7 +9936,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0023
   - elasticsearch-0016
@@ -10131,7 +9949,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0018
   - elasticsearch-0007
@@ -10144,7 +9962,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0014
   - elasticsearch-0024
@@ -10157,7 +9975,7 @@ pods:
     cpu: 6.0
     ram: 96.0
     gpu: 0.0
-  nodeSelector: *id009
+  nodeSelector: *id007
   antiAffinity:
   - elasticsearch-0016
   - elasticsearch-0004
@@ -10170,7 +9988,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: &id010
+  nodeSelector: &id008
     disk: nvme
   antiAffinity:
   - postgres-primary-0000
@@ -10181,7 +9999,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0001
   - redis-cache-0001
@@ -10191,7 +10009,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0002
   - redis-cache-0002
@@ -10201,7 +10019,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0003
   - redis-cache-0003
@@ -10211,7 +10029,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0004
   - redis-cache-0004
@@ -10221,7 +10039,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0005
   - redis-cache-0005
@@ -10231,7 +10049,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0006
   - redis-cache-0006
@@ -10241,7 +10059,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0007
   - redis-cache-0007
@@ -10251,7 +10069,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0008
   - redis-cache-0008
@@ -10261,7 +10079,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0009
   - redis-cache-0009
@@ -10271,7 +10089,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0010
   - redis-cache-0010
@@ -10281,7 +10099,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0011
   - redis-cache-0011
@@ -10291,7 +10109,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0012
   - redis-cache-0012
@@ -10301,7 +10119,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0013
   - redis-cache-0013
@@ -10311,7 +10129,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0014
   - redis-cache-0014
@@ -10321,7 +10139,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0015
   - redis-cache-0015
@@ -10331,7 +10149,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0016
   - redis-cache-0016
@@ -10341,7 +10159,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0017
   - redis-cache-0017
@@ -10351,7 +10169,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0018
   - redis-cache-0018
@@ -10361,7 +10179,7 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
   antiAffinity:
   - postgres-primary-0019
   - redis-cache-0019
@@ -10371,70 +10189,70 @@ pods:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
 - name: kafka-broker-0021
   namespace: streaming
   requests:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
 - name: kafka-broker-0022
   namespace: streaming
   requests:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
 - name: kafka-broker-0023
   namespace: streaming
   requests:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
 - name: kafka-broker-0024
   namespace: streaming
   requests:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
 - name: kafka-broker-0025
   namespace: streaming
   requests:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
 - name: kafka-broker-0026
   namespace: streaming
   requests:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
 - name: kafka-broker-0027
   namespace: streaming
   requests:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
 - name: kafka-broker-0028
   namespace: streaming
   requests:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
 - name: kafka-broker-0029
   namespace: streaming
   requests:
     cpu: 6.0
     ram: 48.0
     gpu: 0.0
-  nodeSelector: *id010
+  nodeSelector: *id008
 - name: web-frontend-0000
   namespace: frontend
   requests:
@@ -21501,7 +21319,7 @@ pods:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: &id011
+  nodeSelector: &id009
     disk: nvme
 - name: search-indexer-0001
   namespace: search
@@ -21509,273 +21327,273 @@ pods:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0002
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0003
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0004
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0005
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0006
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0007
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0008
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0009
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0010
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0011
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0012
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0013
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0014
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0015
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0016
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0017
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0018
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0019
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0020
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0021
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0022
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0023
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0024
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0025
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0026
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0027
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0028
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0029
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0030
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0031
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0032
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0033
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0034
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0035
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0036
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0037
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0038
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: search-indexer-0039
   namespace: search
   requests:
     cpu: 3.0
     ram: 12.0
     gpu: 0.0
-  nodeSelector: *id011
+  nodeSelector: *id009
 - name: cdn-origin-0000
   namespace: frontend
   requests:
