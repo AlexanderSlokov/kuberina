@@ -102,9 +102,15 @@ pub fn ffd_warmstart(pods: &[Pod], nodes: &[Node], weights: &FfdWeights) -> Blue
         }
 
         if !placed {
-            // WHY: pod cannot fit anywhere — assign to node 0 as fallback.
-            // GA will try to fix this via mutation. Fitness penalty will apply.
-            assignment[pod_idx] = 0;
+            // WHY: pod cannot fit anywhere — fallback to the first node that matches selector/taint.
+            // This prevents adding artificial Selector violations which the GA cannot mutate out of
+            // due to massive capacity penalty spikes.
+            let fallback = (0..num_nodes)
+                .find(|&i| crate::csp::can_place_pod_on_node(&pods[pod_idx], &nodes[i]))
+                .unwrap_or(0);
+                
+            assignment[pod_idx] = fallback;
+            residual[fallback] = residual[fallback].subtract(pods[pod_idx].requests);
         }
     }
 
