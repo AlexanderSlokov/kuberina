@@ -69,30 +69,56 @@ def can_place_pod_on_node(pod: Pod, node: Node) -> bool:
     return check_node_selector(pod, node)
 
 
-def check_capacity_all_nodes(
+def compute_capacity_overflow(
     assignment: list[int],
     pods: list[Pod],
     nodes: list[Node],
-) -> bool:
-    """Verify no node exceeds allocatable resources on any dimension.
+) -> float:
+    """Compute continuous penalty scalar for capacity overflow on all nodes.
 
-    Hard Constraint #1 from PAPER.md §3.2:
-        ∀j, ∀r: Σ x_ij · req_i^r ≤ C_j^r
+    Instead of boolean pass/fail, returns total resource over-commitment.
+    Overflow = Σ max(0, load - cap) for CPU, RAM, GPU.
 
     Example:
-        >>> pods = [Pod(name="p", namespace="ns", requests=ResourceVector(cpu=2.0, ram=8.0))]
+        >>> pods = [Pod(name="p", namespace="ns", requests=ResourceVector(cpu=6.0, ram=8.0))]
         >>> nodes = [Node(name="n", allocatable=ResourceVector(cpu=4.0, ram=16.0))]
-        >>> check_capacity_all_nodes([0], pods, nodes)
-        True
+        >>> compute_capacity_overflow([0], pods, nodes)
+        2.0
     """
     loads = [ResourceVector.zero() for _ in nodes]
     for pod_idx, node_idx in enumerate(assignment):
-        loads[node_idx] = loads[node_idx].add(pods[pod_idx].requests)
+        if node_idx >= 0:
+            loads[node_idx] = loads[node_idx].add(pods[pod_idx].requests)
 
+    overflow = 0.0
     for node_idx, load in enumerate(loads):
-        if not nodes[node_idx].allocatable.fits(load):
-            return False
-    return True
+        cap = nodes[node_idx].allocatable
+        if load.cpu > cap.cpu:
+            overflow += load.cpu - cap.cpu
+        if load.ram > cap.ram:
+            overflow += load.ram - cap.ram
+        if load.gpu > cap.gpu:
+            overflow += load.gpu - cap.gpu
+
+    return overflow
+
+
+def compute_selector_violations(
+    assignment: list[int],
+    pods: list[Pod],
+    nodes: list[Node],
+) -> int:
+    """Count number of pods placed on nodes violating Taint or NodeSelector."""
+    violations = 0
+    for pod_idx, node_idx in enumerate(assignment):
+        if node_idx < 0:
+            violations += 1
+            continue
+        pod = pods[pod_idx]
+        node = nodes[node_idx]
+        if not can_place_pod_on_node(pod, node):
+            violations += 1
+    return violations
 
 
 def can_place_gang(

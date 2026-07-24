@@ -60,18 +60,18 @@ Kuberina receives two inputs:
 2. **Workload Manifests:** List of deployments, AI jobs, services (Resource requirements).
 
 ```bash
-# Install Kuberina
-go install github.com/yourusername/kuberina@latest
+# Build the Rust solver engine
+make solver-build
 
-# Run the stowage simulation
-kuberina plan \
-  --infra ./cluster-topology.yaml \
-  --workloads ./apps-to-deploy/ \
-  --output ./optimized-blueprint/
+# Run the stowage simulation (MSC Irina scale datacenter)
+make solver-irina
 
+# Run the independent validator & heatmap dashboard
+make solver-inspect
 ```
 
-Kuberina runs millions of "stowage" scenarios in memory and returns the `./optimized-blueprint/` directory contains YAML files which includes the most optimal scheduling strategy. You just need to `kubectl apply -f ./optimized-blueprint/`.
+Kuberina runs millions of "stowage" scenarios in memory using an evolutionary algorithm (GA). It outputs a stowage plan to the console and generates `kuberina_solution.yaml`. 
+You can then open `kuberina_dashboard.html` in your browser to interactively view the cluster heatmap!
 
 <!-- [Q-Claude] Gợi ý bổ sung cho README:
   1. Thêm section "Quick Start" với một ví dụ end-to-end hoàn chỉnh (sample input -> command -> sample output)?

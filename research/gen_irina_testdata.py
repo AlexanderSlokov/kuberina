@@ -36,8 +36,8 @@ def generate_infra() -> dict:
     nodes = []
     daemonsets = _build_daemonsets()
 
-    # 100 Standard nodes: 64C / 256G
-    for i in range(100):
+    # 120 Standard nodes: 64C / 256G (was 100, +20%)
+    for i in range(120):
         nodes.append(_make_node(
             name=f"std-{i:03d}",
             cpu=64.0, ram=256.0, gpu=0.0,
@@ -45,8 +45,8 @@ def generate_infra() -> dict:
             zone=ZONES[i % 3],
         ))
 
-    # 30 Memory-Optimized nodes: 32C / 512G
-    for i in range(30):
+    # 40 Memory-Optimized nodes: 32C / 512G (was 40)
+    for i in range(36):
         nodes.append(_make_node(
             name=f"mem-{i:03d}",
             cpu=32.0, ram=512.0, gpu=0.0,
@@ -54,8 +54,8 @@ def generate_infra() -> dict:
             zone=ZONES[i % 3],
         ))
 
-    # 20 GPU nodes: 48C / 192G / 8GPU
-    for i in range(20):
+    # 30 GPU nodes: 48C / 192G / 8GPU (was 20)
+    for i in range(30):
         nodes.append(_make_node(
             name=f"gpu-{i:03d}",
             cpu=48.0, ram=192.0, gpu=8.0,
@@ -124,8 +124,8 @@ SERVICES: list[tuple] = [
     ("embedding-server",  "ai",        24, 5.0,  16.0, 1.0, {"gpu": "nvidia-a100"}, True),
     ("training-worker",   "ai",        16,12.0,  48.0, 4.0, {"gpu": "nvidia-a100"}, False),
     ("vision-pipeline",   "ai",        24, 4.0,  12.0, 1.0, {"gpu": "nvidia-a100"}, True),
-    ("recommendation-ml", "ai",        80, 3.0,  10.0, 0.0, {"gpu": "nvidia-a100"}, True),
-    ("feature-store",     "ai",       100, 2.0,   6.0, 0.0, {"gpu": "nvidia-a100"}, False),
+    ("recommendation-ml", "ai",        80, 3.0,  10.0, 0.0, {}, True),
+    ("feature-store",     "ai",       100, 2.0,   6.0, 0.0, {}, False),
 
     # ── Tier 2: Core platform (heavy CPU, anti-affinity spread) ────────
     ("api-gateway",       "platform", 100, 6.0,  12.0, 0.0, {},                     True),

@@ -1,0 +1,4 @@
+## gRPC và tách `kuberina-solver` thành một khối toán học độc lập:
+
+- Tính Đa dụng (Agnostic): Vì Solver chỉ nhận Protobuf, ngày mai bạn có thể dùng Kuberina để quy hoạch... máy ảo Proxmox, hoặc quy hoạch Container trên Nomad (HashiCorp), hoặc tối ưu hóa kho bãi IoT. Chỉ cần viết một cái Agent nhỏ ném data theo chuẩn gRPC là Kuberina giải được hết. Kuberina không còn bị trói buộc vào K8s.
+- Bảo mật & Phân tán: Cụm K8s của bạn chạy ở AWS (tốn tiền), nhưng cỗ máy tính toán Kuberina bằng Rust có thể được đặt ở cái máy ThinkCentre tại nhà bạn. Cái Agent bằng Go trên Cloud chỉ việc gọi gRPC về nhà, cái ThinkCentre ở nhà gầm rú giải toán, rồi gửi kết quả lên Cloud. Bạn vừa tiết kiệm luôn cả tiền chạy thuật toán tối ưu!
