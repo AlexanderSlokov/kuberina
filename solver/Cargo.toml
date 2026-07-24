@@ -1,0 +1,20 @@
+[package]
+name = "kuberina-solver"
+version = "0.1.0"
+edition = "2024"
+description = "Maritime stowage-inspired K8s scheduling optimizer — Rust solver engine"
+authors = ["Aleksandr Slokov <thanhzeus2016@gmail.com>"]
+
+[[bin]]
+name = "kuberina"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+rayon = "1"
+rand = "0.9"
+clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]
+# No extra dev deps — stdlib + cargo test suffice.
