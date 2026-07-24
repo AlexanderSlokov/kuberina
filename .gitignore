@@ -25,3 +25,4 @@ go.work.sum
 .env
 /solver/target
 *.html
+solver/kuberina_solution.yaml
