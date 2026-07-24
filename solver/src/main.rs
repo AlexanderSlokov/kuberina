@@ -159,6 +159,18 @@ fn print_blueprint(best: &kuberina_solver::model::Blueprint, pods: &[kuberina_so
     } else {
         print_summary_mode(nodes, best, &node_pods);
     }
+
+    // Export full solution to YAML
+    let mut yaml_out = String::new();
+    yaml_out.push_str("solution:\n");
+    for (pod_idx, &node_idx) in best.assignment.iter().enumerate() {
+        yaml_out.push_str(&format!("  {}: {}\n", pods[pod_idx].name, nodes[node_idx].name));
+    }
+    if let Err(e) = std::fs::write("kuberina_solution.yaml", yaml_out) {
+        eprintln!("Failed to export solution: {}", e);
+    } else {
+        println!("  (Full stowage plan exported to kuberina_solution.yaml)");
+    }
 }
 
 fn print_all_nodes(
