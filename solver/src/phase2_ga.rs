@@ -224,8 +224,24 @@ fn repair_gangs_on(
         if gang_is_feasible(&child, group, nodes) {
             continue;
         }
-        // Rollback to better parent
-        let source = if p1.fitness <= p2.fitness { p1 } else { p2 };
+
+        let p1_feasible = gang_is_feasible(p1, group, nodes);
+        let p2_feasible = gang_is_feasible(p2, group, nodes);
+
+        if !p1_feasible && !p2_feasible {
+            // WHY: If both parents were infeasible (e.g. trapped on fallback node 0),
+            // don't rollback. Rollback would just trap the child too. Let it explore!
+            continue;
+        }
+
+        // Rollback to the parent that had this gang feasible
+        let source = match (p1_feasible, p2_feasible) {
+            (true, true) => if p1.fitness <= p2.fitness { p1 } else { p2 },
+            (true, false) => p1,
+            (false, true) => p2,
+            (false, false) => unreachable!(),
+        };
+
         for &pod_idx in &group.pod_indices {
             child.assignment[pod_idx] = source.assignment[pod_idx];
         }
@@ -260,12 +276,21 @@ fn mutate(
         }
 
         let &new_node = eligible.choose(rng).unwrap();
+        let group_idx = group_lookup[i];
+        let mut was_feasible = false;
+        
+        if let Some(g_idx) = group_idx {
+            // WHY: Record if the gang was feasible BEFORE we try to move a pod.
+            was_feasible = gang_is_feasible(blueprint, &groups[g_idx], nodes);
+        }
+
         blueprint.assignment[i] = new_node;
 
-        if let Some(group_idx) = group_lookup[i] {
-            // Pod belongs to a gang — check if gang is still feasible
+        if let Some(g_idx) = group_idx {
             blueprint.node_load = compute_node_loads(&blueprint.assignment, pods, num_nodes);
-            if !gang_is_feasible(blueprint, &groups[group_idx], nodes) {
+            // WHY: Only rollback if the gang WAS feasible and we BROKE it.
+            // If it was already broken (e.g. FFD fallback to node 0), let it move!
+            if was_feasible && !gang_is_feasible(blueprint, &groups[g_idx], nodes) {
                 blueprint.assignment[i] = old_node; // rollback
             }
         }
