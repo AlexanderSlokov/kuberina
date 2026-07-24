@@ -18,6 +18,12 @@ solver-irina:
 	--infra testdata/irina_infra.yaml \
 	--workloads testdata/irina_workloads.yaml
 
+solver-irina-pareto80:
+	cd solver && cargo run --release -- plan \
+	--infra testdata/irina_infra.yaml \
+	--workloads testdata/irina_workloads.yaml \
+	--pareto 80
+
 # Research targets (Python)
 research-homelab:
 	cd research && $(MAKE) immediate_run

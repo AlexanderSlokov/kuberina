@@ -35,6 +35,9 @@ enum Commands {
         /// Workload manifests YAML
         #[arg(long)]
         workloads: String,
+        /// Pareto rule: scale node capacity by this percentage (e.g., 80)
+        #[arg(long)]
+        pareto: Option<f64>,
     },
 }
 
@@ -42,11 +45,11 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Plan { infra, workloads } => run_plan(&infra, &workloads),
+        Commands::Plan { infra, workloads, pareto } => run_plan(&infra, &workloads, pareto),
     }
 }
 
-fn run_plan(infra_path: &str, workloads_path: &str) {
+fn run_plan(infra_path: &str, workloads_path: &str, pareto: Option<f64>) {
     let start = Instant::now();
 
     let (raw_nodes, daemon_sets) = load_infra(infra_path).unwrap_or_else(|e| {
@@ -64,14 +67,25 @@ fn run_plan(infra_path: &str, workloads_path: &str) {
     );
 
     // Phase 0: DaemonSet pre-deduction (ballast water)
-    let nodes = pre_deduct_daemonsets(&raw_nodes, &daemon_sets);
-    print_phase0_summary(&raw_nodes, &nodes);
+    let net_nodes = pre_deduct_daemonsets(&raw_nodes, &daemon_sets);
+    print_phase0_summary(&raw_nodes, &net_nodes);
+
+    let mut pareto_nodes = net_nodes.clone();
+    if let Some(p) = pareto {
+        let factor = p / 100.0;
+        eprintln!("\n[Pareto Mode] Capping node capacities to {:.1}% for placement optimization.", p);
+        for node in &mut pareto_nodes {
+            node.allocatable.cpu *= factor;
+            node.allocatable.ram *= factor;
+            node.allocatable.gpu *= factor;
+        }
+    }
 
     // Phase 1: FFD warm-start (stow heaviest containers first)
     let ffd_weights = FfdWeights::default();
-    let mut seed = ffd_warmstart(&pods, &nodes, &ffd_weights);
+    let mut seed = ffd_warmstart(&pods, &pareto_nodes, &ffd_weights);
     let fitness_weights = FitnessWeights::default();
-    let (fitness, sc) = compute_fitness(&seed, &pods, &nodes, &groups, &fitness_weights);
+    let (fitness, sc) = compute_fitness(&seed, &pods, &pareto_nodes, &groups, &fitness_weights);
     seed.fitness = fitness;
     seed.scorecard = sc.clone();
     eprintln!("Phase 1 (FFD): seed fitness = {:.4}", seed.fitness);
@@ -79,10 +93,11 @@ fn run_plan(infra_path: &str, workloads_path: &str) {
     // Phase 2: GA optimization (evolutionary stowage planning)
     // WHY: auto-scale GA params based on problem size (ga_estimation.md §3).
     let ga_config = select_ga_config(pods.len());
-    let best = run_ga(&seed, &pods, &nodes, &groups, &ga_config, &fitness_weights);
+    let best = run_ga(&seed, &pods, &pareto_nodes, &groups, &ga_config, &fitness_weights);
 
     let elapsed = start.elapsed().as_secs_f64();
-    print_blueprint(&best, &pods, &nodes, elapsed);
+    // Print the blueprint using the actual net capacities (not pareto-capped)
+    print_blueprint(&best, &pods, &net_nodes, elapsed);
 }
 
 /// Auto-scale GA parameters based on problem size.
