@@ -5,6 +5,7 @@
 
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::ops::Add;
 
 /// Multi-dimensional resource capacity/request.
 ///
@@ -52,16 +53,20 @@ impl ResourceVector {
         }
     }
 
-    pub fn add(self, other: Self) -> Self {
+    pub fn is_zero(self) -> bool {
+        self.cpu == 0.0 && self.ram == 0.0 && self.gpu == 0.0
+    }
+}
+
+impl Add for ResourceVector {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
         Self {
             cpu: self.cpu + other.cpu,
             ram: self.ram + other.ram,
             gpu: self.gpu + other.gpu,
         }
-    }
-
-    pub fn is_zero(self) -> bool {
-        self.cpu == 0.0 && self.ram == 0.0 && self.gpu == 0.0
     }
 }
 
@@ -268,7 +273,7 @@ mod tests {
     fn resource_vector_add() {
         let a = ResourceVector::new(1.0, 4.0, 0.0);
         let b = ResourceVector::new(0.5, 2.0, 0.0);
-        let r = a.add(b);
+        let r = a + b;
         assert_eq!(r.cpu, 1.5);
         assert_eq!(r.ram, 6.0);
     }

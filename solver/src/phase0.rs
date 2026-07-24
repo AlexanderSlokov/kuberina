@@ -73,7 +73,7 @@ pub fn pre_deduct_daemonsets(nodes: &[Node], daemon_sets: &[DaemonSet]) -> Vec<N
             let overhead = daemon_sets
                 .iter()
                 .filter(|ds| is_eligible(ds, node))
-                .fold(ResourceVector::zero(), |acc, ds| acc.add(ds.resources));
+                .fold(ResourceVector::zero(), |acc, ds| acc + ds.resources);
 
             Node {
                 name: node.name.clone(),

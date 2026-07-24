@@ -91,10 +91,10 @@ pub fn compute_affinity_violations(assignment: &[usize], pods: &[Pod]) -> usize 
             }
         }
         for target_name in &pod.anti_affinity_targets {
-            if let Some(&target_idx) = name_to_idx.get(target_name.as_str()) {
-                if i < target_idx && assignment[i] == assignment[target_idx] {
-                    violations += 1;
-                }
+            if let Some(&target_idx) = name_to_idx.get(target_name.as_str())
+                && i < target_idx && assignment[i] == assignment[target_idx]
+            {
+                violations += 1;
             }
         }
     }

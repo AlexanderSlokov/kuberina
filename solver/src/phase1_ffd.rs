@@ -41,7 +41,7 @@ pub fn compute_node_loads(
 ) -> Vec<ResourceVector> {
     let mut loads = vec![ResourceVector::zero(); num_nodes];
     for (pod_idx, &node_idx) in assignment.iter().enumerate() {
-        loads[node_idx] = loads[node_idx].add(pods[pod_idx].requests);
+        loads[node_idx] = loads[node_idx] + pods[pod_idx].requests;
     }
     loads
 }

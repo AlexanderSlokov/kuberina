@@ -47,7 +47,7 @@ pub fn compute_capacity_overflow(
 ) -> f64 {
     let mut loads = vec![ResourceVector::zero(); nodes.len()];
     for (pod_idx, &node_idx) in assignment.iter().enumerate() {
-        loads[node_idx] = loads[node_idx].add(pods[pod_idx].requests);
+        loads[node_idx] = loads[node_idx] + pods[pod_idx].requests;
     }
 
     let mut overflow = 0.0_f64;
@@ -129,7 +129,7 @@ fn sum_gang_demand(group: &PodGroup, pods: &[Pod]) -> ResourceVector {
     group
         .pod_indices
         .iter()
-        .fold(ResourceVector::zero(), |acc, &i| acc.add(pods[i].requests))
+        .fold(ResourceVector::zero(), |acc, &i| acc + pods[i].requests)
 }
 
 /// Sum remaining capacity across all eligible nodes.
@@ -141,7 +141,7 @@ fn sum_residual_capacity(
     eligible
         .iter()
         .fold(ResourceVector::zero(), |acc, &idx| {
-            acc.add(nodes[idx].allocatable.subtract(node_load[idx]))
+            acc + nodes[idx].allocatable.subtract(node_load[idx])
         })
 }
 

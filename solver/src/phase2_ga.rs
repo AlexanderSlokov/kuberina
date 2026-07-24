@@ -15,9 +15,7 @@ use rayon::prelude::*;
 
 use crate::csp::can_place_pod_on_node;
 use crate::fitness::compute_fitness;
-use crate::model::{
-    Blueprint, FitnessWeights, GaConfig, Node, Pod, PodGroup, ResourceVector,
-};
+use crate::model::{Blueprint, FitnessWeights, GaConfig, Node, Pod, PodGroup};
 use crate::phase1_ffd::compute_node_loads;
 
 /// Execute the GA optimization loop starting from FFD seed.
@@ -39,7 +37,7 @@ pub fn run_ga(
     let mut best = find_best(&population).clone();
     let mut stale_count = 0_usize;
 
-    for gen in 0..config.max_generations {
+    for generation in 0..config.max_generations {
         let offspring = breed_generation(
             &population, pods, nodes, groups, config, fitness_weights, &mut rng,
         );
@@ -57,18 +55,18 @@ pub fn run_ga(
         if stale_count >= config.early_stop_generations {
             eprintln!(
                 "Early stop at generation {} (no improvement for {} gens)",
-                gen, config.early_stop_generations,
+                generation, config.early_stop_generations,
             );
             break;
         }
 
-        if gen % 50 == 0 {
-            let pct = (gen + 1) as f64 / config.max_generations as f64 * 100.0;
+        if generation % 50 == 0 {
+            let pct = (generation + 1) as f64 / config.max_generations as f64 * 100.0;
             let filled = (pct / 5.0) as usize;
             let bar: String = "█".repeat(filled) + &"░".repeat(20 - filled);
             eprintln!(
                 "Gen {:>4}/{} | best={:.4} | stale={:<3} | {} {:.0}%",
-                gen, config.max_generations, best.fitness, stale_count, bar, pct,
+                generation, config.max_generations, best.fitness, stale_count, bar, pct,
             );
         }
 
