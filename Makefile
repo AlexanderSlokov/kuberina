@@ -24,3 +24,10 @@ research-homelab:
 
 research-irina:
 	cd research && $(MAKE) irina_stress
+
+solver-inspect:
+	uv run --with pyyaml python research/inspector.py \
+		--infra solver/testdata/irina_infra.yaml \
+		--workloads solver/testdata/irina_workloads.yaml \
+		--solution solver/kuberina_solution.yaml \
+		--output kuberina_dashboard.html
