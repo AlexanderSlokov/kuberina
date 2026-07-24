@@ -140,7 +140,7 @@ fn compute_hard_penalty(
     let mut total = 0.0_f64;
 
     let cap_overflow = compute_capacity_overflow(&blueprint.assignment, pods, nodes);
-    if cap_overflow > 0.0 {
+    if cap_overflow > 1e-9 {
         total += 1_000_000.0 + cap_overflow * 10_000.0;
     }
 

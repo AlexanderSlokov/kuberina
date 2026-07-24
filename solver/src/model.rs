@@ -42,7 +42,7 @@ impl ResourceVector {
 
     /// True if this vector has enough capacity for the demand.
     pub fn fits(self, demand: Self) -> bool {
-        self.cpu >= demand.cpu && self.ram >= demand.ram && self.gpu >= demand.gpu
+        self.cpu >= demand.cpu - 1e-9 && self.ram >= demand.ram - 1e-9 && self.gpu >= demand.gpu - 1e-9
     }
 
     pub fn subtract(self, other: Self) -> Self {

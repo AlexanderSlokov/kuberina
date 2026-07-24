@@ -38,11 +38,13 @@ pub fn run_ga(
     let mut stale_count = 0_usize;
 
     for generation in 0..config.max_generations {
-        let offspring = breed_generation(
+        let mut offspring = breed_generation(
             &population, pods, nodes, groups, config, fitness_weights, &mut rng,
         );
-        let mut next = select_survivors(population, offspring, config);
-        evaluate_all(&mut next, pods, nodes, groups, fitness_weights);
+        // WHY: evaluate BEFORE select — offspring start with fitness=0.0,
+        // which would always beat parents in sorting without real scores.
+        evaluate_all(&mut offspring, pods, nodes, groups, fitness_weights);
+        let next = select_survivors(population, offspring, config);
 
         let current_best = find_best(&next);
         if current_best.fitness < best.fitness {
