@@ -25,6 +25,9 @@ solver-irina-pareto80:
 	--pareto 80
 
 # Research targets (Python)
+research-generate-testdata:
+	cd solver && uv run --with pyyaml python ../research/gen_irina_testdata.py
+
 research-homelab:
 	cd research && $(MAKE) immediate_run
 

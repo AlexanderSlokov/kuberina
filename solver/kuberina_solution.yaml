@@ -2463,16 +2463,16 @@ solution:
   search-indexer-0027: mem-029
   search-indexer-0028: mem-029
   search-indexer-0029: mem-029
-  search-indexer-0030: gpu-000
-  search-indexer-0031: gpu-000
-  search-indexer-0032: gpu-000
-  search-indexer-0033: gpu-000
-  search-indexer-0034: gpu-000
-  search-indexer-0035: gpu-000
-  search-indexer-0036: gpu-000
-  search-indexer-0037: gpu-001
-  search-indexer-0038: gpu-001
-  search-indexer-0039: gpu-001
+  search-indexer-0030: mem-030
+  search-indexer-0031: mem-030
+  search-indexer-0032: mem-030
+  search-indexer-0033: mem-030
+  search-indexer-0034: mem-030
+  search-indexer-0035: mem-030
+  search-indexer-0036: mem-030
+  search-indexer-0037: mem-030
+  search-indexer-0038: mem-030
+  search-indexer-0039: mem-031
   cdn-origin-0000: std-082
   cdn-origin-0001: std-082
   cdn-origin-0002: std-082

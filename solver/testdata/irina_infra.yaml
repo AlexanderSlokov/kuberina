@@ -1103,6 +1103,226 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1a
+- name: std-100
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+- name: std-101
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+- name: std-102
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+- name: std-103
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+- name: std-104
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+- name: std-105
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+- name: std-106
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+- name: std-107
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+- name: std-108
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+- name: std-109
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+- name: std-110
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+- name: std-111
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+- name: std-112
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+- name: std-113
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+- name: std-114
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+- name: std-115
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+- name: std-116
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+- name: std-117
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+- name: std-118
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+- name: std-119
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
 - name: mem-000
   allocatable:
     cpu: 32.0
@@ -1433,6 +1653,72 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1c
+- name: mem-030
+  allocatable:
+    cpu: 32.0
+    ram: 512.0
+    gpu: 0.0
+  labels:
+    tier: memory
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+- name: mem-031
+  allocatable:
+    cpu: 32.0
+    ram: 512.0
+    gpu: 0.0
+  labels:
+    tier: memory
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+- name: mem-032
+  allocatable:
+    cpu: 32.0
+    ram: 512.0
+    gpu: 0.0
+  labels:
+    tier: memory
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+- name: mem-033
+  allocatable:
+    cpu: 32.0
+    ram: 512.0
+    gpu: 0.0
+  labels:
+    tier: memory
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+- name: mem-034
+  allocatable:
+    cpu: 32.0
+    ram: 512.0
+    gpu: 0.0
+  labels:
+    tier: memory
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+- name: mem-035
+  allocatable:
+    cpu: 32.0
+    ram: 512.0
+    gpu: 0.0
+  labels:
+    tier: memory
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1c
 - name: gpu-000
   allocatable:
     cpu: 48.0
@@ -1673,6 +1959,126 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1b
+- name: gpu-020
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+- name: gpu-021
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+- name: gpu-022
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+- name: gpu-023
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+- name: gpu-024
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+- name: gpu-025
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+- name: gpu-026
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+- name: gpu-027
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+- name: gpu-028
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+- name: gpu-029
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1c
 daemonsets:
 - name: kube-proxy
   resources:
