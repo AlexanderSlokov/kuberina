@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 
 use crate::csp::{compute_capacity_overflow, compute_selector_violations};
-use crate::model::{Blueprint, FitnessWeights, Node, Pod, PodGroup, ResourceVector};
+use crate::model::{Blueprint, FitnessWeights, Node, Pod, PodGroup, ResourceVector, Scorecard};
 
 /// Compute weighted-sum fitness score for a blueprint.
 ///
@@ -292,8 +292,9 @@ mod tests {
             assignment: vec![0],
             fitness: 0.0,
             node_load: vec![ResourceVector::new(5.0, 0.0, 0.0)],
+            scorecard: Default::default(),
         };
-        let f = compute_fitness(&bp, &pods, &nodes, &[], &FitnessWeights::default());
+        let (f, _) = compute_fitness(&bp, &pods, &nodes, &[], &FitnessWeights::default());
         assert!(f > 1_000_000.0);
         assert!(f.is_finite());
     }

@@ -134,7 +134,7 @@ fn print_phase0_summary(
     }
 }
 
-fn print_blueprint(best: &Blueprint, pods: &[Pod], nodes: &[Node], elapsed: f64) {
+fn print_blueprint(best: &kuberina_solver::model::Blueprint, pods: &[kuberina_solver::model::Pod], nodes: &[kuberina_solver::model::Node], elapsed: f64) {
     println!("\n═══ Final Blueprint (Stowage Plan) ═══");
     println!("  Fitness: {:.4}", best.fitness);
     println!("  Time: {:.2}s", elapsed);
@@ -154,10 +154,10 @@ fn print_blueprint(best: &Blueprint, pods: &[Pod], nodes: &[Node], elapsed: f64)
         node_pods[node_idx].push(&pods[pod_idx].name);
     }
 
-    if num_nodes <= 20 {
-        print_all_nodes(nodes, blueprint, &node_pods);
+    if num_nodes <= 10 && pods.len() <= 50 {
+        print_all_nodes(nodes, best, &node_pods);
     } else {
-        print_summary_mode(nodes, blueprint, &node_pods);
+        print_summary_mode(nodes, best, &node_pods);
     }
 }
 

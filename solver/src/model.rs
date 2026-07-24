@@ -162,11 +162,23 @@ pub struct DaemonSet {
 /// Maps to s = [x_1, ..., x_k] from PAPER.md §3.2.
 /// `assignment[i]` = node index for pod i.
 /// `node_load[j]` = total resource consumed on node j (cached for fast fitness).
+#[derive(Debug, Clone, Default)]
+pub struct Scorecard {
+    pub capacity_penalty: f64,
+    pub selector_penalty: f64,
+    pub gang_penalty: f64,
+    pub active_nodes: f64,
+    pub fragmentation: f64,
+    pub affinity_violations: f64,
+    pub utilization_variance: f64,
+}
+
 #[derive(Debug, Clone)]
 pub struct Blueprint {
     pub assignment: Vec<usize>,
     pub fitness: f64,
     pub node_load: Vec<ResourceVector>,
+    pub scorecard: Scorecard,
 }
 
 /// Hyperparameters for the genetic algorithm.

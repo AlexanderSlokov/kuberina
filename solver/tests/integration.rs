@@ -36,7 +36,9 @@ fn full_pipeline_homelab() {
     // Phase 1: FFD
     let mut seed = ffd_warmstart(&pods, &nodes, &FfdWeights::default());
     let weights = FitnessWeights::default();
-    seed.fitness = compute_fitness(&seed, &pods, &nodes, &groups, &weights);
+    let (fitness, sc) = compute_fitness(&seed, &pods, &nodes, &groups, &weights);
+    seed.fitness = fitness;
+    seed.scorecard = sc;
 
     // All pods assigned to valid nodes
     assert!(seed.assignment.iter().all(|&idx| idx < nodes.len()));

@@ -222,7 +222,8 @@ fn uniform_crossover(p1: &Blueprint, p2: &Blueprint, rng: &mut StdRng) -> Bluepr
     Blueprint {
         assignment,
         fitness: 0.0,
-        node_load: vec![],
+        node_load: Vec::new(),
+        scorecard: Default::default(),
     }
 }
 
@@ -474,11 +475,13 @@ mod tests {
             assignment: vec![0, 1, 2],
             fitness: 1.0,
             node_load: vec![],
+            scorecard: Default::default(),
         };
         let p2 = Blueprint {
             assignment: vec![2, 1, 0],
             fitness: 2.0,
             node_load: vec![],
+            scorecard: Default::default(),
         };
         let mut rng = StdRng::seed_from_u64(42);
         let child = uniform_crossover(&p1, &p2, &mut rng);
@@ -493,6 +496,7 @@ mod tests {
             assignment: vec![0, 0],
             fitness: 0.0,
             node_load: compute_node_loads(&[0, 0], &pods, 2),
+            scorecard: Default::default(),
         };
         let config = GaConfig {
             population_size: 16,
@@ -501,7 +505,7 @@ mod tests {
             ..GaConfig::default()
         };
         let weights = FitnessWeights::default();
-        let seed_fitness = compute_fitness(&seed, &pods, &nodes, &[], &weights);
+        let (seed_fitness, _) = compute_fitness(&seed, &pods, &nodes, &[], &weights);
 
         let best = run_ga(&seed, &pods, &nodes, &[], &config, &weights);
         assert!(best.fitness <= seed_fitness + 1e-9);

@@ -113,6 +113,7 @@ pub fn ffd_warmstart(pods: &[Pod], nodes: &[Node], weights: &FfdWeights) -> Blue
         assignment,
         fitness: 0.0,
         node_load,
+        scorecard: Default::default(),
     }
 }
 
