@@ -18,7 +18,7 @@ solver-irina:
 	--infra testdata/irina_infra.yaml \
 	--workloads testdata/irina_workloads.yaml
 
-solver-irina-pareto80:
+solver-irina-pareto-80:
 	cd solver && cargo run --release -- plan \
 	--infra testdata/irina_infra.yaml \
 	--workloads testdata/irina_workloads.yaml \
