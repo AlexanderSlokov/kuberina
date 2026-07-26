@@ -1,6 +1,6 @@
 # Kuberina: Maritime Stowage-Inspired Combinatorial Optimization for Pre-deployment Scheduling in Heterogeneous Kubernetes Clusters
 
-> **Authors:** _Dinh Tan Dung_
+> **Authors:** _Dinh Tan Dung (ORCID: https://orcid.org/0009-0003-1374-7525)_
 >
 > **Affiliation:** _Independent Researcher, Ho Chi Minh City, Vietnam_
 >
@@ -481,6 +481,27 @@ Beyond solution quality, Kuberina's primary contribution is the auditable bluepr
 4. **Multi-Cluster / Federation Scheduling.** Extend the model to optimize placement across federated clusters with inter-cluster network latency constraints.
 5. **Reinforcement Learning Augmentation.** Investigate whether RL agents can replace or augment the GA for workload profiles with temporal patterns, using the FFD+CSP framework as the constraint backbone.
 6. **Gang Scheduling Empirical Evaluation.** Design benchmarks with realistic distributed AI training jobs (64–256 GPU pod groups) to empirically validate the Block Booking and Gang Repair mechanisms under load.
+
+---
+
+## 10. Author Contributions
+
+Using the CRediT (Contributor Roles Taxonomy) framework, the author's contributions are defined as follows:
+
+* **Conceptualization:** Dinh Tan Dung formulated the original research idea, discovering and defining the structural isomorphism between maritime container stowage (CSPP) and Kubernetes pod scheduling.
+* **Methodology & Data Curation:** Dinh Tan Dung designed the constraint mapping taxonomy (e.g., Gang Scheduling as Block Booking, DaemonSets as Ballast Water) and designed the synthetic MSC Irina benchmark parameters. 
+* **Writing – Original Draft:** Dinh Tan Dung authored the initial conceptual narrative, framing the "Resource Canal" effect and the limitations of dynamic schedulers like Google Autopilot.
+* **Formal Analysis, Software, & Validation:** Artificial Intelligence agents (Claude Opus and Gemini) were utilized as computational research assistants to formulate the mathematical LP relaxation proofs, implement the hybrid FFD+GA+CSP solver in Rust, run the Monte Carlo statistical validations, and synthesize the final academic English manuscript under the direction of the author.
+
+## 11. Data Availability
+
+The Kuberina CLI tool, the synthetic MSC Irina benchmark datasets (`irina_infra.yaml`, `irina_workloads.yaml`), and the verification scripts used in this study are available in the project's open-source repository: [https://github.com/AlexanderSlokov/kuberina](https://github.com/AlexanderSlokov/kuberina)
+
+The source code is released under the GNU Affero General Public License v3.0 (AGPLv3) to ensure modifications and integrations in network-accessible services remain open-source.
+
+## Acknowledgments
+
+The author acknowledges the use of Anthropic's Claude and Google's Gemini models as collaborative research assistants for mathematical formalization, Rust software engineering, and language translation during the preparation of this manuscript.
 
 ---
 
