@@ -82,8 +82,8 @@ def test_utilization_variance_balanced() -> None:
     assert compute_utilization_variance(loads, nodes) == 0.0
 
 
-def test_hard_penalty_on_overcapacity() -> None:
-    """Blueprint violating capacity should get +inf fitness."""
+def test_hard_penalty_scalar_gradient() -> None:
+    """Blueprint violating capacity should get massive scalar penalty (1,000,000+)."""
     pods = [Pod(name="p", namespace="ns", requests=ResourceVector(cpu=5.0))]
     nodes = [Node(name="n", allocatable=ResourceVector(cpu=4.0, ram=16.0))]
     bp = Blueprint(
@@ -91,4 +91,6 @@ def test_hard_penalty_on_overcapacity() -> None:
         node_load=[ResourceVector(cpu=5.0)],
     )
     fitness = compute_fitness(bp, pods, nodes, [], FitnessWeights())
-    assert math.isinf(fitness) and fitness > 0
+    # Base penalty is 1,000,000. Overflow is 1.0 CPU * 10,000 = 10,000. Total ~ 1,010,000.
+    assert fitness > 1_000_000
+    assert not math.isinf(fitness)

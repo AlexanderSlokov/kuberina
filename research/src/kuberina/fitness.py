@@ -19,7 +19,10 @@ from kuberina.model.types import (
     PodGroup,
     ResourceVector,
 )
-from kuberina.phases.csp import check_capacity_all_nodes
+from kuberina.phases.csp import (
+    compute_capacity_overflow,
+    compute_selector_violations,
+)
 
 
 def compute_fitness(
@@ -38,8 +41,7 @@ def compute_fitness(
         >>> # (see test_fitness.py for full examples)
     """
     penalty = compute_hard_penalty(blueprint, pods, nodes, groups)
-    if math.isinf(penalty) and penalty > 0:
-        return penalty
+    # WHY: we removed math.inf check because penalties are now continuous scalars.
 
     f_nodes = count_active_nodes(blueprint.assignment, len(nodes))
     f_frag = compute_fragmentation(blueprint.node_load, nodes)
@@ -47,7 +49,8 @@ def compute_fitness(
     f_var = compute_utilization_variance(blueprint.node_load, nodes)
 
     return (
-        weights.node_count * f_nodes
+        penalty
+        + weights.node_count * f_nodes
         + weights.fragmentation * f_frag
         + weights.affinity_violation * f_aff
         + weights.utilization_variance * f_var
@@ -167,19 +170,28 @@ def compute_hard_penalty(
     nodes: list[Node],
     groups: list[PodGroup],
 ) -> float:
-    """Φ(s): return -inf if any hard constraint violated, 0 otherwise.
+    """Φ(s): gradient penalty scalar for hard constraints.
 
-    Checks: capacity (HC#1) and gang all-or-nothing (HC#5).
-    Taint/NodeSelector (HC#3, HC#4) are enforced at placement time.
+    Instead of math.inf, returns a massive but differentiable scalar.
+    This allows the GA to climb out of infeasible search spaces (like
+    the MSC Irina scale test) rather than plateauing in infinity.
 
-    Example:
-        >>> # (see test_fitness.py for violation examples)
+    Base penalty weight: 1,000,000 to ensure any invalid solution
+    is ranked strictly worse than any valid solution.
     """
-    if not check_capacity_all_nodes(blueprint.assignment, pods, nodes):
-        return math.inf
+    total_penalty = 0.0
 
-    penalty = _gang_penalty(blueprint, pods, nodes, groups)
-    return penalty
+    capacity_overflow = compute_capacity_overflow(blueprint.assignment, pods, nodes)
+    if capacity_overflow > 0:
+        total_penalty += 1_000_000 + (capacity_overflow * 10_000)
+
+    selector_violations = compute_selector_violations(blueprint.assignment, pods, nodes)
+    if selector_violations > 0:
+        total_penalty += 500_000 + (selector_violations * 50_000)
+
+    total_penalty += _gang_penalty(blueprint, pods, nodes, groups)
+
+    return total_penalty
 
 
 def _gang_penalty(
@@ -188,21 +200,23 @@ def _gang_penalty(
     nodes: list[Node],
     groups: list[PodGroup],
 ) -> float:
-    """Kill solution if any gang pod can't fit on its assigned node.
+    """Soft penalty if any gang pod can't fit on its assigned node.
 
-    From DESIGN.md gangPenalty pseudocode:
-    if placed < g.MinMembers → return -MaxFloat64
-
-    Example:
-        >>> # (see test_fitness.py)
+    Penalty scales linearly with the number of missing pods to reach min_members.
+    Base penalty: 500,000.
     """
+    penalty = 0.0
     for group in groups:
         placed = 0
         for pod_idx in group.pod_indices:
             node_idx = blueprint.assignment[pod_idx]
+            # Handle unassigned pods fallback
+            if node_idx < 0:
+                continue
             node_cap = nodes[node_idx].allocatable
             if node_cap.fits(blueprint.node_load[node_idx]):
                 placed += 1
         if placed < group.min_members:
-            return math.inf
-    return 0.0
+            missing = group.min_members - placed
+            penalty += 500_000 + (missing * 10_000)
+    return penalty

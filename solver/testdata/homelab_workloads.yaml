@@ -1,0 +1,88 @@
+# Homelab workloads — 10 services for 3 ThinkCentre nodes
+# Resource values: CPU in cores, RAM in GiB
+
+pods:
+  - name: pihole
+    namespace: dns
+    requests:
+      cpu: 0.2
+      ram: 0.256
+    antiAffinity:
+      - adguard   # don't put two DNS resolvers on same node
+
+  - name: home-assistant
+    namespace: smart-home
+    requests:
+      cpu: 0.5
+      ram: 1.0
+    nodeSelector:
+      usb-dongle: "true"   # needs Zigbee USB stick
+    affinity:
+      - zigbee2mqtt         # must be close to its Zigbee bridge
+
+  - name: zigbee2mqtt
+    namespace: smart-home
+    requests:
+      cpu: 0.2
+      ram: 0.256
+    nodeSelector:
+      usb-dongle: "true"   # also needs the USB dongle
+    affinity:
+      - home-assistant
+
+  - name: jellyfin
+    namespace: media
+    requests:
+      cpu: 2.0
+      ram: 2.0
+    antiAffinity:
+      - postgres            # heavy I/O — keep away from DB
+
+  - name: nextcloud
+    namespace: cloud
+    requests:
+      cpu: 0.5
+      ram: 1.0
+    affinity:
+      - postgres            # low-latency DB access
+
+  - name: postgres
+    namespace: database
+    requests:
+      cpu: 1.0
+      ram: 2.0
+    affinity:
+      - nextcloud
+    antiAffinity:
+      - jellyfin
+
+  - name: grafana
+    namespace: monitoring
+    requests:
+      cpu: 0.3
+      ram: 0.512
+    affinity:
+      - prometheus          # monitoring stack together
+
+  - name: prometheus
+    namespace: monitoring
+    requests:
+      cpu: 0.5
+      ram: 1.5
+    affinity:
+      - grafana
+
+  - name: mosquitto
+    namespace: smart-home
+    requests:
+      cpu: 0.1
+      ram: 0.064
+
+  - name: vaultwarden
+    namespace: security
+    requests:
+      cpu: 0.2
+      ram: 0.256
+
+groups: []
+# No gang scheduling for homelab — all pods are independent services

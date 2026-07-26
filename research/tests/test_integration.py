@@ -15,7 +15,7 @@ from kuberina.model.types import (
     GAConfig,
 )
 from kuberina.parser import load_infra, load_workloads
-from kuberina.phases.csp import check_capacity_all_nodes
+from kuberina.phases.csp import compute_capacity_overflow
 from kuberina.phases.phase0 import pre_deduct_daemonsets
 from kuberina.phases.phase1_ffd import ffd_warmstart
 from kuberina.phases.phase2_ga import run_ga
@@ -65,7 +65,7 @@ def test_full_pipeline_homelab() -> None:
     assert all(0 <= idx < len(nodes) for idx in best.assignment)
 
     # 2. No capacity violation
-    assert check_capacity_all_nodes(best.assignment, pods, nodes)
+    assert compute_capacity_overflow(best.assignment, pods, nodes) == 0.0
 
     # 3. USB-dongle pods are on node 1 (thinkcentre-beta)
     pod_names = [p.name for p in pods]
@@ -85,7 +85,7 @@ def test_ffd_produces_feasible_seed() -> None:
     nodes = pre_deduct_daemonsets(raw_nodes, daemon_sets)
     seed = ffd_warmstart(pods, nodes, FFDWeights())
 
-    assert check_capacity_all_nodes(seed.assignment, pods, nodes)
+    assert compute_capacity_overflow(seed.assignment, pods, nodes) == 0.0
 
 
 def test_ga_reduces_affinity_violations() -> None:
