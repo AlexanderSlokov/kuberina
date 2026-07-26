@@ -1,6 +1,6 @@
 # Kuberina
 
-https://doi.org/10.5281/zenodo.21582492
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21582492.svg)](https://doi.org/10.5281/zenodo.21582492)
 
 Kuberina is an algorithmic architect CLI tool that uses maritime stowage optimization mathematics to generate pre-deployment scheduling blueprint for heterogeneous Kubernetes clusters.
 
