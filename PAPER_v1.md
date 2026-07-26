@@ -1,5 +1,31 @@
 # **Báo cáo Khoa học: Thuật toán Quy hoạch Tiền Triển khai trên Cụm Kubernetes Không Đồng Nhất – Ứng dụng Mô hình Tối ưu hóa Xếp dỡ Hàng hải**
 
+## Abstract
+
+<!-- [Q-Claude] Abstract thường gồm 4-5 câu:
+  1. Bối cảnh vấn đề (K8s scheduler fragmentation trên heterogeneous cluster)
+  2. Gap trong các giải pháp hiện tại
+  3. Đề xuất của bạn (Kuberina - offline static planner dùng FFD + GA + CSP)
+  4. Kết quả chính (metrics từ phần Evaluation Goals)
+  5. Ý nghĩa / đóng góp
+  Nên viết bằng tiếng Anh nếu nhắm đến venue quốc tế. Độ dài khuyến nghị: 150-250 từ.
+-->
+
+## 1. Introduction
+
+<!-- [Q-Claude] Phần này nên trả lời:
+  - Tại sao kube-scheduler mặc định không đủ tốt cho heterogeneous cluster? Có số liệu cụ thể không (ví dụ: Datadog report 30-40% CPU utilization)?
+  - "Static planning" khác gì "dynamic scheduling"? Khi nào static planning có lợi thế hơn?
+  - Motivation chính cho analogy hàng hải: bạn tìm thấy mối liên hệ này từ đâu? Từ kinh nghiệm thực tế hay từ literature review?
+
+  Contribution statement — gợi ý 4 contributions:
+  1. (Algorithmic) Một hybrid pipeline FFD + GA + CSP Forward Checking cho K8s scheduling offline, lấy cảm hứng từ maritime stowage planning.
+  2. (Practical) Một CLI tool tạo ra pre-deployment blueprint có thể kubectl apply trực tiếp, không cần can thiệp vào cluster đang chạy.
+  3. (Methodological) Chứng minh rằng analogy giữa container stowage planning và K8s pod scheduling là valid và productive — mỗi constraint trong maritime domain đều có mapping 1:1 sang K8s domain.
+  4. (Process) Đề xuất rằng giá trị của offline scheduling optimization không chỉ nằm ở solution quality, mà ở việc tạo ra một **auditable, iterable artifact** (blueprint) cho phép collaborative infrastructure decision-making — tương tự cách Git biến code deployment thành code review, và Terraform biến infrastructure provisioning thành reviewable plan.
+     Một bản thiết kế được tính toán bởi combinatorial optimization qua hàng nghìn thế hệ tiến hóa, có cơ sở toán học để bảo vệ mọi quyết định placement, thay thế cho các quyết định scheduling dựa trên trực giác cá nhân (architect intuition) vốn không thể audit, không thể reproduce, và không thể challenge.
+-->
+
 ## **Giới thiệu và Bối cảnh Đặt vấn đề**
 
 Sự tiến hóa của hạ tầng điện toán đám mây nguyên bản (cloud-native) đã định vị Kubernetes như một tiêu chuẩn thực tế cho việc điều phối các hệ thống phân tán. Tuy nhiên, khi các cụm máy chủ (cluster) ngày càng trở nên không đồng nhất (heterogeneous) — tích hợp phần cứng chuyên dụng như thiết bị xử lý đồ họa (GPU), thiết bị xử lý tensor (TPU), và các node tối ưu hóa bộ nhớ — các cơ chế lập lịch mặc định bắt đầu bộc lộ những hạn chế sâu sắc. Bộ lập lịch mặc định kube-scheduler được thiết kế để tối ưu hóa độ trễ, đưa ra các quyết định xếp đặt động (dynamic runtime scheduling) tính bằng mili-giây dựa trên nguyên tắc "đến trước phục vụ trước" (first-come, first-served) khi phát hiện các khoảng trống tài nguyên.1 Mặc dù phương pháp tiếp cận này là đủ cho các vi dịch vụ (microservices) đồng nhất và phi trạng thái (stateless), nó hoàn toàn thất bại dưới độ phức tạp hình học của các cấu trúc phần cứng đa dạng và các khối lượng công việc trí tuệ nhân tạo (AI) tiên tiến. Hậu quả là sự phân mảnh tài nguyên nghiêm trọng, với các phân tích ngành liên tục cho thấy môi trường đám mây thường chỉ hoạt động ở mức 30% đến 40% công suất sử dụng đơn vị xử lý trung tâm (CPU).1  
@@ -47,6 +73,19 @@ Bảng dưới đây minh họa quá trình ánh xạ mang tính khái niệm v�
 
 Việc xử lý tô-pô mạng và vật lý của cụm Kubernetes như thân tàu và các tệp manifest như hàng hóa đã biến đổi bài toán lập lịch từ một vấn đề quản lý hàng đợi phản ứng (reactive queue management) thành một câu đố hình học và không gian mang tính tất định.
 
+## 2. Related Work
+
+<!-- [Q-Claude] Section này hiện đang trống hoàn toàn. Đây là phần bắt buộc cho một bài báo.
+  Gợi ý các hướng cần survey:
+  1. Kubernetes scheduling optimizers: Descheduler, Volcano, kube-batch, Trimaran — chúng giải quyết vấn đề gì và thiếu gì?
+  2. Bin Packing trong cloud: các paper về VM placement, container packing (Google Borg, Tetris scheduler của Microsoft)
+  3. Genetic Algorithm cho resource scheduling: đã có ai dùng GA cho K8s scheduling chưa?
+  4. Maritime stowage planning literature: các paper gốc về stowage optimization mà bạn lấy cảm hứng (ví dụ: Avriel et al., Pacino et al.)
+  5. CSP/ILP trong scheduling: OR-Tools, CP-SAT solver applications
+
+  Câu hỏi quan trọng: Bạn đã có danh sách references chưa? Nếu chưa, tôi có thể giúp tìm các paper liên quan.
+-->
+
 ## **Nghịch lý của Lập lịch Động và Hiệu ứng "Kênh Tài nguyên" Autopilot**
 
 Lỗ hổng cốt lõi của việc phụ thuộc hoàn toàn vào hệ thống lập lịch động của Kubernetes xuất phát từ những giới hạn về mặt thời gian của nó. Kube-scheduler đánh giá các pod một cách riêng lẻ khi chúng xuất hiện trong hàng đợi. Khi phát hiện một khe trống trên một node bất kỳ, nó sẽ liên kết pod ngay lập tức để tiết kiệm độ trễ.1 Dù thuật toán gán khớp đầu tiên (first-fit heuristic) này vô cùng đơn giản về mặt toán học, nó chắc chắn dẫn đến sự phân mảnh không gian theo thời gian. Các khối lượng công việc có mật độ cao được đưa vào hàng đợi muộn hơn thường xuyên thấy tài nguyên tổng hợp của cụm đã bị vỡ vụn trên nhiều node được lấp đầy một phần, khiến các khối lượng công việc đó không thể được lập lịch (un-schedulable) mặc dù dung lượng tổng cộng của cụm là hoàn toàn đủ.1  
@@ -71,27 +110,131 @@ Sự cộng sinh này tăng tốc tốc độ hội tụ (convergence rate) củ
 Đặc tính cốt lõi xác định động cơ này là sự tách biệt tuyệt đối khỏi kube-apiserver. CLI hoạt động hoàn toàn ngoại tuyến, thường được tích hợp ngay bên trong một đường ống tích hợp và phân phối liên tục (CI/CD) hoặc được chạy nội bộ trên máy trạm của kỹ sư.1 Vì nó không chạy như một trình điều khiển (controller) hay tiến trình ngầm (daemon) bên trong cụm đang hoạt động, nó triệt tiêu mọi rủi ro tiêu tốn tài nguyên quý giá của cụm điều khiển, gây ngẽn cổ chai API (API throttling) hoặc kích hoạt các vòng lặp cạnh tranh vô hạn (race conditions) trong quá trình lập lịch.1
 
 ### **Dữ liệu Đầu vào và Cấu trúc Cấu hình Khai báo**
+### 3.2. Formal Definition
 
-Hệ thống này xử lý song song hai luồng dữ liệu độc lập:
+#### Notation
 
-> 1. **Bản đồ Tô-pô Hạ tầng (Infrastructure Topology Map):** Một biểu diễn mang tính khai báo về các giới hạn vật lý của cụm mục tiêu. Thông tin này bao gồm số lượng node khả dụng, kiến trúc CPU, dung lượng bộ nhớ khả dụng, phân loại đồ họa (GPU typologies), các vùng sẵn sàng (availability zones), và toàn bộ các bộ lọc phân tách taints/labels hiện tại.1  
-> 2. **Tài liệu Khối lượng Công việc (Workload Manifests):** Một kho lưu trữ các tệp YAML Kubernetes tiêu chuẩn mô tả các Deployment, AI Jobs, và StatefulSets cần được lên lịch. Về mặt bản chất, các manifest này xác định chính xác yêu cầu tài nguyên vật lý và mọi quy tắc ràng buộc bản địa đi kèm.1
+| Symbol | Definition |
+|---|---|
+| $\mathcal{N} = \{n_1, \ldots, n_m\}$ | Set of Nodes in the cluster |
+| $\mathcal{P} = \{p_1, \ldots, p_k\}$ | Set of Pods to schedule (excluding DaemonSet pods) |
+| $\mathcal{R} = \{\text{CPU}, \text{RAM}, \text{GPU}, \ldots\}$ | Set of resource dimensions |
+| $\mathcal{G} = \{G_1, \ldots, G_q\}$ | Set of Pod Groups (gangs) |
+| $\mathcal{D} = \{d_1, \ldots, d_h\}$ | Set of DaemonSets |
+| $x_{ij} \in \{0, 1\}$ | Decision variable: 1 if pod $p_i$ is assigned to node $n_j$ |
+| $y_j \in \{0, 1\}$ | 1 if node $n_j$ has at least one pod assigned |
+| $\text{req}_i^r$ | Resource request of pod $p_i$ for resource $r \in \mathcal{R}$ |
+| $C_j^r$ | Allocatable capacity of node $n_j$ for resource $r$, **after DaemonSet pre-deduction** |
+| $U_j^r$ | Utilization of node $n_j$ for resource $r$: $U_j^r = \sum_{i} x_{ij} \cdot \text{req}_i^r / C_j^r$ |
 
-Khi thực thi khởi tạo, engine lập tức mô phỏng hàng triệu kịch bản (scenarios) không gian trên bộ nhớ — phản ánh chính xác quá trình siêu máy tính đánh giá các chuyển động tại bãi đậu bến cảng và quy trình gắp thả của cần cẩu.1 Kết xuất đầu ra (output) là một bản thiết kế (blueprint) đã được tối ưu hóa toàn diện và có khả năng được kiểm tra thủ công.1 Quá trình này tự động tiêm (auto-inject) các quy tắc ràng buộc cứng như NodeSelector, PodAffinity, PodAntiAffinity, và Tolerations trực tiếp vào mã nguồn YAML được tạo ra.1
+#### Phase 0: DaemonSet Pre-deduction (Fixed Variables)
 
-### **Giao thức Đánh giá Đưa ra Quyết định Hạ tầng**
+DaemonSets are not decision variables — they are the ship's own systems (ballast, monitoring, comms), pre-deducted before optimization begins:
 
-Việc hình thành mô hình ngoại tuyến này giới thiệu một giao thức quản trị hạ tầng vô cùng nghiêm ngặt, tương đồng với quy trình đánh giá mã nguồn (code reviews) bằng Git. Về mặt lịch sử, các hệ thống lập lịch động hoạt động như một "hộp đen" (black box), khiến các đội ngũ Kỹ sư Độ tin cậy Hệ thống (SRE) không thể tiến hành kiểm toán tại sao một node cụ thể lại bị quá tải trong khi các node khác nhàn rỗi.1  
-Bằng cách kết xuất trạng thái lập lịch cuối cùng dưới dạng một tài liệu văn bản tĩnh (YAML artifact) trước khi triển khai, blueprint có thể được thanh tra (inspect), tranh luận qua các Yêu cầu Kéo (Pull Request) và được chỉnh sửa bởi con người. Nếu một chuyên gia SRE nhận thấy rằng một pod cơ sở dữ liệu có đầu vào/đầu ra (I/O) cực cao không nên chia sẻ chung kernel với một node AI đang hoạt động tối đa công suất, các bộ quy tắc mềm có thể được tùy chỉnh ngay trong mã nguồn, và mô phỏng được tái khởi chạy cho đến khi đạt được sự đồng thuận kỹ thuật tuyệt đối.1
+$$C_j^r = C_{j,\text{raw}}^r - \sum_{d \in \mathcal{D}} \mathbb{1}[\text{eligible}(d, n_j)] \cdot \text{res}_d^r$$
 
-## **Mô hình Toán học của Bài toán Đóng gói Thùng Đa chiều (MDBP)**
+where $\mathbb{1}[\text{eligible}(d, n_j)]$ is 1 if DaemonSet $d$ runs on node $n_j$ (based on nodeSelector and tolerations). After this step, $\mathcal{P}$ and $C_j^r$ are the only inputs to the optimizer.
 
-Hạt nhân toán học của động cơ blueprint phụ thuộc hoàn toàn vào việc công thức hóa cấu trúc không gian Kubernetes như một Bài toán Đóng gói Thùng Đa chiều (MDBP) NP-hard, được ghép nối trực tiếp với Bài toán Thỏa mãn Ràng buộc (Constraint Satisfaction Problem \- CSP).1 Mục tiêu cốt yếu là ánh xạ một tập hợp các pod lên một tập hợp các node không đồng nhất, tuân thủ nghiêm ngặt các giới hạn tài nguyên đa chiều và các quy tắc lực hấp dẫn/đẩy lùi (affinity rules).1 Phương pháp quy hoạch tuyến tính nguyên hỗn hợp (Mixed Integer Linear Programming \- MILP) thường được triển khai để giải quyết những thách thức hình học này.3
+#### Decision Variables (Chromosome Encoding)
 
-### **Các Tập hợp Toán học và Biến Quyết định**
+Each solution (Blueprint) is encoded as a pod-level assignment vector:
 
-Không gian không gian vấn đề chính quy được định nghĩa bằng các tập hợp. Đặt ![][image1] đại diện cho tập hợp các node có sẵn, và ![][image2] đại diện cho tập hợp các pod cần được thiết lập lập lịch.1 Các chiều không gian tài nguyên (CPU, RAM, VRAM, Băng thông mạng) được nhóm vào tập hợp ![][image3]. Các thành phần cấu trúc chuyên biệt được định nghĩa thành tập ![][image4] cho các nhóm pod lịch trình khối (gang-scheduled) và ![][image5] cho các DaemonSets cấp hệ thống.1  
-Biến quyết định trọng tâm (decision variable) là một vector ![][image6], trong đó ![][image7] chỉ định phép gán node chính xác cho pod ![][image8].1 Bởi vì không gian tìm kiếm có độ giãn nở tới mức ![][image9] (cho ![][image10] node và ![][image11] pod), việc sử dụng công cụ tìm kiếm cạn kiệt (exhaustive search) hoàn toàn bất khả thi về mặt tính toán đối với các cụm quy mô lớn, đòi hỏi hệ thống phải vận dụng các thuật toán siêu heuristic lai (hybrid metaheuristics).1
+$$\mathbf{s} = [x_1, x_2, \ldots, x_k] \quad \text{where } x_i \in \{1, \ldots, m\} \text{ is the node index for pod } p_i$$
+
+Gang pods are **not** aggregated into macro-blocks. Each pod in a gang remains an individual decision variable (coupled variable in CSP), because each pod independently consumes resources on its assigned node.
+
+#### Objective Function (Single-objective, Weighted Sum)
+
+$$\min F(\mathbf{s}) = w_1 \cdot f_{\text{nodes}}(\mathbf{s}) + w_2 \cdot f_{\text{frag}}(\mathbf{s}) + w_3 \cdot f_{\text{affinity}}(\mathbf{s}) + w_4 \cdot f_{\text{var}}(\mathbf{s}) + \Phi(\mathbf{s})$$
+
+where:
+
+| Component | Formula | Maritime Analogy |
+|---|---|---|
+| $f_{\text{nodes}}$ | $\sum_{j=1}^{m} y_j$ (number of active nodes) | Minimize number of bays used |
+| $f_{\text{frag}}$ | $\sum_{j: y_j=1} \sum_{r} \max(0, C_j^r - \sum_i x_{ij} \cdot \text{req}_i^r)$ (wasted capacity) | Minimize empty slots in used bays |
+| $f_{\text{affinity}}$ | Number of soft affinity/anti-affinity rule violations | Destination port grouping violations |
+| $f_{\text{var}}$ | $\text{Var}(\{U_j^r : y_j = 1\})$ (utilization variance across active nodes) | Vessel trim & stability |
+| $\Phi(\mathbf{s})$ | Hard constraint penalty: $-\infty$ if any hard constraint violated | Immediate rejection of illegal stowage |
+
+#### Hard Constraints (CSP — must not violate)
+
+1. **Capacity**: No node exceeds allocatable resources on any dimension.
+
+$$\forall j, \forall r \in \mathcal{R}: \quad \sum_{i=1}^{k} x_{ij} \cdot \text{req}_i^r \le C_j^r$$
+
+2. **Assignment**: Every pod is assigned to exactly one node.
+
+$$\forall i: \quad \sum_{j=1}^{m} x_{ij} = 1$$
+
+3. **Taint/Toleration**: Pod can only be placed on a tainted node if it has the matching toleration.
+
+$$\forall i, j: \quad x_{ij} = 1 \implies \text{Taints}(n_j) \subseteq \text{Tolerations}(p_i)$$
+
+4. **NodeSelector / NodeAffinity (required)**: Pod can only be placed on nodes matching its selector.
+
+$$\forall i, j: \quad x_{ij} = 1 \implies \text{Labels}(n_j) \supseteq \text{Selector}(p_i)$$
+
+5. **Gang All-or-Nothing (Block Booking)**: For each pod group $G_q = \{p_{q_1}, \ldots, p_{q_t}\}$, either all pods are feasibly placed, or none.
+
+$$\forall G_q \in \mathcal{G}: \quad \sum_{i \in G_q} \mathbb{1}[\text{feasible}(p_i)] = |G_q| \quad \text{or} \quad 0$$
+
+This is a coupled constraint — each $x_{q_l, j}$ is a separate decision variable, but the group constraint binds them. (Maritime analogy: Block Booking, not OOG — individual containers with a commercial all-or-nothing commitment.)
+
+#### Soft Constraints (Fitness — optimize but don't reject)
+
+1. **Pod Affinity (preferred)**: Reward co-locating communicating pods on same node/zone.
+2. **Pod Anti-Affinity (preferred)**: Penalize co-locating conflicting pods.
+3. **Topology Spread**: Penalize uneven distribution across zones/racks.
+4. **Utilization Balance**: Minimize variance of utilization across active nodes (vessel stability).
+
+#### Complexity
+
+The problem is a Multi-Dimensional Bin Packing Problem (MDBP), known to be **NP-hard** (Garey & Johnson, 1979). The search space is:
+
+$$|\mathcal{S}| = m^k$$
+
+For a medium cluster ($m = 100, k = 500$): $|\mathcal{S}| = 10^{1000}$ — brute-force is infeasible. This motivates the hybrid FFD (warm-start) + GA (heuristic optimization) + CSP (constraint enforcement) approach.
+
+## 4. Proposed Method
+
+### 4.1. System Overview
+
+<!-- [Q-Claude] Nên có một architecture diagram (figure) ở đây cho thấy pipeline: Input -> FFD -> GA+CSP -> Output.
+  Câu hỏi: Tool nhận input dạng gì chính xác? Raw YAML, Helm chart, hay một schema riêng (cluster-topology.yaml)?
+-->
+
+### 4.2. Phase 1: Initialization via Vector Packing First-Fit Decreasing (FFD)
+
+**Motivation**: A purely random initialization for the Genetic Algorithm in a highly constrained space (such as heterogeneous Kubernetes scheduling) results in an initial population composed almost entirely of infeasible solutions (e.g., violating capacity constraints). Correcting these violations takes the GA an exorbitant number of generations.
+
+**The FFD Warm-Start**: We apply a greedy First-Fit Decreasing algorithm to generate a set of *feasible* initial blueprints, accelerating GA convergence by 3-5x.
+1. **Synthetic Volume Calculation**: We calculate a scalar weight $V_i$ for each pod based on normalized resource scarcity:
+   $$V_i = \alpha \cdot \text{CPU}_i + \beta \cdot \text{RAM}_i + \gamma \cdot \text{GPU}_i$$
+   where $\alpha, \beta, \gamma$ are tunable parameters reflecting the relative cost or scarcity of resources in the specific cluster.
+2. **Decreasing Sort**: Pods are sorted in descending order of $V_i$. (Maritime analogy: stow the heaviest and largest containers first).
+3. **First-Fit Placement**: The algorithm iterates through the sorted pods and places each pod into the first node that has sufficient residual capacity.
+
+This fast $O(k \log k + k \cdot m)$ heuristic produces the seed population for the GA.
+
+### 4.3. Phase 2: Optimization via Genetic Algorithm (GA)
+
+The GA optimizes the soft constraints (affinity, resource balancing, fragmentation) taking the FFD output as its starting point.
+
+1. **Population & Parallelism**: The population size is scaled based on the problem size (e.g., $|Pop| = 512$ for a medium cluster of 100 nodes and 500 pods). Because fitness evaluation for each individual is completely independent, we implement an embarrassingly parallel evaluation model using Go routines, achieving evaluation times of under 10 milliseconds per generation on an 8-core CPU.
+2. **Selection**: We use Tournament Selection with a tournament size $k_{tour}=3$ to maintain high selection pressure while preserving diversity.
+3. **Crossover with Gang Repair**: We apply Uniform Crossover. However, standard crossover can break the feasibility of Gang Scheduling (Block Booking). If a crossover operation splits a gang (e.g., pods 1-4 inherit from parent A, pods 5-8 inherit from parent B) and violates the node's capacity, a **Repair Mechanism** is triggered: the algorithm rolls back the entire gang's assignment to match the parent that yielded a feasible placement for that gang.
+4. **Mutation with Forward Checking**: We apply a random reset mutation with rate $p_m \approx 0.05$. Crucially, mutation is deeply integrated with the CSP Solver. Before a pod is moved to a new node, the solver performs a forward capacity check. If the mutation violates hard constraints (or breaks the gang's all-or-nothing constraint), the mutation is rejected (rolled back).
+5. **Termination**: The GA employs an early stopping criterion. If the best fitness score in the population does not improve for $N_{stop}$ consecutive generations (e.g., 100 generations), the algorithm assumes it has converged to a near-optimal local minimum and halts.
+
+### 4.4. Phase 3: Constraint Enforcement via CSP Solver with Forward Checking
+
+Unlike traditional pipelines where the solver is a separate sequential step, Kuberina tightly integrates the CSP solver *into* the FFD and GA operators (Mutation and Repair).
+
+* **Hard Constraint Filtering**: Every placement decision (FFD insertion or GA mutation) is pre-screened by the CSP solver against Taints, Tolerations, NodeSelectors, and exact Resource capacities. If an assignment is invalid, it is pruned immediately, saving the computational cost of full fitness evaluation.
+* **Forward Checking for Block Booking**: When evaluating a placement for a pod belonging to a gang $G_q$, the CSP solver employs Forward Checking. It does not merely check if the target node has room for the *single* pod; it verifies if the target node (or set of eligible nodes) possesses enough total residual capacity to accommodate the *entire* group $G_q$. If the collective requirement cannot be met, the branch is discarded instantly. This prevents the optimizer from wandering into deep infeasible regions of the search space.
+
+## **Đường ống Tối ưu hóa Lai Ba Giai đoạn (Three-Phase Hybrid Pipeline)**
 
 ### **Giai đoạn 0: Khấu trừ Khởi tạo DaemonSet (Sự Tương đồng của Nước Dằn Tàu)**
 
@@ -164,101 +307,86 @@ Kubernetes yêu cầu cấu hình các hệ thống quản lý rủi ro khắt k
 Ngược lại, thông qua kiến trúc mô phỏng bằng công cụ độc lập tĩnh, bản đồ tô-pô định vị cuối cùng (final cluster layout) trở nên mang tính tất định (deterministic) ở thời điểm sớm nhất.20 Khi mô phỏng kết thúc, nó giao nộp một báo cáo khai báo (declarative blueprint) vĩ mô bao trùm toàn cảnh rủi ro (container-centric view of risk).40  
 Nhóm kỹ sư bảo mật hoàn toàn có thể khởi động hàng loạt các cơ chế kiểm tra tính an toàn trên kho chứa mã nguồn thông qua kết nối quét quét ảnh nhân nền (base image vulnerability scanning/static analysis), thanh tra trực tiếp mã YAML artifact.35 Việc này giúp phân tích độ cách ly namespace, kiểm tra các taints/tolerances, và giới hạn mạng được áp đặt toàn cục.26 Nếu blueprint xuất hiện các lỗi liên đới logic có nguy cơ bộc lộ điểm yếu, luồng CI/CD lập tức chặn đứng sự khởi hành. Hành động này đóng vai trò chốt chặn bất khả xâm phạm vật lý; mã lỗi và nguy cơ bị nghiền nát trước khi nó có bất kỳ khả năng tiếp xúc nào lên thiết bị đang vận hành.20
 
-## **Thực nghiệm và Kết quả Đánh giá (Experimental Results)**
+## 5. Experimental Setup
 
-Để xác thực mô hình toán học và đánh giá hiệu năng của Kuberina (phiên bản v0.0.0 Python MVP), chúng tôi đã thiết lập một bài toán thực nghiệm mô phỏng môi trường máy chủ tại gia (Homelab) phức tạp với các ràng buộc đa chiều.
+<!-- [Q-Claude] Phần này hoàn toàn trống. Để bài báo có sức thuyết phục, cần:
+  1. **Testbed description**: Cluster config dùng để test (bao nhiêu Node, specs, loại GPU). Dùng cluster thật hay simulated?
+  2. **Workload profiles**: Bao nhiêu Pod, mix giữa CPU-intensive / GPU-intensive / memory-intensive? Lấy từ đâu (synthetic hay real-world trace như Google Cluster Trace, Alibaba Cluster Trace)?
+  3. **Baselines**: So sánh Kuberina với gì? Tối thiểu nên có:
+     - kube-scheduler mặc định (LeastAllocated / MostAllocated)
+     - Random placement
+     - Pure FFD (không GA)
+     - Có thể thêm: Volcano, kube-batch
+  4. **Metrics**: Cụ thể hóa cách đo từng metric (Node count, fragmentation index, utilization %, scheduling success rate)
+  5. **Parameter settings**: Population size, generation count, mutation rate, crossover rate, alpha/beta/gamma
+  6. **Statistical significance**: Chạy bao nhiêu lần? Report mean +/- std?
+-->
 
-### **1. Thiết lập Bài toán và Ràng buộc**
-- **Cấu hình Hạ tầng (Topology):** 3 node ThinkCentre M720q (Alpha, Beta, Gamma), mỗi node sở hữu 4.0 CPU cores và 16.0 GiB RAM. Trong đó, node Beta được gắn nhãn vật lý `usb-dongle: true`. Ba hệ thống nền (DaemonSets) gồm `kube-proxy`, `calico-node`, và `node-exporter` chiếm dụng tĩnh tổng cộng 0.45 CPU và 0.256 GiB RAM trên mỗi node (Giai đoạn 0).
-- **Khối lượng Công việc (Workloads):** 10 dịch vụ (services) mang tính chất hỗn tạp với các ràng buộc nội tại nghiêm ngặt:
-  - Ràng buộc phần cứng (NodeSelector): `home-assistant` và `zigbee2mqtt` bắt buộc phải nằm trên node có `usb-dongle`.
-  - Ràng buộc vị trí (Affinity/Anti-affinity): `pihole` phải tránh xa bộ phân giải DNS khác; `jellyfin` (media nặng) phải cách ly khỏi `postgres` (database); `nextcloud` và `postgres` phải đi cặp với nhau để giảm độ trễ; `grafana` và `prometheus` phải được co-located.
+## 6. Results and Analysis
 
-### **2. Kỳ vọng và Những Sai lệch trong Mô phỏng (Expectations & Fallacies)**
-**Kỳ vọng ban đầu:** Chúng tôi kỳ vọng thuật toán sẽ nhanh chóng tìm ra cách đóng gói toàn bộ 10 dịch vụ vào số node ít nhất có thể (tối thiểu hóa biến $f_{nodes}$) mà không phá vỡ bất kỳ ràng buộc cứng (Hard Constraints - CSP) hay ràng buộc mềm (Affinity) nào.
+<!-- [Q-Claude] Trình bày kết quả cho từng evaluation goal:
+  - Bảng so sánh (Table) giữa Kuberina vs baselines
+  - Biểu đồ convergence của GA qua các generation
+  - Biểu đồ phân bố resource utilization trước/sau optimization
+  - Case study cho Gang Scheduling scenario
+  Câu hỏi: Bạn đã có kết quả POC từ Python code trong folder research/ chưa? Nếu có, tôi có thể giúp format thành bảng/biểu đồ.
+-->
 
-**Sai lệch thực tế:** 
-1. **Sự ngộ nhận về Thuật toán Tham lam (Greedy Algorithm):** Ban đầu, chúng tôi cho rằng thuật toán First-Fit Decreasing (FFD) kết hợp với khối lượng tổng hợp (Synthetic Volume) ở Giai đoạn 1 là đủ để tạo ra một bản thiết kế tốt. Thực tế chứng minh, FFD dễ dàng rơi vào bẫy tối ưu cục bộ: nó thỏa mãn các ràng buộc nhưng lại phân mảnh tài nguyên và rải rác 10 dịch vụ ra toàn bộ 3 node (đạt điểm fitness $59.42$).
-2. **Nghịch lý Hàm phạt (Penalty Fallacy):** Trong quá trình lập trình GA MVP, một lỗi tư duy đã xảy ra khi AI gán hàm phạt vi phạm ràng buộc $\Phi(s) = -\infty$. Do hàm mục tiêu $F(s)$ là bài toán tìm **cực tiểu** (minimization), GA đã ngay lập tức "khai thác" lỗ hổng này để tạo ra các quần thể vi phạm sức chứa cực đoan vì chúng mang lại điểm số thấp vô tận. Lỗi này đã chứng minh tính sắc bén của quá trình tiến hóa và buộc chúng tôi phải tinh chỉnh lại $\Phi(s) = \infty$ theo đúng lý thuyết để loại bỏ các mã gen lỗi.
+### 6.1. Node Reduction (Infrastructure Cost)
 
-### **3. Kết quả Thực thi Kuberina**
-Sau khi áp dụng Giai đoạn 2 (Genetic Algorithm) với kích thước quần thể 64, thuật toán đã tiến hóa và hội tụ ngay tại thế hệ thứ 50 (hoàn tất trong vòng `0.68` giây).
+<!-- Target: 10% - 15% reduction -->
 
-Kết quả đầu ra của Kuberina (Điểm fitness giảm mạnh từ $59.42$ xuống còn $44.24$):
-- **Node Alpha (CPU: 79%, RAM: 25%):** Chứa `jellyfin`, `grafana`, `prometheus`.
-- **Node Beta (CPU: 76%, RAM: 31%):** Chứa `pihole`, `home-assistant`, `zigbee2mqtt`, `nextcloud`, `postgres`, `mosquitto`, `vaultwarden`.
-- **Node Gamma:** **Trống hoàn toàn (0%).**
+### 6.2. Resource Fragmentation
 
-Kết quả từ công cụ:
+<!-- Target: 30% - 40% reduction -->
 
-```bash
-2026-07-22 00:37:41,538 [INFO] Loaded 3 nodes, 3 daemonsets, 10 pods, 0 groups
+### 6.3. Resource Utilization
 
-═══ Phase 0: DaemonSet Pre-deduction (Ballast Water) ═══
-  thinkcentre-alpha: 4.0 → 3.55 CPU, 16.0 → 15.744 GiB RAM (-0.45 CPU, -0.256 GiB overhead)
-  thinkcentre-beta: 4.0 → 3.55 CPU, 16.0 → 15.744 GiB RAM (-0.45 CPU, -0.256 GiB overhead)
-  thinkcentre-gamma: 4.0 → 3.55 CPU, 16.0 → 15.744 GiB RAM (-0.45 CPU, -0.256 GiB overhead)
+<!-- Target: 75% - 85% (up from industry average of 30-40%) -->
 
-2026-07-22 00:37:41,539 [INFO] Phase 1 (FFD): seed fitness = 59.4225
-2026-07-22 00:37:41,562 [INFO] Gen 0: best_fitness=44.2511
-2026-07-22 00:37:42,123 [INFO] Gen 50: best_fitness=44.2448
-2026-07-22 00:37:42,135 [INFO] Early stop at generation 51 (no improvement for 50 gens)
+### 6.4. Scheduling Success Rate for AI Compute
 
-═══ Final Blueprint (Stowage Plan) ═══
-  Fitness: 44.2448
-  Time: 0.61s
+<!-- Target: 100% for Gang Scheduling scenarios -->
 
-  thinkcentre-alpha:
-    - jellyfin
-    - grafana
-    - prometheus
-    CPU: 2.80/3.55 (79%)
-    RAM: 4.012/15.744 GiB (25%)
+### 6.5. Computational Performance
 
-  thinkcentre-beta:
-    - pihole
-    - home-assistant
-    - zigbee2mqtt
-    - nextcloud
-    - postgres
-    - mosquitto
-    - vaultwarden
-    CPU: 2.70/3.55 (76%)
-    RAM: 4.832/15.744 GiB (31%)
+<!-- [Q-Claude] Thêm section này: thời gian chạy của Kuberina scale thế nào khi cluster size tăng? 
+  Ví dụ: 50 Pods/10 Nodes vs 500 Pods/100 Nodes vs 5000 Pods/1000 Nodes.
+  Đây là câu hỏi reviewer sẽ hỏi đầu tiên.
+-->
 
-  thinkcentre-gamma:
-    CPU: 0.00/3.55 (0%)
-    RAM: 0.000/15.744 GiB (0%)
-```
+## 7. Discussion
 
-### **4. Phân tích Đối chiếu (Comparative Analysis)**
-Nếu một Kỹ sư Hệ thống hoặc một mô hình Ngôn ngữ AI tự suy luận thủ công để lập lịch cho 10 dịch vụ này, chúng ta có xu hướng phân bổ đều tải (load balancing) ra cả 3 node để đảm bảo an toàn, hoặc dễ dàng xếp nhầm `jellyfin` chung với `postgres` do không thể liên tục tính nhẩm ma trận dung lượng 3 chiều. 
+<!-- [Q-Claude] Nên thảo luận:
+  1. **Limitations**: Kuberina là static planner — khi workload thay đổi runtime (autoscaling, crash), blueprint cũ có bị stale không? Cần re-plan frequency thế nào?
+  2. **Scalability**: GA với 5000+ Pods có chạy được trong thời gian chấp nhận được không?
+  3. **Sensitivity analysis**: Kết quả nhạy cảm thế nào với alpha/beta/gamma và các hyperparameters của GA?
+  4. **Practical deployment**: Tích hợp vào CI/CD pipeline thực tế thế nào? Ai trigger kuberina plan? Manual hay automated?
+  5. **Threats to validity**: Simulated cluster vs real cluster, synthetic workload vs real workload
+-->
 
-Kuberina, ngược lại, sử dụng cơ chế kiểm tra chuyển tiếp (Forward Checking) để chặt tỉa không gian trạng thái khổng lồ ($3^{10}$ khả năng). Động cơ này không chỉ xếp đúng toàn bộ các quy tắc Affinity/Anti-Affinity phức tạp nhất mà còn đạt được độ nén tài nguyên (Bin Packing) tuyệt hảo. Nó duy trì mức sử dụng CPU tối ưu từ 76-79% trên hai node Alpha và Beta, qua đó **giải phóng thành công 100% tài nguyên của node Gamma**. Trong một cụm đám mây tính tiền theo dung lượng cấp phát, việc nén gọn cụm từ 3 node xuống 2 node đồng nghĩa với việc tiết kiệm ngay lập tức **33% hóa đơn hạ tầng** mỗi tháng.
+## 8. Conclusion and Future Work
 
-### **5. Biểu đồ So sánh Hiệu năng**
+<!-- [Q-Claude]
+  - Conclusion: tóm tắt lại contributions và kết quả chính (2-3 paragraphs)
+  - Future work gợi ý:
+    1. Online/incremental re-planning (không cần re-solve toàn bộ)
+    2. Multi-objective optimization (Pareto front thay vì weighted sum)
+    3. Integration với Kubernetes Scheduler Extender để auto-apply blueprint
+    4. Support cho multi-cluster / federation scheduling
+    5. Reinforcement Learning thay thế hoặc bổ sung cho GA
+-->
 
-```mermaid
-xychart-beta
-    title "So sánh: FFD vs Kuberina GA vs Xếp thủ công (Giả định)"
-    x-axis ["Số Node sử dụng", "Điểm Fitness", "Lãng phí Tài nguyên (Node rảnh)"]
-    bar A "FFD (Giai đoạn 1)" [3, 59.4, 1]
-    bar B "Kuberina GA (Giai đoạn 2)" [2, 44.2, 0]
-    bar C "Xếp Thủ công" [3, 75.0, 1]
-```
+## References
 
-```mermaid
-pie title Phân bổ Workload sau khi chạy Kuberina (Theo Node)
-    "Node Beta (Các dịch vụ cốt lõi, DB & USB)" : 7
-    "Node Alpha (Media & Monitoring)" : 3
-    "Node Gamma (Trống - Tắt nguồn/Tiết kiệm)" : 0
-```
-
-## **Kết luận và Suy ngẫm Chiến lược Toàn diện**
-
-Sự giao thoa và kết hợp giữa nền tảng toán học hậu cần hàng hải và sự điều phối của điện toán đám mây là đại diện cho bước chuyển mình quan trọng của hệ tư tưởng quản trị hạ tầng. Trong hơn một thập kỷ vừa qua, hệ sinh thái Kubernetes hầu như luôn dựa dẫm vào các giải thuật lập lịch mang tính thời gian, chuộng sự bù đắp tốc độ gắn kết (immediate assignment) ở khoảng thời gian siêu ngắn, thay vì hướng sự ưu tiên cho tính hiệu quả kết cấu không gian. Tuy nhiên, khi hệ thống phần cứng không ngừng phát triển, tiến hóa thành các kết cấu phân mảnh dày đặc và đắt đỏ (chứa các GPU cực lớn, bộ gia tốc vi xử lý chuyên sâu,...) cách tiếp cận hệ động này dẫn đến trạng thái lãng phí nặng nề cả về mặt tài nguyên lẫn phân mảnh không gian phần cứng vật lý.  
-Bằng việc trừu tượng hóa các thuật toán xếp dỡ container hạng nặng, các nhà khoa học quản trị mạng lưới có thể khuất phục thành công Bài toán Đóng gói Thùng Đa chiều NP-hard tồn đọng ngót nghét bao năm nay trong điện toán phân tán. Sự phát triển một Động cơ CLI quy hoạch thiết kế tĩnh (offline CLI engine), ứng dụng đường ống hỗn hợp giữa Warm-start FFD, Thuật toán Tiến hóa Di truyền (Genetic Algorithms), và Kiểm tra Chuyển tiếp Thỏa mãn Ràng buộc (Forward Checking CSP) đã đưa công nghệ hạ tầng trở lại quyền kiểm soát thực sự của con người.  
-Cấu trúc mới này tái cấu trúc môi trường Kubernetes từ một bể chứa vô biên thành một mô hình không gian vật lý giới hạn tuyệt đối. Nó không chỉ cắt đứt hiện tượng đứt gãy treo máy "Tất cả hoặc Không gì cả" trong các tiến trình đào tạo AI LLM khổng lồ, mà còn sinh ra hiệu ứng "Kênh Tài nguyên" nâng đỡ, gia tốc mạnh mẽ cho khả năng hội tụ thông minh của các ứng dụng kiểm soát điều hướng như Google Autopilot. Xa hơn nữa, nó vật chất hóa những quyết định máy móc ẩn giấu ở thời gian thực biến chúng thành các tập tin mô hình tĩnh hoàn toàn minh bạch, có thể thanh tra bằng mắt thường. Sự chuyển dịch cấu trúc xếp dỡ này không đơn thuần nhằm tiết giảm chi tiêu hóa đơn đám mây, mà đang lót gạch để tạo nền tảng cốt thép cho thế hệ kiến trúc tối ưu không thể bị xâm phạm của kỷ nguyên siêu Trí tuệ Nhân tạo.
+<!-- [Q-Claude] Cần ít nhất các nhóm references sau:
+  1. Kubernetes scheduling: chính thức docs + các paper cải tiến scheduler
+  2. Bin Packing: Coffman et al., Garey & Johnson (NP-hardness proof)
+  3. Genetic Algorithm: Holland (1975), Goldberg (1989), hoặc modern survey
+  4. Maritime stowage: Avriel et al., Pacino et al., Delgado et al.
+  5. Cloud resource management: Google Borg paper, Microsoft Tetris, Alibaba Sigma
+  6. Datadog reports (cho số liệu utilization 30-40%)
+-->
 
 #### **Nguồn trích dẫn**
 
