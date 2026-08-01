@@ -8,6 +8,35 @@ Inspired by how supercomputers solve the stowage planning problem for *MSC Irina
 
 ---
 
+# Important: licensing roadmap
+
+Kuberina employs a 3-phases licensing strategy to ensure sustainable development, protect intellectual property against cloud-provider exploitation and deliver a fully permissive open-source project to the community. 
+
+Please read the following licensing transitions carefully. By using, contributing to, or distributing this software, you acknowledge and agree to this roadmap:
+
+### Phase 1: Current State - Kuberina (AGPLv3)
+
+**Applies to:** All current versions starting from `0.1.0`, and all subsequent releases, up to (but not including) version `12.0.0`, unless Phase 2 is triggered first.  
+**License:** **GNU Affero General Public License v3.0 (AGPLv3)**.  
+**Implication:** Any modifications or deployments of Kuberina provided as a network service must make their source code available to users under the same AGPLv3 license.  
+
+### Phase 2: Naughtian Kuberina  (SSPLv1)
+
+**Trigger Condition:** The formal legal incorporation of the author's corporate entity (e.g., "Naughtian Lab" or "Naughtian Corp").  
+**Action:** Upon this event, the intellectual property and repository ownership of Kuberina will be transferred to said corporate entity.   
+**License:** From the exact date of transfer forward, all new versions and commits of Kuberina will be licensed under the **Server Side Public License v1 (SSPLv1)**.  
+*Note: Previously released AGPLv3 versions will remain AGPLv3. Re-licensing applies strictly to new releases following the corporate transfer.*  
+
+### Phase 3: Liberated Kuberina (Apache License 2.0)
+
+The repository and its subsequent releases will permanently transition to the permissive **Apache License 2.0** immediately upon the occurrence of *either* of the following two milestone events:
+
+1. **CNCF Acceptance:** Kuberina is officially accepted and donated as a hosted project within the Cloud Native Computing Foundation (CNCF).
+2. **Reaching Version 12.0.0:** Kuberina officially releases version `12.0.0`. 
+  
+**LTS Guarantee:** Upon the release of `12.0.0`, a dedicated Long-Term Support branch (`12.0.0-lts`) will be established. The corporate entity established at **Phase 2** will guarantees a minimum **5-year Service Level Agreement (SLA)** for maintenance and security patching on this specific LTS release under the Apache 2.0 license.
+
+
 ## 💡 Why Kuberina?
 
 The default scheduler of K8s (`kube-scheduler`) is designed to make dynamic decisions in milliseconds. It works by "seeing an empty spot and putting things in it," leading to severe resource fragmentation on expensive heterogeneous clusters.
@@ -91,7 +120,7 @@ You can then open `kuberina_dashboard.html` in your browser to interactively vie
 | [DESIGN.md](./DESIGN.md) | Contributors, maintainers | Software design document: architecture, data model, CLI design, testing strategy |
 | `research/` | Algorithm developers | Python POC code for formulas and algorithms in small simulations |
 
-## 📄 License
+
 
 <!-- [Q-Claude] Chọn license nào? MIT, Apache 2.0, hay GPL? 
   Nếu muốn cộng đồng thoải mái contribute: MIT hoặc Apache 2.0.
