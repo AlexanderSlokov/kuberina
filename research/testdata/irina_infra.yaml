@@ -8,1436 +8,2663 @@ nodes:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: std-001
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
 - name: std-002
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-2
 - name: std-003
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-3
 - name: std-004
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-4
 - name: std-005
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-0
 - name: std-006
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-1
 - name: std-007
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-2
 - name: std-008
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-3
 - name: std-009
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-4
 - name: std-010
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-0
 - name: std-011
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-1
 - name: std-012
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-2
 - name: std-013
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-3
 - name: std-014
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-4
 - name: std-015
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: std-016
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
 - name: std-017
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-2
 - name: std-018
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-3
 - name: std-019
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-4
 - name: std-020
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-0
 - name: std-021
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-1
 - name: std-022
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-2
 - name: std-023
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-3
 - name: std-024
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-4
 - name: std-025
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-0
 - name: std-026
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-1
 - name: std-027
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-2
 - name: std-028
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-3
 - name: std-029
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-4
 - name: std-030
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: std-031
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
 - name: std-032
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-2
 - name: std-033
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-3
 - name: std-034
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-4
 - name: std-035
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-0
 - name: std-036
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-1
 - name: std-037
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-2
 - name: std-038
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-3
 - name: std-039
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-4
 - name: std-040
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-0
 - name: std-041
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-1
 - name: std-042
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-2
 - name: std-043
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-3
 - name: std-044
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-4
 - name: std-045
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: std-046
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
 - name: std-047
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-2
 - name: std-048
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-3
 - name: std-049
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-4
 - name: std-050
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-0
 - name: std-051
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-1
 - name: std-052
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-2
 - name: std-053
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-3
 - name: std-054
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-4
 - name: std-055
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-0
 - name: std-056
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-1
 - name: std-057
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-2
 - name: std-058
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-3
 - name: std-059
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-4
 - name: std-060
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: std-061
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
 - name: std-062
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-2
 - name: std-063
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-3
 - name: std-064
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-4
 - name: std-065
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-0
 - name: std-066
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-1
 - name: std-067
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-2
 - name: std-068
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-3
 - name: std-069
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-4
 - name: std-070
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-0
 - name: std-071
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-1
 - name: std-072
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-2
 - name: std-073
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-3
 - name: std-074
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-4
 - name: std-075
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: std-076
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
 - name: std-077
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-2
 - name: std-078
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-3
 - name: std-079
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-4
 - name: std-080
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-0
 - name: std-081
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-1
 - name: std-082
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-2
 - name: std-083
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-3
 - name: std-084
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-4
 - name: std-085
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-0
 - name: std-086
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-1
 - name: std-087
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-2
 - name: std-088
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-3
 - name: std-089
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-4
 - name: std-090
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: std-091
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
 - name: std-092
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-2
 - name: std-093
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-3
 - name: std-094
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-4
 - name: std-095
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-0
 - name: std-096
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-1
 - name: std-097
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-2
 - name: std-098
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-3
 - name: std-099
   allocatable:
     cpu: 64.0
     ram: 256.0
     gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
   labels:
     tier: standard
     disk: ssd
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-4
+- name: std-100
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+  rack: rack-0
+- name: std-101
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-1
+- name: std-102
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+  rack: rack-2
+- name: std-103
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+  rack: rack-3
+- name: std-104
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-4
+- name: std-105
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+  rack: rack-0
+- name: std-106
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+  rack: rack-1
+- name: std-107
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-2
+- name: std-108
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+  rack: rack-3
+- name: std-109
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+  rack: rack-4
+- name: std-110
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-0
+- name: std-111
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+  rack: rack-1
+- name: std-112
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+  rack: rack-2
+- name: std-113
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-3
+- name: std-114
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+  rack: rack-4
+- name: std-115
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+  rack: rack-0
+- name: std-116
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-1
+- name: std-117
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+  rack: rack-2
+- name: std-118
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+  rack: rack-3
+- name: std-119
+  allocatable:
+    cpu: 64.0
+    ram: 256.0
+    gpu: 0.0
+    storage: 1000.0
+    disk_read: 500.0
+    disk_write: 200.0
+    net_in: 1000.0
+    net_out: 1000.0
+  labels:
+    tier: standard
+    disk: ssd
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-4
 - name: mem-000
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: mem-001
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
 - name: mem-002
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-2
 - name: mem-003
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-3
 - name: mem-004
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-4
 - name: mem-005
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-0
 - name: mem-006
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-1
 - name: mem-007
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-2
 - name: mem-008
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-3
 - name: mem-009
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-4
 - name: mem-010
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-0
 - name: mem-011
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-1
 - name: mem-012
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-2
 - name: mem-013
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-3
 - name: mem-014
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-4
 - name: mem-015
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: mem-016
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
 - name: mem-017
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-2
 - name: mem-018
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-3
 - name: mem-019
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-4
 - name: mem-020
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-0
 - name: mem-021
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-1
 - name: mem-022
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-2
 - name: mem-023
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-3
 - name: mem-024
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-4
 - name: mem-025
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-0
 - name: mem-026
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-1
 - name: mem-027
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-2
 - name: mem-028
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-3
 - name: mem-029
   allocatable:
     cpu: 32.0
     ram: 512.0
     gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
   labels:
     tier: memory
     disk: nvme
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-4
+- name: mem-030
+  allocatable:
+    cpu: 32.0
+    ram: 512.0
+    gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
+  labels:
+    tier: memory
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+  rack: rack-0
+- name: mem-031
+  allocatable:
+    cpu: 32.0
+    ram: 512.0
+    gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
+  labels:
+    tier: memory
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+  rack: rack-1
+- name: mem-032
+  allocatable:
+    cpu: 32.0
+    ram: 512.0
+    gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
+  labels:
+    tier: memory
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-2
+- name: mem-033
+  allocatable:
+    cpu: 32.0
+    ram: 512.0
+    gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
+  labels:
+    tier: memory
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+  rack: rack-3
+- name: mem-034
+  allocatable:
+    cpu: 32.0
+    ram: 512.0
+    gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
+  labels:
+    tier: memory
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+  rack: rack-4
+- name: mem-035
+  allocatable:
+    cpu: 32.0
+    ram: 512.0
+    gpu: 0.0
+    storage: 2000.0
+    disk_read: 2000.0
+    disk_write: 1500.0
+    net_in: 2000.0
+    net_out: 2000.0
+  labels:
+    tier: memory
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-0
 - name: gpu-000
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1445,11 +2672,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: gpu-001
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1457,11 +2690,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
 - name: gpu-002
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1469,11 +2708,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-0
 - name: gpu-003
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1481,11 +2726,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-1
 - name: gpu-004
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1493,11 +2744,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-0
 - name: gpu-005
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1505,11 +2762,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-1
 - name: gpu-006
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1517,11 +2780,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: gpu-007
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1529,11 +2798,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
 - name: gpu-008
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1541,11 +2816,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-0
 - name: gpu-009
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1553,11 +2834,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-1
 - name: gpu-010
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1565,11 +2852,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-0
 - name: gpu-011
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1577,11 +2870,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-1
 - name: gpu-012
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1589,11 +2888,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: gpu-013
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1601,11 +2906,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
 - name: gpu-014
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1613,11 +2924,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-0
 - name: gpu-015
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1625,11 +2942,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-1
 - name: gpu-016
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1637,11 +2960,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-0
 - name: gpu-017
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1649,11 +2978,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1c
+  rack: rack-1
 - name: gpu-018
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1661,11 +2996,17 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1a
+  rack: rack-0
 - name: gpu-019
   allocatable:
     cpu: 48.0
     ram: 192.0
     gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
   labels:
     tier: gpu
     gpu: nvidia-a100
@@ -1673,12 +3014,198 @@ nodes:
     node-role: worker
   taints: []
   zone: us-east-1b
+  rack: rack-1
+- name: gpu-020
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-0
+- name: gpu-021
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+  rack: rack-1
+- name: gpu-022
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+  rack: rack-0
+- name: gpu-023
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-1
+- name: gpu-024
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+  rack: rack-0
+- name: gpu-025
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+  rack: rack-1
+- name: gpu-026
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-0
+- name: gpu-027
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1a
+  rack: rack-1
+- name: gpu-028
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1b
+  rack: rack-0
+- name: gpu-029
+  allocatable:
+    cpu: 48.0
+    ram: 192.0
+    gpu: 8.0
+    storage: 500.0
+    disk_read: 1000.0
+    disk_write: 1000.0
+    net_in: 10000.0
+    net_out: 10000.0
+  labels:
+    tier: gpu
+    gpu: nvidia-a100
+    disk: nvme
+    node-role: worker
+  taints: []
+  zone: us-east-1c
+  rack: rack-1
 daemonsets:
 - name: kube-proxy
   resources:
     cpu: 0.5
     ram: 0.5
     gpu: 0.0
+    storage: 1.0
+    disk_read: 1.0
+    disk_write: 1.0
+    net_in: 10.0
+    net_out: 10.0
   nodeSelector: {}
   tolerations: []
 - name: calico-node
@@ -1686,6 +3213,11 @@ daemonsets:
     cpu: 1.0
     ram: 1.0
     gpu: 0.0
+    storage: 2.0
+    disk_read: 5.0
+    disk_write: 5.0
+    net_in: 50.0
+    net_out: 50.0
   nodeSelector: {}
   tolerations: []
 - name: node-exporter
@@ -1693,6 +3225,11 @@ daemonsets:
     cpu: 0.25
     ram: 0.25
     gpu: 0.0
+    storage: 0.5
+    disk_read: 10.0
+    disk_write: 2.0
+    net_in: 5.0
+    net_out: 15.0
   nodeSelector: {}
   tolerations: []
 - name: fluentd
@@ -1700,5 +3237,10 @@ daemonsets:
     cpu: 0.5
     ram: 1.0
     gpu: 0.0
+    storage: 5.0
+    disk_read: 5.0
+    disk_write: 20.0
+    net_in: 5.0
+    net_out: 30.0
   nodeSelector: {}
   tolerations: []
