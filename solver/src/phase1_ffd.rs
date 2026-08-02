@@ -122,7 +122,7 @@ pub fn ffd_warmstart(pods: &[Pod], nodes: &[Node], weights: &FfdWeights) -> Blue
             let fallback = (0..num_nodes)
                 .find(|&i| crate::csp::can_place_pod_on_node(&pods[pod_idx], &nodes[i]))
                 .unwrap_or(0);
-                
+
             assignment[pod_idx] = fallback;
             residual[fallback] = residual[fallback].subtract(pods[pod_idx].requests);
         }
@@ -178,10 +178,7 @@ mod tests {
 
     #[test]
     fn ffd_heaviest_first_fills_tightly() {
-        let pods = vec![
-            pod("small", 1.0, 2.0),
-            pod("big", 3.0, 12.0),
-        ];
+        let pods = vec![pod("small", 1.0, 2.0), pod("big", 3.0, 12.0)];
         let nodes = vec![node("n", 4.0, 16.0)];
         let bp = ffd_warmstart(&pods, &nodes, &FfdWeights::default());
         // Both should fit on node 0 (big=3+12=15 volume, small=1+2=3)

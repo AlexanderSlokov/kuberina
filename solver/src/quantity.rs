@@ -65,19 +65,23 @@ pub fn parse_quantity(val: &str, ctx: QuantityContext) -> Result<f64, String> {
 /// Parse CPU quantity: only "m" (millicore) suffix supported.
 fn parse_cpu(val: &str) -> Result<f64, String> {
     if let Some(num_str) = val.strip_suffix('m') {
-        let n: f64 = num_str.parse()
-            .map_err(|_| format!("invalid CPU quantity '{val}': numeric part '{num_str}' is not a number"))?;
+        let n: f64 = num_str.parse().map_err(|_| {
+            format!("invalid CPU quantity '{val}': numeric part '{num_str}' is not a number")
+        })?;
         return Ok(n / 1000.0);
     }
-    Err(format!("unrecognized CPU suffix in '{val}', expected bare number or 'm' (millicore)"))
+    Err(format!(
+        "unrecognized CPU suffix in '{val}', expected bare number or 'm' (millicore)"
+    ))
 }
 
 /// Parse memory/storage quantity with binary suffixes, output in GiB.
 fn parse_memory(val: &str) -> Result<f64, String> {
     // WHY: check longer suffixes first to avoid "Ti" matching "i" before "T"
     let (num_str, multiplier) = extract_suffix_memory(val)?;
-    let n: f64 = num_str.parse()
-        .map_err(|_| format!("invalid memory quantity '{val}': numeric part '{num_str}' is not a number"))?;
+    let n: f64 = num_str.parse().map_err(|_| {
+        format!("invalid memory quantity '{val}': numeric part '{num_str}' is not a number")
+    })?;
     Ok(n * multiplier)
 }
 
@@ -104,8 +108,9 @@ fn extract_suffix_memory(val: &str) -> Result<(&str, f64), String> {
 /// Parse throughput quantity with decimal suffixes, output in MB/s.
 fn parse_throughput(val: &str) -> Result<f64, String> {
     let (num_str, multiplier) = extract_suffix_throughput(val)?;
-    let n: f64 = num_str.parse()
-        .map_err(|_| format!("invalid throughput quantity '{val}': numeric part '{num_str}' is not a number"))?;
+    let n: f64 = num_str.parse().map_err(|_| {
+        format!("invalid throughput quantity '{val}': numeric part '{num_str}' is not a number")
+    })?;
     Ok(n * multiplier)
 }
 
@@ -190,7 +195,9 @@ mod tests {
 
     #[test]
     fn throughput_bare_number() {
-        assert!((parse_quantity("500.0", QuantityContext::Throughput).unwrap() - 500.0).abs() < 1e-9);
+        assert!(
+            (parse_quantity("500.0", QuantityContext::Throughput).unwrap() - 500.0).abs() < 1e-9
+        );
     }
 
     #[test]
@@ -201,12 +208,16 @@ mod tests {
 
     #[test]
     fn throughput_mega() {
-        assert!((parse_quantity("500M", QuantityContext::Throughput).unwrap() - 500.0).abs() < 1e-9);
+        assert!(
+            (parse_quantity("500M", QuantityContext::Throughput).unwrap() - 500.0).abs() < 1e-9
+        );
     }
 
     #[test]
     fn throughput_giga() {
-        assert!((parse_quantity("10G", QuantityContext::Throughput).unwrap() - 10000.0).abs() < 1e-9);
+        assert!(
+            (parse_quantity("10G", QuantityContext::Throughput).unwrap() - 10000.0).abs() < 1e-9
+        );
     }
 
     #[test]
@@ -224,12 +235,18 @@ mod tests {
     #[test]
     fn invalid_suffix_error() {
         let err = parse_quantity("500X", QuantityContext::Memory).unwrap_err();
-        assert!(err.contains("unrecognized"), "error should describe issue: {err}");
+        assert!(
+            err.contains("unrecognized"),
+            "error should describe issue: {err}"
+        );
     }
 
     #[test]
     fn invalid_numeric_part_error() {
         let err = parse_quantity("abcMi", QuantityContext::Memory).unwrap_err();
-        assert!(err.contains("not a number"), "error should mention numeric parse: {err}");
+        assert!(
+            err.contains("not a number"),
+            "error should mention numeric parse: {err}"
+        );
     }
 }

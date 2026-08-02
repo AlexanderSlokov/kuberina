@@ -40,11 +40,7 @@ pub fn can_place_pod_on_node(pod: &Pod, node: &Node) -> bool {
 ///
 /// Instead of boolean pass/fail, returns total resource over-commitment.
 /// Overflow = Σ max(0, load − cap) for CPU, RAM, GPU.
-pub fn compute_capacity_overflow(
-    assignment: &[usize],
-    pods: &[Pod],
-    nodes: &[Node],
-) -> f64 {
+pub fn compute_capacity_overflow(assignment: &[usize], pods: &[Pod], nodes: &[Node]) -> f64 {
     let mut loads = vec![ResourceVector::zero(); nodes.len()];
     for (pod_idx, &node_idx) in assignment.iter().enumerate() {
         loads[node_idx] = loads[node_idx] + pods[pod_idx].requests;
@@ -68,11 +64,7 @@ pub fn compute_capacity_overflow(
 }
 
 /// Count number of pods placed on nodes violating Taint or NodeSelector.
-pub fn compute_selector_violations(
-    assignment: &[usize],
-    pods: &[Pod],
-    nodes: &[Node],
-) -> usize {
+pub fn compute_selector_violations(assignment: &[usize], pods: &[Pod], nodes: &[Node]) -> usize {
     assignment
         .iter()
         .enumerate()
@@ -105,7 +97,10 @@ pub fn can_place_gang(
 
     if group.colocate {
         return eligible.iter().any(|&idx| {
-            nodes[idx].allocatable.subtract(node_load[idx]).fits(total_demand)
+            nodes[idx]
+                .allocatable
+                .subtract(node_load[idx])
+                .fits(total_demand)
         });
     }
 
@@ -145,11 +140,9 @@ fn sum_residual_capacity(
     nodes: &[Node],
     node_load: &[ResourceVector],
 ) -> ResourceVector {
-    eligible
-        .iter()
-        .fold(ResourceVector::zero(), |acc, &idx| {
-            acc + nodes[idx].allocatable.subtract(node_load[idx])
-        })
+    eligible.iter().fold(ResourceVector::zero(), |acc, &idx| {
+        acc + nodes[idx].allocatable.subtract(node_load[idx])
+    })
 }
 
 #[cfg(test)]
@@ -270,8 +263,14 @@ mod tests {
     #[test]
     fn gang_feasibility_basic() {
         let pods = vec![
-            Pod { requests: ResourceVector::new(1.0, 1.0, 0.0), ..pod("p0") },
-            Pod { requests: ResourceVector::new(1.0, 1.0, 0.0), ..pod("p1") },
+            Pod {
+                requests: ResourceVector::new(1.0, 1.0, 0.0),
+                ..pod("p0")
+            },
+            Pod {
+                requests: ResourceVector::new(1.0, 1.0, 0.0),
+                ..pod("p1")
+            },
         ];
         let nodes = vec![node("n0", 4.0, 16.0)];
         let group = PodGroup {
@@ -296,7 +295,9 @@ mod tests {
             ..pod("db")
         }];
         let nodes = vec![Node {
-            allocatable: ResourceVector::new_8d(4.0, 16.0, 0.0, 100.0, 500.0, 500.0, 1000.0, 1000.0),
+            allocatable: ResourceVector::new_8d(
+                4.0, 16.0, 0.0, 100.0, 500.0, 500.0, 1000.0, 1000.0,
+            ),
             ..node("n", 4.0, 16.0)
         }];
         // disk_read overflow: 600 - 500 = 100

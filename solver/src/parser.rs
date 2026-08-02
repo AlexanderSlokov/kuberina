@@ -152,8 +152,9 @@ fn resolve_value(
     match val {
         None => Ok(0.0),
         Some(ResourceValue::Numeric(n)) => Ok(*n),
-        Some(ResourceValue::Text(s)) => parse_quantity(s, ctx)
-            .map_err(|e| format!("field '{field_name}': {e}")),
+        Some(ResourceValue::Text(s)) => {
+            parse_quantity(s, ctx).map_err(|e| format!("field '{field_name}': {e}"))
+        }
     }
 }
 
@@ -166,8 +167,9 @@ fn resolve_node_value(
     match val {
         None => Ok(f64::MAX),
         Some(ResourceValue::Numeric(n)) => Ok(*n),
-        Some(ResourceValue::Text(s)) => parse_quantity(s, ctx)
-            .map_err(|e| format!("field '{field_name}': {e}")),
+        Some(ResourceValue::Text(s)) => {
+            parse_quantity(s, ctx).map_err(|e| format!("field '{field_name}': {e}"))
+        }
     }
 }
 
@@ -181,10 +183,26 @@ fn raw_to_pod_resources(raw: &RawResources) -> Result<ResourceVector, String> {
         resolve_value(&raw.ram, QuantityContext::Memory, "ram")?,
         resolve_value(&raw.gpu, QuantityContext::Cpu, "gpu")?,
         resolve_value(&raw.storage, QuantityContext::Memory, "storage")?,
-        resolve_value(&disk.and_then(|d| d.read.clone()), QuantityContext::Throughput, "disk.read")?,
-        resolve_value(&disk.and_then(|d| d.write.clone()), QuantityContext::Throughput, "disk.write")?,
-        resolve_value(&net.and_then(|n| n.in_.clone()), QuantityContext::Throughput, "network.in")?,
-        resolve_value(&net.and_then(|n| n.out.clone()), QuantityContext::Throughput, "network.out")?,
+        resolve_value(
+            &disk.and_then(|d| d.read.clone()),
+            QuantityContext::Throughput,
+            "disk.read",
+        )?,
+        resolve_value(
+            &disk.and_then(|d| d.write.clone()),
+            QuantityContext::Throughput,
+            "disk.write",
+        )?,
+        resolve_value(
+            &net.and_then(|n| n.in_.clone()),
+            QuantityContext::Throughput,
+            "network.in",
+        )?,
+        resolve_value(
+            &net.and_then(|n| n.out.clone()),
+            QuantityContext::Throughput,
+            "network.out",
+        )?,
     ))
 }
 
@@ -200,10 +218,26 @@ fn raw_to_node_resources(raw: &RawResources) -> Result<ResourceVector, String> {
         resolve_value(&raw.ram, QuantityContext::Memory, "ram")?,
         resolve_value(&raw.gpu, QuantityContext::Cpu, "gpu")?,
         resolve_node_value(&raw.storage, QuantityContext::Memory, "storage")?,
-        resolve_node_value(&disk.and_then(|d| d.read.clone()), QuantityContext::Throughput, "disk.read")?,
-        resolve_node_value(&disk.and_then(|d| d.write.clone()), QuantityContext::Throughput, "disk.write")?,
-        resolve_node_value(&net.and_then(|n| n.in_.clone()), QuantityContext::Throughput, "network.in")?,
-        resolve_node_value(&net.and_then(|n| n.out.clone()), QuantityContext::Throughput, "network.out")?,
+        resolve_node_value(
+            &disk.and_then(|d| d.read.clone()),
+            QuantityContext::Throughput,
+            "disk.read",
+        )?,
+        resolve_node_value(
+            &disk.and_then(|d| d.write.clone()),
+            QuantityContext::Throughput,
+            "disk.write",
+        )?,
+        resolve_node_value(
+            &net.and_then(|n| n.in_.clone()),
+            QuantityContext::Throughput,
+            "network.in",
+        )?,
+        resolve_node_value(
+            &net.and_then(|n| n.out.clone()),
+            QuantityContext::Throughput,
+            "network.out",
+        )?,
     ))
 }
 
@@ -240,27 +274,33 @@ pub fn load_infra(path: impl AsRef<Path>) -> Result<(Vec<Node>, Vec<DaemonSet>),
 }
 
 fn convert_nodes(raw_nodes: &[RawNode]) -> Result<Vec<Node>, String> {
-    raw_nodes.iter().map(|rn| {
-        Ok(Node {
-            name: rn.name.clone(),
-            allocatable: raw_to_node_resources(&rn.allocatable)?,
-            labels: rn.labels.clone(),
-            taints: rn.taints.iter().map(flatten_taint).collect(),
-            zone: rn.zone.clone(),
-            rack: rn.rack.clone(),
+    raw_nodes
+        .iter()
+        .map(|rn| {
+            Ok(Node {
+                name: rn.name.clone(),
+                allocatable: raw_to_node_resources(&rn.allocatable)?,
+                labels: rn.labels.clone(),
+                taints: rn.taints.iter().map(flatten_taint).collect(),
+                zone: rn.zone.clone(),
+                rack: rn.rack.clone(),
+            })
         })
-    }).collect()
+        .collect()
 }
 
 fn convert_daemonsets(raw_ds: &[RawDaemonSet]) -> Result<Vec<DaemonSet>, String> {
-    raw_ds.iter().map(|rd| {
-        Ok(DaemonSet {
-            name: rd.name.clone(),
-            resources: raw_to_pod_resources(&rd.resources)?,
-            node_selector: rd.node_selector.clone(),
-            tolerations: rd.tolerations.clone(),
+    raw_ds
+        .iter()
+        .map(|rd| {
+            Ok(DaemonSet {
+                name: rd.name.clone(),
+                resources: raw_to_pod_resources(&rd.resources)?,
+                node_selector: rd.node_selector.clone(),
+                tolerations: rd.tolerations.clone(),
+            })
         })
-    }).collect()
+        .collect()
 }
 
 /// Parse workload manifests YAML (IR v0.2.0) into Pod and PodGroup lists.
@@ -295,9 +335,7 @@ fn flatten_namespaces(raw: &RawWorkloadFile) -> Result<Vec<Pod>, String> {
         let raw_pods = &raw.namespaces[ns_name];
         for rp in raw_pods {
             let resources = raw_to_pod_resources(&rp.requests)?;
-            let tolerations: Vec<String> = rp.tolerations.iter()
-                .map(flatten_toleration)
-                .collect();
+            let tolerations: Vec<String> = rp.tolerations.iter().map(flatten_toleration).collect();
 
             let replica_count = rp.replicas.max(1);
             for replica_idx in 0..replica_count {
@@ -340,13 +378,15 @@ fn auto_group_gangs(pods: &[Pod]) -> Vec<PodGroup> {
 
     for (idx, pod) in pods.iter().enumerate() {
         if !pod.group_name.is_empty() {
-            gang_map.entry(pod.group_name.clone())
+            gang_map
+                .entry(pod.group_name.clone())
                 .or_default()
                 .push(idx);
         }
     }
 
-    let mut groups: Vec<PodGroup> = gang_map.into_iter()
+    let mut groups: Vec<PodGroup> = gang_map
+        .into_iter()
         .map(|(name, indices)| {
             let min_members = indices.len();
             PodGroup {

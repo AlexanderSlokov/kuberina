@@ -39,7 +39,13 @@ pub fn run_ga(
 
     for generation in 0..config.max_generations {
         let mut offspring = breed_generation(
-            &population, pods, nodes, groups, config, fitness_weights, &mut rng,
+            &population,
+            pods,
+            nodes,
+            groups,
+            config,
+            fitness_weights,
+            &mut rng,
         );
         // WHY: evaluate BEFORE select — offspring start with fitness=0.0,
         // which would always beat parents in sorting without real scores.
@@ -66,26 +72,31 @@ pub fn run_ga(
             let pct = (generation + 1) as f64 / config.max_generations as f64 * 100.0;
             let filled = (pct / 5.0) as usize;
             let bar: String = "█".repeat(filled) + &"░".repeat(20 - filled);
-            
+
             if generation > 0 {
                 eprint!("\x1B[4A"); // Move cursor up 4 lines
             }
-            
+
             eprintln!(
                 "\x1B[2KGen {:>4}/{} | best={:.4} | stale={:<3} | {} {:.0}%",
                 generation, config.max_generations, best.fitness, stale_count, bar, pct,
             );
             eprintln!(
                 "\x1B[2K  [Scorecard] Cap: {:.0} | Sel: {:.0} | Gang: {:.0}",
-                best.scorecard.capacity_penalty, best.scorecard.selector_penalty, best.scorecard.gang_penalty
+                best.scorecard.capacity_penalty,
+                best.scorecard.selector_penalty,
+                best.scorecard.gang_penalty
             );
             eprintln!(
                 "\x1B[2K              Frag: {:.2} | Aff: {:.0} | Var: {:.4}",
-                best.scorecard.fragmentation, best.scorecard.affinity_violations, best.scorecard.utilization_variance
+                best.scorecard.fragmentation,
+                best.scorecard.affinity_violations,
+                best.scorecard.utilization_variance
             );
             eprintln!(
                 "\x1B[2K  [Nodes] Active: {:.0} / {}",
-                best.scorecard.active_nodes, nodes.len()
+                best.scorecard.active_nodes,
+                nodes.len()
             );
         }
 
@@ -157,7 +168,11 @@ fn breed_generation(
             let c = uniform_crossover(p1, p2, rng);
             repair_gangs_on(c, p1, p2, groups, pods, nodes)
         } else {
-            if p1.fitness < p2.fitness { p1.clone() } else { p2.clone() }
+            if p1.fitness < p2.fitness {
+                p1.clone()
+            } else {
+                p2.clone()
+            }
         };
 
         mutate(&mut child, pods, nodes, groups, config.mutation_rate, rng);
@@ -175,7 +190,11 @@ fn select_survivors(
     config: &GaConfig,
 ) -> Vec<Blueprint> {
     let mut combined: Vec<Blueprint> = parents.into_iter().chain(offspring).collect();
-    combined.sort_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(std::cmp::Ordering::Equal));
+    combined.sort_by(|a, b| {
+        a.fitness
+            .partial_cmp(&b.fitness)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     combined.truncate(config.population_size);
     combined
 }
@@ -184,18 +203,18 @@ fn select_survivors(
 fn find_best(population: &[Blueprint]) -> &Blueprint {
     population
         .iter()
-        .min_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(std::cmp::Ordering::Equal))
+        .min_by(|a, b| {
+            a.fitness
+                .partial_cmp(&b.fitness)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
         .expect("population must not be empty")
 }
 
 /// Pick k random individuals, return the one with best (lowest) fitness.
 ///
 /// From ga_estimation.md §4: tournament selection with k_tour=3.
-fn tournament_select<'a>(
-    population: &'a [Blueprint],
-    k: usize,
-    rng: &mut StdRng,
-) -> &'a Blueprint {
+fn tournament_select<'a>(population: &'a [Blueprint], k: usize, rng: &mut StdRng) -> &'a Blueprint {
     let k = k.min(population.len());
     let candidates: Vec<&Blueprint> = (0..k)
         .map(|_| {
@@ -205,7 +224,11 @@ fn tournament_select<'a>(
         .collect();
     candidates
         .into_iter()
-        .min_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(std::cmp::Ordering::Equal))
+        .min_by(|a, b| {
+            a.fitness
+                .partial_cmp(&b.fitness)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
         .unwrap()
 }
 
@@ -256,7 +279,13 @@ fn repair_gangs_on(
 
         // Rollback to the parent that had this gang feasible
         let source = match (p1_feasible, p2_feasible) {
-            (true, true) => if p1.fitness <= p2.fitness { p1 } else { p2 },
+            (true, true) => {
+                if p1.fitness <= p2.fitness {
+                    p1
+                } else {
+                    p2
+                }
+            }
             (true, false) => p1,
             (false, true) => p2,
             (false, false) => unreachable!(),
@@ -305,8 +334,9 @@ fn mutate(
             }
 
             // Check if nodes are eligible for each other
-            if !can_place_pod_on_node(&pods[i], &nodes[node_j]) || 
-               !can_place_pod_on_node(&pods[j], &nodes[node_i]) {
+            if !can_place_pod_on_node(&pods[i], &nodes[node_j])
+                || !can_place_pod_on_node(&pods[j], &nodes[node_i])
+            {
                 continue;
             }
 
@@ -331,17 +361,17 @@ fn mutate(
 
             if group_i.is_some() || group_j.is_some() {
                 blueprint.node_load = compute_node_loads(&blueprint.assignment, pods, num_nodes);
-                
-                if let Some(g_idx) = group_i {
-                    if was_feasible_i && !gang_is_feasible(blueprint, &groups[g_idx], nodes) {
-                        rollback = true;
-                    }
+
+                if group_i.is_some_and(|g_idx| {
+                    was_feasible_i && !gang_is_feasible(blueprint, &groups[g_idx], nodes)
+                }) {
+                    rollback = true;
                 }
-                
-                if let Some(g_idx) = group_j {
-                    if was_feasible_j && !gang_is_feasible(blueprint, &groups[g_idx], nodes) {
-                        rollback = true;
-                    }
+
+                if group_j.is_some_and(|g_idx| {
+                    was_feasible_j && !gang_is_feasible(blueprint, &groups[g_idx], nodes)
+                }) {
+                    rollback = true;
                 }
             }
 
@@ -349,7 +379,6 @@ fn mutate(
                 blueprint.assignment[i] = node_i;
                 blueprint.assignment[j] = node_j;
             }
-
         } else {
             // Move operator
             let old_node = blueprint.assignment[i];
@@ -361,7 +390,7 @@ fn mutate(
             let &new_node = eligible.choose(rng).unwrap();
             let group_idx = group_lookup[i];
             let mut was_feasible = false;
-            
+
             if let Some(g_idx) = group_idx {
                 was_feasible = gang_is_feasible(blueprint, &groups[g_idx], nodes);
             }
@@ -382,7 +411,9 @@ fn mutate(
 fn gang_is_feasible(blueprint: &Blueprint, group: &PodGroup, nodes: &[Node]) -> bool {
     group.pod_indices.iter().all(|&pod_idx| {
         let node_idx = blueprint.assignment[pod_idx];
-        nodes[node_idx].allocatable.fits(blueprint.node_load[node_idx])
+        nodes[node_idx]
+            .allocatable
+            .fits(blueprint.node_load[node_idx])
     })
 }
 
