@@ -30,7 +30,14 @@ use crate::model::{Blueprint, FfdWeights, Node, Pod, ResourceVector};
 /// ```
 pub fn synthetic_volume(pod: &Pod, weights: &FfdWeights) -> f64 {
     let r = &pod.requests;
-    weights.alpha * r.cpu + weights.beta * r.ram + weights.gamma * r.gpu
+    weights.alpha * r.cpu
+        + weights.beta * r.ram
+        + weights.gamma * r.gpu
+        + weights.delta * r.storage
+        + weights.epsilon_r * r.disk_read
+        + weights.epsilon_w * r.disk_write
+        + weights.zeta_in * r.net_in
+        + weights.zeta_out * r.net_out
 }
 
 /// Accumulate per-node resource usage from pod assignments.
@@ -139,6 +146,7 @@ mod tests {
             affinity_targets: vec![],
             anti_affinity_targets: vec![],
             group_name: String::new(),
+            topology_spread: None,
         }
     }
 
@@ -149,6 +157,7 @@ mod tests {
             labels: HashMap::new(),
             taints: vec![],
             zone: String::new(),
+            rack: String::new(),
         }
     }
 
