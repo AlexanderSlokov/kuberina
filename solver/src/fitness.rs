@@ -184,8 +184,21 @@ pub fn compute_topology_spread_penalty(
             continue;
         }
 
-        // Count pods sharing the same anti-affinity or group across zones/racks
         let mut counts: HashMap<&str, usize> = HashMap::new();
+        // Pre-populate with all available domains to correctly calculate skew
+        // even if some domains end up with 0 pods.
+        for node in nodes {
+            let domain = match ts.topology_key.as_str() {
+                "zone" => &node.zone,
+                "rack" => &node.rack,
+                _ => "",
+            };
+            if !domain.is_empty() {
+                counts.insert(domain, 0);
+            }
+        }
+
+        // Count pods sharing the same spread group
         for (j, other) in pods.iter().enumerate() {
             let same_spread = match &other.topology_spread {
                 Some(ots) => ots.topology_key == ts.topology_key
@@ -196,8 +209,15 @@ pub fn compute_topology_spread_penalty(
             if !same_spread {
                 continue;
             }
-            let domain = get_topology_domain(nodes, assignment[j], &ts.topology_key);
-            *counts.entry(domain).or_insert(0) += 1;
+            let node = &nodes[assignment[j]];
+            let domain = match ts.topology_key.as_str() {
+                "zone" => &node.zone,
+                "rack" => &node.rack,
+                _ => "",
+            };
+            if !domain.is_empty() {
+                *counts.entry(domain).or_insert(0) += 1;
+            }
         }
 
         if counts.len() < 2 {
@@ -246,15 +266,7 @@ fn share_base_name(a: &str, b: &str) -> bool {
     base_a == base_b
 }
 
-/// Get the topology domain value for a node by key ("zone" or "rack").
-fn get_topology_domain<'a>(nodes: &'a [Node], node_idx: usize, key: &str) -> &'a str {
-    let node = &nodes[node_idx];
-    match key {
-        "zone" => &node.zone,
-        "rack" => &node.rack,
-        _ => "",
-    }
-}
+
 
 /// Φ(s): gradient penalty scalar for hard constraints.
 ///

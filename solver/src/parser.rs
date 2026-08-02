@@ -76,6 +76,7 @@ struct RawNode {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 struct RawTaint {
     key: String,
     #[serde(default)]
@@ -129,6 +130,7 @@ fn default_replicas() -> usize {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 struct RawToleration {
     key: String,
     #[serde(default)]

@@ -63,8 +63,8 @@ fn full_pipeline_homelab() {
     );
 
     // 3. USB-dongle pods are on node 1 (thinkcentre-beta)
-    let ha_idx = pods.iter().position(|p| p.name == "home-assistant").unwrap();
-    let z2m_idx = pods.iter().position(|p| p.name == "zigbee2mqtt").unwrap();
+    let ha_idx = pods.iter().position(|p| p.name == "home-assistant-0").unwrap();
+    let z2m_idx = pods.iter().position(|p| p.name == "zigbee2mqtt-0").unwrap();
     assert_eq!(best.assignment[ha_idx], 1, "Home Assistant must be on beta (USB)");
     assert_eq!(best.assignment[z2m_idx], 1, "Zigbee2MQTT must be on beta (USB)");
 

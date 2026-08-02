@@ -22,8 +22,10 @@ use crate::model::{Blueprint, FfdWeights, Node, Pod, ResourceVector};
 ///     name: "gpu-worker".into(), namespace: "ai".into(),
 ///     requests: ResourceVector::new(8.0, 64.0, 1.0),
 ///     tolerations: vec![], node_selector: Default::default(),
-///     affinity_targets: vec![], anti_affinity_targets: vec![],
+///     affinity_targets: vec![],
+///     anti_affinity_targets: vec![],
 ///     group_name: String::new(),
+///     topology_spread: None,
 /// };
 /// let v = synthetic_volume(&pod, &FfdWeights::default());
 /// assert!((v - 82.0).abs() < 1e-9);
@@ -67,12 +69,17 @@ pub fn compute_node_loads(
 ///     name: "big".into(), namespace: "ns".into(),
 ///     requests: ResourceVector::new(2.0, 8.0, 0.0),
 ///     tolerations: vec![], node_selector: HashMap::new(),
-///     affinity_targets: vec![], anti_affinity_targets: vec![],
+///     affinity_targets: vec![],
+///     anti_affinity_targets: vec![],
 ///     group_name: String::new(),
+///     topology_spread: None,
 /// }];
 /// let nodes = vec![Node {
 ///     name: "n1".into(), allocatable: ResourceVector::new(4.0, 16.0, 0.0),
-///     labels: HashMap::new(), taints: vec![], zone: String::new(),
+///     labels: HashMap::new(),
+///     taints: vec![],
+///     zone: String::new(),
+///     rack: String::new(),
 /// }];
 /// let bp = ffd_warmstart(&pods, &nodes, &FfdWeights::default());
 /// assert_eq!(bp.assignment, vec![0]);
