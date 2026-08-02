@@ -51,7 +51,7 @@ research-full-pipeline: ## Run the full validation pipeline (Generate testdata -
 	@echo "=> Generating 8D testdata..."
 	cd research && uv run python gen_irina_testdata.py
 	@echo "=> Running solver on generated testdata..."
-	cd solver && cargo run --release -- plan --infra ../research/testdata/irina_infra.yaml --workloads ../research/testdata/irina_workloads.yaml > kuberina_solution.yaml
+	cd solver && cargo run --release -- plan --infra ../research/testdata/irina_infra.yaml --workloads ../research/testdata/irina_workloads.yaml
 	@echo "=> Running Inspector heatmap & validation..."
 	cd research && uv run python inspector.py --infra testdata/irina_infra.yaml --workloads testdata/irina_workloads.yaml --solution ../solver/kuberina_solution.yaml
 	@echo "=> Running Formal Mathematical Proof..."

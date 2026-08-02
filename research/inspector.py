@@ -68,7 +68,8 @@ def validate_solution(nodes, pods, solution):
     selector_violations = 0
     unassigned_pods = 0
     
-    for pod_name, node_name in solution.items():
+    for pod_name_raw, node_name in solution.items():
+        pod_name = pod_name_raw.split('/')[-1] if '/' in pod_name_raw else pod_name_raw
         if pod_name not in pod_map:
             continue
         pod = pod_map[pod_name]

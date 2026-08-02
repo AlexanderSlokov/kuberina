@@ -75,7 +75,8 @@ def verify_capacity_constraint(
         for n in nodes
     }
 
-    for pod_name, node_name in solution.items():
+    for pod_name_raw, node_name in solution.items():
+        pod_name = pod_name_raw.split('/')[-1] if '/' in pod_name_raw else pod_name_raw
         if pod_name not in pod_map or node_name not in node_map:
             continue
         req = pod_map[pod_name]["requests"]
@@ -102,7 +103,8 @@ def verify_assignment_constraint(
 
     Returns (all_assigned, count_missing).
     """
-    missing = sum(1 for p in pods if p["name"] not in solution)
+    assigned_pods = set(k.split('/')[-1] if '/' in k else k for k in solution.keys())
+    missing = sum(1 for p in pods if p["name"] not in assigned_pods)
     return missing == 0, missing
 
 
@@ -119,7 +121,8 @@ def verify_selector_constraint(
     pod_map = {p["name"]: p for p in pods}
     violations = 0
 
-    for pod_name, node_name in solution.items():
+    for pod_name_raw, node_name in solution.items():
+        pod_name = pod_name_raw.split('/')[-1] if '/' in pod_name_raw else pod_name_raw
         if pod_name not in pod_map or node_name not in node_map:
             continue
         selector = pod_map[pod_name].get("nodeSelector", {})
@@ -147,9 +150,10 @@ def verify_topology_spread(
     
     groups = {}
     import re
-    for p_name, n_name in solution.items():
-        if p_name not in pod_map or n_name not in node_map: continue
-        pod = pod_map[p_name]
+    for pod_name_raw, n_name in solution.items():
+        pod_name = pod_name_raw.split('/')[-1] if '/' in pod_name_raw else pod_name_raw
+        if pod_name not in pod_map or n_name not in node_map: continue
+        pod = pod_map[pod_name]
         if "topologySpread" not in pod: continue
         
         ts = pod["topologySpread"]
@@ -157,7 +161,7 @@ def verify_topology_spread(
         if top_key not in all_domains: continue
         
         ns = pod.get("namespace", "default")
-        base_name = re.sub(r'-\d{1,4}$', '', p_name)
+        base_name = re.sub(r'-\d{1,4}$', '', pod_name)
         
         group_key = (ns, base_name, top_key)
         groups.setdefault(group_key, []).append(n_name)

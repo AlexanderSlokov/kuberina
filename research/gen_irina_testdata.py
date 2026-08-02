@@ -219,53 +219,44 @@ ANTI_AFFINITY_CROSS: list[tuple[str, str]] = [
 
 def generate_workloads() -> dict:
     """Build 3000-pod workload manifest with hostile constraint matrix."""
+    namespaces: dict[str, list[dict]] = {}
     pods: list[dict] = []
-    pod_name_registry: dict[str, list[str]] = {}  # service -> [pod_names]
+    pod_name_registry: dict[str, list[str]] = {}
 
     for svc_def in SERVICES:
-        svc_name, namespace, replicas = svc_def[0], svc_def[1], svc_def[2]
-        cpu, ram, gpu = svc_def[3], svc_def[4], svc_def[5]
-        storage, dr, dw = svc_def[6], svc_def[7], svc_def[8]
-        ni, no = svc_def[9], svc_def[10]
-        node_selector, is_spread = svc_def[11], svc_def[12]
-        topology_key = svc_def[13]
-
-        svc_pod_names: list[str] = []
-
-        for r in range(replicas):
-            pod_name = f"{svc_name}-{r:04d}"
-            svc_pod_names.append(pod_name)
-
-            pod: dict = {
-                "name": pod_name,
-                "namespace": namespace,
-                "requests": {
-                    "cpu": cpu, "ram": ram, "gpu": gpu,
-                    "storage": storage, "disk_read": dr, "disk_write": dw,
-                    "net_in": ni, "net_out": no,
-                },
+        svc_name, ns_name, replicas = svc_def[0], svc_def[1], svc_def[2]
+        
+        svc_entry = {
+            "name": svc_name,
+            "replicas": replicas,
+            "requests": {
+                "cpu": svc_def[3], "ram": svc_def[4], "gpu": svc_def[5],
+                "storage": svc_def[6], "disk_read": svc_def[7], "disk_write": svc_def[8],
+                "net_in": svc_def[9], "net_out": svc_def[10],
             }
+        }
+        
+        if svc_def[11]: svc_entry["nodeSelector"] = svc_def[11]
+        if svc_def[13]: svc_entry["topologySpread"] = {"maxSkew": 1, "topologyKey": svc_def[13]}
+        
+        namespaces.setdefault(ns_name, []).append(svc_entry)
+        
+        # Build registry for constraints
+        names = [f"{svc_name}-{r:04d}" for r in range(replicas)]
+        pod_name_registry[svc_name] = names
+        
+        # Flatten for legacy constraint logic
+        for name in names:
+            p = svc_entry.copy()
+            p["name"] = name
+            p["namespace"] = ns_name
+            pods.append(p)
 
-            if node_selector:
-                pod["nodeSelector"] = node_selector
-            
-            if topology_key:
-                pod["topologySpread"] = {
-                    "maxSkew": 1,
-                    "topologyKey": topology_key
-                }
-
-            pods.append(pod)
-
-        pod_name_registry[svc_name] = svc_pod_names
-
-    # WHY: apply constraints AFTER all pods are created, so we can
-    # reference cross-service pod names for affinity targets.
     _apply_anti_affinity_spread(pods, pod_name_registry)
     _apply_affinity_chains(pods, pod_name_registry)
     _apply_cross_anti_affinity(pods, pod_name_registry)
 
-    return {"pods": pods, "groups": []}
+    return {"namespaces": namespaces, "pods": pods}
 
 
 def _apply_anti_affinity_spread(
@@ -362,15 +353,15 @@ def compute_resource_summary(infra: dict, workloads: dict) -> None:
     net_ram = total_ram - overhead_ram
 
     # Pod requests
-    pod_cpu = sum(p["requests"]["cpu"] for p in workloads["pods"])
-    pod_ram = sum(p["requests"]["ram"] for p in workloads["pods"])
-    pod_gpu = sum(p["requests"]["gpu"] for p in workloads["pods"])
+    pod_cpu = sum(p["requests"]["cpu"] for ns in workloads.get("namespaces", {}).values() for p in ns for _ in range(p["replicas"]))
+    pod_ram = sum(p["requests"]["ram"] for ns in workloads.get("namespaces", {}).values() for p in ns for _ in range(p["replicas"]))
+    pod_gpu = sum(p["requests"]["gpu"] for ns in workloads.get("namespaces", {}).values() for p in ns for _ in range(p["replicas"]))
 
     fill_cpu = pod_cpu / net_cpu * 100
     fill_ram = pod_ram / net_ram * 100
     fill_gpu = pod_gpu / total_gpu * 100 if total_gpu > 0 else 0
 
-    total_pods = len(workloads["pods"])
+    total_pods = sum(p.get("replicas", 1) for ns in workloads.get("namespaces", {}).values() for p in ns)
     total_nodes = len(infra["nodes"])
 
     anti_aff_count = sum(
