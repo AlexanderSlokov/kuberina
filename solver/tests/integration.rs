@@ -63,10 +63,19 @@ fn full_pipeline_homelab() {
     );
 
     // 3. USB-dongle pods are on node 1 (thinkcentre-beta)
-    let ha_idx = pods.iter().position(|p| p.name == "home-assistant").unwrap();
-    let z2m_idx = pods.iter().position(|p| p.name == "zigbee2mqtt").unwrap();
-    assert_eq!(best.assignment[ha_idx], 1, "Home Assistant must be on beta (USB)");
-    assert_eq!(best.assignment[z2m_idx], 1, "Zigbee2MQTT must be on beta (USB)");
+    let ha_idx = pods
+        .iter()
+        .position(|p| p.name == "home-assistant-0")
+        .unwrap();
+    let z2m_idx = pods.iter().position(|p| p.name == "zigbee2mqtt-0").unwrap();
+    assert_eq!(
+        best.assignment[ha_idx], 1,
+        "Home Assistant must be on beta (USB)"
+    );
+    assert_eq!(
+        best.assignment[z2m_idx], 1,
+        "Zigbee2MQTT must be on beta (USB)"
+    );
 
     // 4. GA should improve (or at least not worsen) FFD seed
     assert!(best.fitness <= seed.fitness);
@@ -79,7 +88,10 @@ fn ffd_produces_feasible_seed() {
     let nodes = pre_deduct_daemonsets(&raw_nodes, &daemon_sets);
     let seed = ffd_warmstart(&pods, &nodes, &FfdWeights::default());
 
-    assert_eq!(compute_capacity_overflow(&seed.assignment, &pods, &nodes), 0.0);
+    assert_eq!(
+        compute_capacity_overflow(&seed.assignment, &pods, &nodes),
+        0.0
+    );
 }
 
 #[test]
@@ -97,7 +109,14 @@ fn ga_reduces_affinity_violations() {
         early_stop_generations: 30,
         ..GaConfig::default()
     };
-    let best = run_ga(&seed, &pods, &nodes, &groups, &config, &FitnessWeights::default());
+    let best = run_ga(
+        &seed,
+        &pods,
+        &nodes,
+        &groups,
+        &config,
+        &FitnessWeights::default(),
+    );
     let ga_violations = compute_affinity_violations(&best.assignment, &pods);
 
     // GA should have same or fewer violations

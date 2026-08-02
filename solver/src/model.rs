@@ -41,7 +41,9 @@ impl ResourceVector {
     /// Keeps backward compat for existing tests.
     pub fn new(cpu: f64, ram: f64, gpu: f64) -> Self {
         Self {
-            cpu, ram, gpu,
+            cpu,
+            ram,
+            gpu,
             storage: 0.0,
             disk_read: 0.0,
             disk_write: 0.0,
@@ -57,17 +59,39 @@ impl ResourceVector {
     /// let v = ResourceVector::new_8d(4.0, 16.0, 1.0, 100.0, 500.0, 500.0, 1000.0, 1000.0);
     /// assert_eq!(v.storage, 100.0);
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn new_8d(
-        cpu: f64, ram: f64, gpu: f64, storage: f64,
-        disk_read: f64, disk_write: f64, net_in: f64, net_out: f64,
+        cpu: f64,
+        ram: f64,
+        gpu: f64,
+        storage: f64,
+        disk_read: f64,
+        disk_write: f64,
+        net_in: f64,
+        net_out: f64,
     ) -> Self {
-        Self { cpu, ram, gpu, storage, disk_read, disk_write, net_in, net_out }
+        Self {
+            cpu,
+            ram,
+            gpu,
+            storage,
+            disk_read,
+            disk_write,
+            net_in,
+            net_out,
+        }
     }
 
     pub fn zero() -> Self {
         Self {
-            cpu: 0.0, ram: 0.0, gpu: 0.0, storage: 0.0,
-            disk_read: 0.0, disk_write: 0.0, net_in: 0.0, net_out: 0.0,
+            cpu: 0.0,
+            ram: 0.0,
+            gpu: 0.0,
+            storage: 0.0,
+            disk_read: 0.0,
+            disk_write: 0.0,
+            net_in: 0.0,
+            net_out: 0.0,
         }
     }
 
@@ -97,10 +121,14 @@ impl ResourceVector {
     }
 
     pub fn is_zero(self) -> bool {
-        self.cpu == 0.0 && self.ram == 0.0 && self.gpu == 0.0
+        self.cpu == 0.0
+            && self.ram == 0.0
+            && self.gpu == 0.0
             && self.storage == 0.0
-            && self.disk_read == 0.0 && self.disk_write == 0.0
-            && self.net_in == 0.0 && self.net_out == 0.0
+            && self.disk_read == 0.0
+            && self.disk_write == 0.0
+            && self.net_in == 0.0
+            && self.net_out == 0.0
     }
 }
 

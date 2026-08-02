@@ -28,6 +28,7 @@ use crate::model::{DaemonSet, Node, ResourceVector};
 ///     labels: HashMap::from([("gpu".into(), "true".into())]),
 ///     taints: vec![],
 ///     zone: String::new(),
+///     rack: String::new(),
 /// };
 /// assert!(is_eligible(&ds, &node));
 /// ```
@@ -57,6 +58,7 @@ pub fn is_eligible(ds: &DaemonSet, node: &Node) -> bool {
 ///     name: "n1".into(),
 ///     allocatable: ResourceVector::new(4.0, 16.0, 0.0),
 ///     labels: Default::default(), taints: vec![], zone: String::new(),
+///     rack: String::new(),
 /// }];
 /// let ds = vec![DaemonSet {
 ///     name: "kube-proxy".into(),

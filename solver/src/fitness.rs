@@ -122,7 +122,8 @@ pub fn compute_affinity_violations(assignment: &[usize], pods: &[Pod]) -> usize 
         }
         for target_name in &pod.anti_affinity_targets {
             if let Some(&target_idx) = name_to_idx.get(target_name.as_str())
-                && i < target_idx && assignment[i] == assignment[target_idx]
+                && i < target_idx
+                && assignment[i] == assignment[target_idx]
             {
                 violations += 1;
             }
@@ -163,11 +164,7 @@ pub fn compute_utilization_variance(node_load: &[ResourceVector], nodes: &[Node]
 /// # use kuberina_solver::fitness::compute_topology_spread_penalty;
 /// // Tested via compute_fitness integration
 /// ```
-pub fn compute_topology_spread_penalty(
-    assignment: &[usize],
-    pods: &[Pod],
-    nodes: &[Node],
-) -> f64 {
+pub fn compute_topology_spread_penalty(assignment: &[usize], pods: &[Pod], nodes: &[Node]) -> f64 {
     let mut penalty = 0.0_f64;
 
     // Collect pods that have topology_spread set
@@ -184,20 +181,42 @@ pub fn compute_topology_spread_penalty(
             continue;
         }
 
-        // Count pods sharing the same anti-affinity or group across zones/racks
         let mut counts: HashMap<&str, usize> = HashMap::new();
+        // Pre-populate with all available domains to correctly calculate skew
+        // even if some domains end up with 0 pods.
+        for node in nodes {
+            let domain = match ts.topology_key.as_str() {
+                "zone" => &node.zone,
+                "rack" => &node.rack,
+                _ => "",
+            };
+            if !domain.is_empty() {
+                counts.insert(domain, 0);
+            }
+        }
+
+        // Count pods sharing the same spread group
         for (j, other) in pods.iter().enumerate() {
             let same_spread = match &other.topology_spread {
-                Some(ots) => ots.topology_key == ts.topology_key
-                    && other.namespace == pod.namespace
-                    && share_base_name(&pod.name, &other.name),
+                Some(ots) => {
+                    ots.topology_key == ts.topology_key
+                        && other.namespace == pod.namespace
+                        && share_base_name(&pod.name, &other.name)
+                }
                 None => false,
             };
             if !same_spread {
                 continue;
             }
-            let domain = get_topology_domain(nodes, assignment[j], &ts.topology_key);
-            *counts.entry(domain).or_insert(0) += 1;
+            let node = &nodes[assignment[j]];
+            let domain = match ts.topology_key.as_str() {
+                "zone" => &node.zone,
+                "rack" => &node.rack,
+                _ => "",
+            };
+            if !domain.is_empty() {
+                *counts.entry(domain).or_insert(0) += 1;
+            }
         }
 
         if counts.len() < 2 {
@@ -226,13 +245,12 @@ fn is_first_with_spread(pods: &[Pod], idx: usize) -> bool {
         if j >= idx {
             return true;
         }
-        if let Some(ots) = &other.topology_spread {
-            if ots.topology_key == ts.topology_key
+        if other.topology_spread.as_ref().is_some_and(|ots| {
+            ots.topology_key == ts.topology_key
                 && other.namespace == pod.namespace
                 && share_base_name(&pod.name, &other.name)
-            {
-                return false;
-            }
+        }) {
+            return false;
         }
     }
     true
@@ -244,16 +262,6 @@ fn share_base_name(a: &str, b: &str) -> bool {
     let base_a = a.rsplit_once('-').map(|(b, _)| b).unwrap_or(a);
     let base_b = b.rsplit_once('-').map(|(b, _)| b).unwrap_or(b);
     base_a == base_b
-}
-
-/// Get the topology domain value for a node by key ("zone" or "rack").
-fn get_topology_domain<'a>(nodes: &'a [Node], node_idx: usize, key: &str) -> &'a str {
-    let node = &nodes[node_idx];
-    match key {
-        "zone" => &node.zone,
-        "rack" => &node.rack,
-        _ => "",
-    }
 }
 
 /// Φ(s): gradient penalty scalar for hard constraints.
@@ -297,12 +305,7 @@ fn compute_hard_penalty(
 /// Soft penalty if any gang pod can't fit on its assigned node.
 ///
 /// Penalty scales linearly with the number of missing pods to reach min_members.
-fn gang_penalty(
-    blueprint: &Blueprint,
-    _pods: &[Pod],
-    nodes: &[Node],
-    groups: &[PodGroup],
-) -> f64 {
+fn gang_penalty(blueprint: &Blueprint, _pods: &[Pod], nodes: &[Node], groups: &[PodGroup]) -> f64 {
     let mut penalty = 0.0_f64;
     for group in groups {
         let placed = group
@@ -310,7 +313,9 @@ fn gang_penalty(
             .iter()
             .filter(|&&pod_idx| {
                 let node_idx = blueprint.assignment[pod_idx];
-                nodes[node_idx].allocatable.fits(blueprint.node_load[node_idx])
+                nodes[node_idx]
+                    .allocatable
+                    .fits(blueprint.node_load[node_idx])
             })
             .count();
         if placed < group.min_members {
@@ -376,7 +381,10 @@ mod tests {
     #[test]
     fn affinity_violation_detected() {
         let pods = vec![
-            Pod { affinity_targets: vec!["b".into()], ..pod("a") },
+            Pod {
+                affinity_targets: vec!["b".into()],
+                ..pod("a")
+            },
             pod("b"),
         ];
         assert_eq!(compute_affinity_violations(&[0, 1], &pods), 1);
@@ -385,7 +393,10 @@ mod tests {
     #[test]
     fn affinity_satisfied_no_violation() {
         let pods = vec![
-            Pod { affinity_targets: vec!["b".into()], ..pod("a") },
+            Pod {
+                affinity_targets: vec!["b".into()],
+                ..pod("a")
+            },
             pod("b"),
         ];
         assert_eq!(compute_affinity_violations(&[0, 0], &pods), 0);
@@ -394,7 +405,10 @@ mod tests {
     #[test]
     fn anti_affinity_violation() {
         let pods = vec![
-            Pod { anti_affinity_targets: vec!["b".into()], ..pod("a") },
+            Pod {
+                anti_affinity_targets: vec!["b".into()],
+                ..pod("a")
+            },
             pod("b"),
         ];
         assert_eq!(compute_affinity_violations(&[0, 0], &pods), 1);
@@ -402,7 +416,10 @@ mod tests {
 
     #[test]
     fn utilization_variance_balanced() {
-        let loads = [ResourceVector::new(2.0, 0.0, 0.0), ResourceVector::new(2.0, 0.0, 0.0)];
+        let loads = [
+            ResourceVector::new(2.0, 0.0, 0.0),
+            ResourceVector::new(2.0, 0.0, 0.0),
+        ];
         let nodes = [node("a", 4.0, 16.0), node("b", 4.0, 16.0)];
         assert_eq!(compute_utilization_variance(&loads, &nodes), 0.0);
     }
@@ -428,15 +445,36 @@ mod tests {
     #[test]
     fn topology_spread_penalty_skew() {
         use crate::model::TopologySpread;
-        let ts = Some(TopologySpread { max_skew: 1, topology_key: "zone".into() });
+        let ts = Some(TopologySpread {
+            max_skew: 1,
+            topology_key: "zone".into(),
+        });
         let pods = vec![
-            Pod { name: "w-0000".into(), topology_spread: ts.clone(), ..pod("w-0000") },
-            Pod { name: "w-0001".into(), topology_spread: ts.clone(), ..pod("w-0001") },
-            Pod { name: "w-0002".into(), topology_spread: ts.clone(), ..pod("w-0002") },
+            Pod {
+                name: "w-0000".into(),
+                topology_spread: ts.clone(),
+                ..pod("w-0000")
+            },
+            Pod {
+                name: "w-0001".into(),
+                topology_spread: ts.clone(),
+                ..pod("w-0001")
+            },
+            Pod {
+                name: "w-0002".into(),
+                topology_spread: ts.clone(),
+                ..pod("w-0002")
+            },
         ];
         let nodes = vec![
-            Node { zone: "us-east-1a".into(), ..node("n0", 4.0, 16.0) },
-            Node { zone: "us-east-1b".into(), ..node("n1", 4.0, 16.0) },
+            Node {
+                zone: "us-east-1a".into(),
+                ..node("n0", 4.0, 16.0)
+            },
+            Node {
+                zone: "us-east-1b".into(),
+                ..node("n1", 4.0, 16.0)
+            },
         ];
         // 3 pods across 2 zones: [0,0,0] → zone-a=3, zone-b=0 → skew=3, max_skew=1 → penalty=2
         let penalty = compute_topology_spread_penalty(&[0, 0, 0], &pods, &nodes);

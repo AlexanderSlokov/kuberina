@@ -1,6 +1,6 @@
 [package]
 name = "kuberina-solver"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Maritime stowage-inspired K8s scheduling optimizer — Rust solver engine"
 authors = ["Aleksandr Slokov <thanhzeus2016@gmail.com>"]
