@@ -78,6 +78,23 @@ fn run_plan(infra_path: &str, workloads_path: &str, pareto: Option<f64>) {
             node.allocatable.cpu *= factor;
             node.allocatable.ram *= factor;
             node.allocatable.gpu *= factor;
+            // WHY: only scale constrained dimensions — f64::MAX * 0.8 is still MAX-ish
+            // but could drift. Skip unconstrained dims entirely.
+            if node.allocatable.storage < f64::MAX {
+                node.allocatable.storage *= factor;
+            }
+            if node.allocatable.disk_read < f64::MAX {
+                node.allocatable.disk_read *= factor;
+            }
+            if node.allocatable.disk_write < f64::MAX {
+                node.allocatable.disk_write *= factor;
+            }
+            if node.allocatable.net_in < f64::MAX {
+                node.allocatable.net_in *= factor;
+            }
+            if node.allocatable.net_out < f64::MAX {
+                node.allocatable.net_out *= factor;
+            }
         }
     }
 
@@ -161,6 +178,7 @@ fn print_blueprint(best: &kuberina_solver::model::Blueprint, pods: &[kuberina_so
     println!("    Fragmentation: {:.2}", best.scorecard.fragmentation);
     println!("    Affinity Violations: {:.0}", best.scorecard.affinity_violations);
     println!("    Utilization Variance: {:.4}", best.scorecard.utilization_variance);
+    println!("    Topology Spread Penalty: {:.2}", best.scorecard.topology_spread_penalty);
     println!();
 
     let num_nodes = nodes.len();
@@ -179,7 +197,10 @@ fn print_blueprint(best: &kuberina_solver::model::Blueprint, pods: &[kuberina_so
     let mut yaml_out = String::new();
     yaml_out.push_str("solution:\n");
     for (pod_idx, &node_idx) in best.assignment.iter().enumerate() {
-        yaml_out.push_str(&format!("  {}: {}\n", pods[pod_idx].name, nodes[node_idx].name));
+        yaml_out.push_str(&format!(
+            "  {}/{}: {}\n",
+            pods[pod_idx].namespace, pods[pod_idx].name, nodes[node_idx].name,
+        ));
     }
     if let Err(e) = std::fs::write("kuberina_solution.yaml", yaml_out) {
         eprintln!("Failed to export solution: {}", e);

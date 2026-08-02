@@ -423,6 +423,7 @@ mod tests {
             affinity_targets: vec![],
             anti_affinity_targets: vec![],
             group_name: String::new(),
+            topology_spread: None,
         }
     }
 
@@ -433,6 +434,7 @@ mod tests {
             labels: HashMap::new(),
             taints: vec![],
             zone: String::new(),
+            rack: String::new(),
         }
     }
 

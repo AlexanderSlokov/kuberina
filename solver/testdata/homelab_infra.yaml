@@ -1,61 +1,86 @@
 # 3 ThinkCentre M720q homelab nodes running k3s
 # CPU: 4 cores, RAM: 16 GiB each, no GPU
-# Resource values: CPU in cores, RAM in GiB, GPU in units
+# Disk: SATA SSD ~500 MB/s R/W, Network: 1 Gbps NIC
+# Kuberina IR v0.2.0 format
 
 nodes:
   - name: thinkcentre-alpha
-    allocatable:
-      cpu: 4.0
-      ram: 16.0
-      gpu: 0.0
+    zone: home
+    rack: rack-home
     labels:
       node-role: worker
     taints: []
-    zone: home
-
-  - name: thinkcentre-beta
     allocatable:
       cpu: 4.0
-      ram: 16.0
-      gpu: 0.0
+      ram: "16Gi"
+      gpu: 0
+      storage: "200Gi"
+      disk:
+        read: "500M"
+        write: "500M"
+      network:
+        in: "1G"
+        out: "1G"
+
+  - name: thinkcentre-beta
+    zone: home
+    rack: rack-home
     labels:
       node-role: worker
       usb-dongle: "true"     # Zigbee USB stick plugged into this node
     taints: []
-    zone: home
-
-  - name: thinkcentre-gamma
     allocatable:
       cpu: 4.0
-      ram: 16.0
-      gpu: 0.0
+      ram: "16Gi"
+      gpu: 0
+      storage: "200Gi"
+      disk:
+        read: "500M"
+        write: "500M"
+      network:
+        in: "1G"
+        out: "1G"
+
+  - name: thinkcentre-gamma
+    zone: home
+    rack: rack-home
     labels:
       node-role: worker
     taints: []
-    zone: home
+    allocatable:
+      cpu: 4.0
+      ram: "16Gi"
+      gpu: 0
+      storage: "200Gi"
+      disk:
+        read: "500M"
+        write: "500M"
+      network:
+        in: "1G"
+        out: "1G"
 
 # Ship's own systems — pre-deducted from capacity (Phase 0)
 daemonsets:
   - name: kube-proxy
     resources:
       cpu: 0.1
-      ram: 0.064
-      gpu: 0.0
+      ram: "64Mi"
+      gpu: 0
     nodeSelector: {}
     tolerations: []
 
   - name: calico-node
     resources:
       cpu: 0.25
-      ram: 0.128
-      gpu: 0.0
+      ram: "128Mi"
+      gpu: 0
     nodeSelector: {}
     tolerations: []
 
   - name: node-exporter
     resources:
       cpu: 0.1
-      ram: 0.064
-      gpu: 0.0
+      ram: "64Mi"
+      gpu: 0
     nodeSelector: {}
     tolerations: []
