@@ -56,6 +56,13 @@ pub fn compute_capacity_overflow(
         overflow += (load.cpu - cap.cpu).max(0.0);
         overflow += (load.ram - cap.ram).max(0.0);
         overflow += (load.gpu - cap.gpu).max(0.0);
+        overflow += (load.storage - cap.storage).max(0.0);
+        // WHY: Disk/Network overflow is the Noisy Neighbor signal —
+        // 10 DB pods crushing a node's IOPS triggers massive penalty.
+        overflow += (load.disk_read - cap.disk_read).max(0.0);
+        overflow += (load.disk_write - cap.disk_write).max(0.0);
+        overflow += (load.net_in - cap.net_in).max(0.0);
+        overflow += (load.net_out - cap.net_out).max(0.0);
     }
     overflow
 }
@@ -161,6 +168,7 @@ mod tests {
             affinity_targets: vec![],
             anti_affinity_targets: vec![],
             group_name: String::new(),
+            topology_spread: None,
         }
     }
 
@@ -171,6 +179,7 @@ mod tests {
             labels: HashMap::new(),
             taints: vec![],
             zone: String::new(),
+            rack: String::new(),
         }
     }
 
@@ -278,5 +287,19 @@ mod tests {
             &[ResourceVector::zero()],
             &pods,
         ));
+    }
+
+    #[test]
+    fn capacity_overflow_detects_disk_read_overflow() {
+        let pods = vec![Pod {
+            requests: ResourceVector::new_8d(1.0, 1.0, 0.0, 0.0, 600.0, 0.0, 0.0, 0.0),
+            ..pod("db")
+        }];
+        let nodes = vec![Node {
+            allocatable: ResourceVector::new_8d(4.0, 16.0, 0.0, 100.0, 500.0, 500.0, 1000.0, 1000.0),
+            ..node("n", 4.0, 16.0)
+        }];
+        // disk_read overflow: 600 - 500 = 100
+        assert!((compute_capacity_overflow(&[0], &pods, &nodes) - 100.0).abs() < 1e-9);
     }
 }
