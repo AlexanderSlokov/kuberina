@@ -29,17 +29,20 @@ pub fn compute_fitness(
     let f_frag = compute_fragmentation(&blueprint.node_load, nodes);
     let f_aff = compute_affinity_violations(&blueprint.assignment, pods) as f64;
     let f_var = compute_utilization_variance(&blueprint.node_load, nodes);
+    let f_spread = compute_topology_spread_penalty(&blueprint.assignment, pods, nodes);
 
     sc.active_nodes = f_nodes;
     sc.fragmentation = f_frag;
     sc.affinity_violations = f_aff;
     sc.utilization_variance = f_var;
+    sc.topology_spread_penalty = f_spread;
 
     let fitness = penalty
         + weights.node_count * f_nodes
         + weights.fragmentation * f_frag
         + weights.affinity_violation * f_aff
-        + weights.utilization_variance * f_var;
+        + weights.utilization_variance * f_var
+        + weights.topology_spread * f_spread;
 
     (fitness, sc)
 }
@@ -74,6 +77,24 @@ pub fn compute_fragmentation(node_load: &[ResourceVector], nodes: &[Node]) -> f6
         total_waste += (cap.cpu - load.cpu).max(0.0);
         total_waste += (cap.ram - load.ram).max(0.0);
         total_waste += (cap.gpu - load.gpu).max(0.0);
+        // WHY: guard against f64::MAX unconstrained dimensions.
+        // If node doesn't declare a limit (default=MAX), skip that dim
+        // from waste calc — otherwise waste = MAX → poisons fitness.
+        if cap.storage < f64::MAX {
+            total_waste += (cap.storage - load.storage).max(0.0);
+        }
+        if cap.disk_read < f64::MAX {
+            total_waste += (cap.disk_read - load.disk_read).max(0.0);
+        }
+        if cap.disk_write < f64::MAX {
+            total_waste += (cap.disk_write - load.disk_write).max(0.0);
+        }
+        if cap.net_in < f64::MAX {
+            total_waste += (cap.net_in - load.net_in).max(0.0);
+        }
+        if cap.net_out < f64::MAX {
+            total_waste += (cap.net_out - load.net_out).max(0.0);
+        }
     }
     total_waste
 }
@@ -130,6 +151,109 @@ pub fn compute_utilization_variance(node_load: &[ResourceVector], nodes: &[Node]
 
     let mean = utilizations.iter().sum::<f64>() / utilizations.len() as f64;
     utilizations.iter().map(|u| (u - mean).powi(2)).sum::<f64>() / (utilizations.len() - 1) as f64
+}
+
+/// f_spread: penalize uneven pod distribution across topology zones/racks.
+///
+/// For each pod with a topologySpread constraint, counts how many pods of
+/// the same "spread group" (same name prefix before replica suffix) land in
+/// each topology domain. Penalty = Σ max(0, actual_skew - maxSkew).
+///
+/// ```
+/// # use kuberina_solver::fitness::compute_topology_spread_penalty;
+/// // Tested via compute_fitness integration
+/// ```
+pub fn compute_topology_spread_penalty(
+    assignment: &[usize],
+    pods: &[Pod],
+    nodes: &[Node],
+) -> f64 {
+    let mut penalty = 0.0_f64;
+
+    // Collect pods that have topology_spread set
+    for (i, pod) in pods.iter().enumerate() {
+        let ts = match &pod.topology_spread {
+            Some(ts) => ts,
+            None => continue,
+        };
+
+        // WHY: only count from the first replica to avoid double-counting.
+        // All replicas share the same constraint, but we evaluate the
+        // distribution of ALL pods with the same group_name + spread key.
+        if !is_first_with_spread(pods, i) {
+            continue;
+        }
+
+        // Count pods sharing the same anti-affinity or group across zones/racks
+        let mut counts: HashMap<&str, usize> = HashMap::new();
+        for (j, other) in pods.iter().enumerate() {
+            let same_spread = match &other.topology_spread {
+                Some(ots) => ots.topology_key == ts.topology_key
+                    && other.namespace == pod.namespace
+                    && share_base_name(&pod.name, &other.name),
+                None => false,
+            };
+            if !same_spread {
+                continue;
+            }
+            let domain = get_topology_domain(nodes, assignment[j], &ts.topology_key);
+            *counts.entry(domain).or_insert(0) += 1;
+        }
+
+        if counts.len() < 2 {
+            continue;
+        }
+
+        let max_count = counts.values().copied().max().unwrap_or(0);
+        let min_count = counts.values().copied().min().unwrap_or(0);
+        let skew = max_count.saturating_sub(min_count);
+        if skew > ts.max_skew {
+            penalty += (skew - ts.max_skew) as f64;
+        }
+    }
+    penalty
+}
+
+/// True if this is the first pod in the list with a topology_spread
+/// and the same base name (i.e., don't re-evaluate for each replica).
+fn is_first_with_spread(pods: &[Pod], idx: usize) -> bool {
+    let pod = &pods[idx];
+    let ts = match &pod.topology_spread {
+        Some(ts) => ts,
+        None => return false,
+    };
+    for (j, other) in pods.iter().enumerate() {
+        if j >= idx {
+            return true;
+        }
+        if let Some(ots) = &other.topology_spread {
+            if ots.topology_key == ts.topology_key
+                && other.namespace == pod.namespace
+                && share_base_name(&pod.name, &other.name)
+            {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// Check if two pod names share the same base (before replica suffix).
+/// "worker-0000" and "worker-0003" share base "worker".
+fn share_base_name(a: &str, b: &str) -> bool {
+    let base_a = a.rsplit_once('-').map(|(b, _)| b).unwrap_or(a);
+    let base_b = b.rsplit_once('-').map(|(b, _)| b).unwrap_or(b);
+    base_a == base_b
+}
+
+/// Get the topology domain value for a node by key ("zone" or "rack").
+fn get_topology_domain<'a>(nodes: &'a [Node], node_idx: usize, key: &str) -> &'a str {
+    let node = &nodes[node_idx];
+    match key {
+        "zone" => &node.zone,
+        "rack" => &node.rack,
+        _ => "",
+    }
 }
 
 /// Φ(s): gradient penalty scalar for hard constraints.
@@ -213,6 +337,7 @@ mod tests {
             affinity_targets: vec![],
             anti_affinity_targets: vec![],
             group_name: String::new(),
+            topology_spread: None,
         }
     }
 
@@ -223,6 +348,7 @@ mod tests {
             labels: HashMap::new(),
             taints: vec![],
             zone: String::new(),
+            rack: String::new(),
         }
     }
 
@@ -297,5 +423,27 @@ mod tests {
         let (f, _) = compute_fitness(&bp, &pods, &nodes, &[], &FitnessWeights::default());
         assert!(f > 1_000_000.0);
         assert!(f.is_finite());
+    }
+
+    #[test]
+    fn topology_spread_penalty_skew() {
+        use crate::model::TopologySpread;
+        let ts = Some(TopologySpread { max_skew: 1, topology_key: "zone".into() });
+        let pods = vec![
+            Pod { name: "w-0000".into(), topology_spread: ts.clone(), ..pod("w-0000") },
+            Pod { name: "w-0001".into(), topology_spread: ts.clone(), ..pod("w-0001") },
+            Pod { name: "w-0002".into(), topology_spread: ts.clone(), ..pod("w-0002") },
+        ];
+        let nodes = vec![
+            Node { zone: "us-east-1a".into(), ..node("n0", 4.0, 16.0) },
+            Node { zone: "us-east-1b".into(), ..node("n1", 4.0, 16.0) },
+        ];
+        // 3 pods across 2 zones: [0,0,0] → zone-a=3, zone-b=0 → skew=3, max_skew=1 → penalty=2
+        let penalty = compute_topology_spread_penalty(&[0, 0, 0], &pods, &nodes);
+        assert!((penalty - 2.0).abs() < 1e-9);
+
+        // Better: [0,1,0] → zone-a=2, zone-b=1 → skew=1 → no penalty
+        let penalty = compute_topology_spread_penalty(&[0, 1, 0], &pods, &nodes);
+        assert!((penalty - 0.0).abs() < 1e-9);
     }
 }
