@@ -19,7 +19,10 @@ use kuberina_solver::phase1_ffd::ffd_warmstart;
 use kuberina_solver::phase2_ga::run_ga;
 
 #[derive(Parser)]
-#[command(name = "kuberina", about = "Maritime stowage-inspired K8s scheduling optimizer")]
+#[command(
+    name = "kuberina",
+    about = "Maritime stowage-inspired K8s scheduling optimizer"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -45,7 +48,11 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Plan { infra, workloads, pareto } => run_plan(&infra, &workloads, pareto),
+        Commands::Plan {
+            infra,
+            workloads,
+            pareto,
+        } => run_plan(&infra, &workloads, pareto),
     }
 }
 
@@ -63,7 +70,10 @@ fn run_plan(infra_path: &str, workloads_path: &str, pareto: Option<f64>) {
 
     eprintln!(
         "Loaded {} nodes, {} daemonsets, {} pods, {} groups",
-        raw_nodes.len(), daemon_sets.len(), pods.len(), groups.len(),
+        raw_nodes.len(),
+        daemon_sets.len(),
+        pods.len(),
+        groups.len(),
     );
 
     // Phase 0: DaemonSet pre-deduction (ballast water)
@@ -73,11 +83,31 @@ fn run_plan(infra_path: &str, workloads_path: &str, pareto: Option<f64>) {
     let mut pareto_nodes = net_nodes.clone();
     if let Some(p) = pareto {
         let factor = p / 100.0;
-        eprintln!("\n[Pareto Mode] Capping node capacities to {:.1}% for placement optimization.", p);
+        eprintln!(
+            "\n[Pareto Mode] Capping node capacities to {:.1}% for placement optimization.",
+            p
+        );
         for node in &mut pareto_nodes {
             node.allocatable.cpu *= factor;
             node.allocatable.ram *= factor;
             node.allocatable.gpu *= factor;
+            // WHY: only scale constrained dimensions — f64::MAX * 0.8 is still MAX-ish
+            // but could drift. Skip unconstrained dims entirely.
+            if node.allocatable.storage < f64::MAX {
+                node.allocatable.storage *= factor;
+            }
+            if node.allocatable.disk_read < f64::MAX {
+                node.allocatable.disk_read *= factor;
+            }
+            if node.allocatable.disk_write < f64::MAX {
+                node.allocatable.disk_write *= factor;
+            }
+            if node.allocatable.net_in < f64::MAX {
+                node.allocatable.net_in *= factor;
+            }
+            if node.allocatable.net_out < f64::MAX {
+                node.allocatable.net_out *= factor;
+            }
         }
     }
 
@@ -93,7 +123,14 @@ fn run_plan(infra_path: &str, workloads_path: &str, pareto: Option<f64>) {
     // Phase 2: GA optimization (evolutionary stowage planning)
     // WHY: auto-scale GA params based on problem size (ga_estimation.md §3).
     let ga_config = select_ga_config(pods.len());
-    let best = run_ga(&seed, &pods, &pareto_nodes, &groups, &ga_config, &fitness_weights);
+    let best = run_ga(
+        &seed,
+        &pods,
+        &pareto_nodes,
+        &groups,
+        &ga_config,
+        &fitness_weights,
+    );
 
     let elapsed = start.elapsed().as_secs_f64();
     // Print the blueprint using the actual net capacities (not pareto-capped)
@@ -143,24 +180,50 @@ fn print_phase0_summary(
         let oh_ram = raw.allocatable.ram - ded.allocatable.ram;
         println!(
             "  {}: {:.1} → {:.2} CPU, {:.1} → {:.3} GiB RAM (-{:.2} CPU, -{:.3} GiB overhead)",
-            ded.name, raw.allocatable.cpu, ded.allocatable.cpu,
-            raw.allocatable.ram, ded.allocatable.ram, oh_cpu, oh_ram,
+            ded.name,
+            raw.allocatable.cpu,
+            ded.allocatable.cpu,
+            raw.allocatable.ram,
+            ded.allocatable.ram,
+            oh_cpu,
+            oh_ram,
         );
     }
 }
 
-fn print_blueprint(best: &kuberina_solver::model::Blueprint, pods: &[kuberina_solver::model::Pod], nodes: &[kuberina_solver::model::Node], elapsed: f64) {
+fn print_blueprint(
+    best: &kuberina_solver::model::Blueprint,
+    pods: &[kuberina_solver::model::Pod],
+    nodes: &[kuberina_solver::model::Node],
+    elapsed: f64,
+) {
     println!("\n═══ Final Blueprint (Stowage Plan) ═══");
     println!("  Fitness: {:.4}", best.fitness);
     println!("  Time: {:.2}s", elapsed);
     println!("  Scorecard:");
-    println!("    Capacity Penalty: {:.0}", best.scorecard.capacity_penalty);
-    println!("    Selector Penalty: {:.0}", best.scorecard.selector_penalty);
+    println!(
+        "    Capacity Penalty: {:.0}",
+        best.scorecard.capacity_penalty
+    );
+    println!(
+        "    Selector Penalty: {:.0}",
+        best.scorecard.selector_penalty
+    );
     println!("    Gang Penalty: {:.0}", best.scorecard.gang_penalty);
     println!("    Active Nodes: {:.0}", best.scorecard.active_nodes);
     println!("    Fragmentation: {:.2}", best.scorecard.fragmentation);
-    println!("    Affinity Violations: {:.0}", best.scorecard.affinity_violations);
-    println!("    Utilization Variance: {:.4}", best.scorecard.utilization_variance);
+    println!(
+        "    Affinity Violations: {:.0}",
+        best.scorecard.affinity_violations
+    );
+    println!(
+        "    Utilization Variance: {:.4}",
+        best.scorecard.utilization_variance
+    );
+    println!(
+        "    Topology Spread Penalty: {:.2}",
+        best.scorecard.topology_spread_penalty
+    );
     println!();
 
     let num_nodes = nodes.len();
@@ -179,7 +242,10 @@ fn print_blueprint(best: &kuberina_solver::model::Blueprint, pods: &[kuberina_so
     let mut yaml_out = String::new();
     yaml_out.push_str("solution:\n");
     for (pod_idx, &node_idx) in best.assignment.iter().enumerate() {
-        yaml_out.push_str(&format!("  {}: {}\n", pods[pod_idx].name, nodes[node_idx].name));
+        yaml_out.push_str(&format!(
+            "  {}/{}: {}\n",
+            pods[pod_idx].namespace, pods[pod_idx].name, nodes[node_idx].name,
+        ));
     }
     if let Err(e) = std::fs::write("kuberina_solution.yaml", yaml_out) {
         eprintln!("Failed to export solution: {}", e);
@@ -246,9 +312,17 @@ fn print_summary_mode(
     for j in 0..num_nodes {
         let load = &blueprint.node_load[j];
         let cap = &nodes[j].allocatable;
-        let cpu_pct = if cap.cpu > 0.0 { load.cpu / cap.cpu * 100.0 } else { 0.0 };
+        let cpu_pct = if cap.cpu > 0.0 {
+            load.cpu / cap.cpu * 100.0
+        } else {
+            0.0
+        };
         let pod_count = node_pods[j].len();
-        if pod_count > 0 { active_count += 1; } else { empty_count += 1; }
+        if pod_count > 0 {
+            active_count += 1;
+        } else {
+            empty_count += 1;
+        }
         stats.push(NodeStat {
             name: nodes[j].name.clone(),
             cpu_pct,
@@ -260,7 +334,11 @@ fn print_summary_mode(
 
     let total_pods: usize = stats.iter().map(|s| s.pod_count).sum();
     let avg_cpu: f64 = if active_count > 0 {
-        stats.iter().filter(|s| s.pod_count > 0).map(|s| s.cpu_pct).sum::<f64>()
+        stats
+            .iter()
+            .filter(|s| s.pod_count > 0)
+            .map(|s| s.cpu_pct)
+            .sum::<f64>()
             / active_count as f64
     } else {
         0.0
@@ -275,7 +353,11 @@ fn print_summary_mode(
 
     // Top 5 busiest
     let mut by_cpu: Vec<&NodeStat> = stats.iter().collect();
-    by_cpu.sort_by(|a, b| b.cpu_pct.partial_cmp(&a.cpu_pct).unwrap_or(std::cmp::Ordering::Equal));
+    by_cpu.sort_by(|a, b| {
+        b.cpu_pct
+            .partial_cmp(&a.cpu_pct)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     println!("  ─── Top 5 Busiest Nodes ───");
     for s in by_cpu.iter().take(5) {
         println!(
@@ -286,7 +368,11 @@ fn print_summary_mode(
 
     // Bottom 5 least loaded (with at least 1 pod)
     let mut active_stats: Vec<&NodeStat> = stats.iter().filter(|s| s.pod_count > 0).collect();
-    active_stats.sort_by(|a, b| a.cpu_pct.partial_cmp(&b.cpu_pct).unwrap_or(std::cmp::Ordering::Equal));
+    active_stats.sort_by(|a, b| {
+        a.cpu_pct
+            .partial_cmp(&b.cpu_pct)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     println!("\n  ─── Top 5 Lightest Active Nodes ───");
     for s in active_stats.iter().take(5) {
         println!(
@@ -304,7 +390,10 @@ fn print_summary_mode(
             }
         }
     } else if empty_count > 10 {
-        println!("\n  ─── {} nodes empty (available for shutdown) ───", empty_count);
+        println!(
+            "\n  ─── {} nodes empty (available for shutdown) ───",
+            empty_count
+        );
     }
     println!();
 }

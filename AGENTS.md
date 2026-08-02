@@ -1,3 +1,12 @@
+# Workflow instructions
+
+- After your plan is accepted, update ROADMAP.md if needed to propagate new items.
+- After finished feature implement / bug fix,... Update the CHANGELOG.md and ROADMAP.md.
+
+## Constraints
+
+- Use the POV of a technical writer writing documents of k8s to write `.md` artifacts, like CHANGELOG, ROADMAP,.etc. Focus on clarity, accuracy explainations.
+
 ## Code style
 
 - Functions: 4-20 lines. Split if longer.

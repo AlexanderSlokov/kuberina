@@ -7,12 +7,15 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::ops::Add;
 
-/// Multi-dimensional resource capacity/request.
+/// Multi-dimensional resource capacity/request (8D).
 ///
-/// Maps to R = {CPU, RAM, GPU} from PAPER.md §3.2.
-/// CPU in cores (f64), RAM in GiB (f64), GPU in units (f64).
+/// Maps to R = {CPU, RAM, GPU, Storage, DiskR, DiskW, NetIn, NetOut}
+/// from PAPER.md §3.2 (v0.2.0 expansion).
 ///
-/// `Copy` — stack-allocated, 3×f64 = 24 bytes. Cache-friendly for hot loops
+/// CPU in cores, RAM/Storage in GiB, GPU in units,
+/// Disk R/W and Net I/O in MB/s.
+///
+/// `Copy` — stack-allocated, 8×f64 = 64 bytes. Cache-friendly for hot loops
 /// (preplan.md §2: memory contiguity for L1/L2/L3 cache).
 ///
 /// ```
@@ -21,28 +24,87 @@ use std::ops::Add;
 /// let demand = ResourceVector::new(2.0, 8.0, 1.0);
 /// assert!(cap.fits(demand));
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ResourceVector {
-    #[serde(default)]
     pub cpu: f64,
-    #[serde(default)]
     pub ram: f64,
-    #[serde(default)]
     pub gpu: f64,
+    pub storage: f64,
+    pub disk_read: f64,
+    pub disk_write: f64,
+    pub net_in: f64,
+    pub net_out: f64,
 }
 
 impl ResourceVector {
+    /// Construct with the original 3 dimensions; new dims default to 0.
+    /// Keeps backward compat for existing tests.
     pub fn new(cpu: f64, ram: f64, gpu: f64) -> Self {
-        Self { cpu, ram, gpu }
+        Self {
+            cpu,
+            ram,
+            gpu,
+            storage: 0.0,
+            disk_read: 0.0,
+            disk_write: 0.0,
+            net_in: 0.0,
+            net_out: 0.0,
+        }
+    }
+
+    /// Full 8-dimensional constructor.
+    ///
+    /// ```
+    /// # use kuberina_solver::model::ResourceVector;
+    /// let v = ResourceVector::new_8d(4.0, 16.0, 1.0, 100.0, 500.0, 500.0, 1000.0, 1000.0);
+    /// assert_eq!(v.storage, 100.0);
+    /// ```
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_8d(
+        cpu: f64,
+        ram: f64,
+        gpu: f64,
+        storage: f64,
+        disk_read: f64,
+        disk_write: f64,
+        net_in: f64,
+        net_out: f64,
+    ) -> Self {
+        Self {
+            cpu,
+            ram,
+            gpu,
+            storage,
+            disk_read,
+            disk_write,
+            net_in,
+            net_out,
+        }
     }
 
     pub fn zero() -> Self {
-        Self { cpu: 0.0, ram: 0.0, gpu: 0.0 }
+        Self {
+            cpu: 0.0,
+            ram: 0.0,
+            gpu: 0.0,
+            storage: 0.0,
+            disk_read: 0.0,
+            disk_write: 0.0,
+            net_in: 0.0,
+            net_out: 0.0,
+        }
     }
 
-    /// True if this vector has enough capacity for the demand.
+    /// True if this vector has enough capacity for the demand on ALL 8 dims.
     pub fn fits(self, demand: Self) -> bool {
-        self.cpu >= demand.cpu - 1e-9 && self.ram >= demand.ram - 1e-9 && self.gpu >= demand.gpu - 1e-9
+        self.cpu >= demand.cpu - 1e-9
+            && self.ram >= demand.ram - 1e-9
+            && self.gpu >= demand.gpu - 1e-9
+            && self.storage >= demand.storage - 1e-9
+            && self.disk_read >= demand.disk_read - 1e-9
+            && self.disk_write >= demand.disk_write - 1e-9
+            && self.net_in >= demand.net_in - 1e-9
+            && self.net_out >= demand.net_out - 1e-9
     }
 
     pub fn subtract(self, other: Self) -> Self {
@@ -50,11 +112,23 @@ impl ResourceVector {
             cpu: self.cpu - other.cpu,
             ram: self.ram - other.ram,
             gpu: self.gpu - other.gpu,
+            storage: self.storage - other.storage,
+            disk_read: self.disk_read - other.disk_read,
+            disk_write: self.disk_write - other.disk_write,
+            net_in: self.net_in - other.net_in,
+            net_out: self.net_out - other.net_out,
         }
     }
 
     pub fn is_zero(self) -> bool {
-        self.cpu == 0.0 && self.ram == 0.0 && self.gpu == 0.0
+        self.cpu == 0.0
+            && self.ram == 0.0
+            && self.gpu == 0.0
+            && self.storage == 0.0
+            && self.disk_read == 0.0
+            && self.disk_write == 0.0
+            && self.net_in == 0.0
+            && self.net_out == 0.0
     }
 }
 
@@ -66,6 +140,11 @@ impl Add for ResourceVector {
             cpu: self.cpu + other.cpu,
             ram: self.ram + other.ram,
             gpu: self.gpu + other.gpu,
+            storage: self.storage + other.storage,
+            disk_read: self.disk_read + other.disk_read,
+            disk_write: self.disk_write + other.disk_write,
+            net_in: self.net_in + other.net_in,
+            net_out: self.net_out + other.net_out,
         }
     }
 }
@@ -80,46 +159,58 @@ impl Default for ResourceVector {
 ///
 /// Maps to n_j ∈ N from PAPER.md §3.2.
 /// `allocatable` is C_j^r AFTER DaemonSet pre-deduction (Phase 0).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Node {
     pub name: String,
-    #[serde(default)]
     pub allocatable: ResourceVector,
-    #[serde(default)]
     pub labels: HashMap<String, String>,
-    #[serde(default)]
     pub taints: Vec<String>,
-    #[serde(default)]
     pub zone: String,
+    /// Rack topology — used by topologySpread with topologyKey "rack".
+    pub rack: String,
+}
+
+/// Topology spread constraint — distribute pods evenly across zones/racks.
+///
+/// From K8s topologySpreadConstraints. Implemented as soft penalty in v0.2.0.
+/// `max_skew` = maximum allowed difference in pod count between any two
+/// topology domains (zones or racks).
+///
+/// ```
+/// # use kuberina_solver::model::TopologySpread;
+/// let ts = TopologySpread { max_skew: 1, topology_key: "zone".into() };
+/// assert_eq!(ts.max_skew, 1);
+/// ```
+#[derive(Debug, Clone, Deserialize)]
+pub struct TopologySpread {
+    #[serde(default = "default_max_skew", rename = "maxSkew")]
+    pub max_skew: usize,
+    #[serde(default, rename = "topologyKey")]
+    pub topology_key: String,
+}
+
+fn default_max_skew() -> usize {
+    1
 }
 
 /// A Kubernetes pod to be scheduled.
 ///
 /// Maps to p_i ∈ P from PAPER.md §3.2.
 /// `requests` is req_i^r — the resource demand used for bin packing.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Pod {
     pub name: String,
-    #[serde(default = "default_namespace")]
     pub namespace: String,
-    #[serde(default)]
     pub requests: ResourceVector,
-    #[serde(default)]
     pub tolerations: Vec<String>,
-    #[serde(default, rename = "nodeSelector")]
     pub node_selector: HashMap<String, String>,
     /// WHY list of pod names: affinity is a soft constraint evaluated in fitness,
     /// not a hard constraint. We track desired co-location partners by name.
-    #[serde(default, rename = "affinity")]
     pub affinity_targets: Vec<String>,
-    #[serde(default, rename = "antiAffinity")]
     pub anti_affinity_targets: Vec<String>,
-    #[serde(default, rename = "group")]
     pub group_name: String,
-}
-
-fn default_namespace() -> String {
-    "default".to_owned()
+    /// Topology spread constraint (soft penalty in v0.2.0).
+    pub topology_spread: Option<TopologySpread>,
 }
 
 /// Gang-scheduled pod group — all-or-nothing placement.
@@ -127,17 +218,13 @@ fn default_namespace() -> String {
 /// Maps to G_q ∈ G from PAPER.md §3.2.
 /// Maritime analogy: Block Booking (DESIGN.md §Pod group).
 /// Each pod is a separate decision variable (coupled variable in CSP).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct PodGroup {
     pub name: String,
     /// Populated during parsing by resolving pod names → indices.
-    #[serde(default)]
     pub pod_indices: Vec<usize>,
-    #[serde(default, rename = "minMembers")]
     pub min_members: usize,
-    #[serde(default, rename = "nodeSelector")]
     pub node_selector: HashMap<String, String>,
-    #[serde(default)]
     pub colocate: bool,
 }
 
@@ -146,14 +233,11 @@ pub struct PodGroup {
 /// Maps to d ∈ D from PAPER.md §3.2.
 /// Maritime analogy: Ship's own systems — ballast pumps, comms, sensors.
 /// NOT cargo. Pre-deducted in Phase 0 before optimization.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct DaemonSet {
     pub name: String,
-    #[serde(default)]
     pub resources: ResourceVector,
-    #[serde(default, rename = "nodeSelector")]
     pub node_selector: HashMap<String, String>,
-    #[serde(default)]
     pub tolerations: Vec<String>,
 }
 
@@ -171,6 +255,7 @@ pub struct Scorecard {
     pub fragmentation: f64,
     pub affinity_violations: f64,
     pub utilization_variance: f64,
+    pub topology_spread_penalty: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -209,9 +294,9 @@ impl Default for GaConfig {
     }
 }
 
-/// Weights for the multi-objective fitness function.
+/// Weights for the multi-objective fitness function (v0.2.0: +topologySpread).
 ///
-/// F(s) = w1*f_nodes + w2*f_frag + w3*f_affinity + w4*f_var + Φ(s)
+/// F(s) = w1*f_nodes + w2*f_frag + w3*f_affinity + w4*f_var + w5*f_spread + Φ(s)
 /// From PAPER.md §3.2 Objective Function.
 #[derive(Debug, Clone)]
 pub struct FitnessWeights {
@@ -219,6 +304,7 @@ pub struct FitnessWeights {
     pub fragmentation: f64,
     pub affinity_violation: f64,
     pub utilization_variance: f64,
+    pub topology_spread: f64,
 }
 
 impl Default for FitnessWeights {
@@ -228,19 +314,25 @@ impl Default for FitnessWeights {
             fragmentation: 1.0,
             affinity_violation: 5.0,
             utilization_variance: 2.0,
+            topology_spread: 3.0,
         }
     }
 }
 
-/// Scalarization weights for FFD synthetic volume.
+/// Scalarization weights for FFD synthetic volume (v0.2.0: 8D).
 ///
-/// V_i = α·CPU_i + β·RAM_i + γ·GPU_i
-/// From PAPER.md §4.2 / PAPER_v1.md §Giai đoạn 1.
+/// V_i = α·CPU + β·RAM + γ·GPU + δ·Storage + ε_r·DiskR + ε_w·DiskW + ζ_in·NetIn + ζ_out·NetOut
+/// From PAPER.md §4.2.
 #[derive(Debug, Clone)]
 pub struct FfdWeights {
     pub alpha: f64,
     pub beta: f64,
     pub gamma: f64,
+    pub delta: f64,
+    pub epsilon_r: f64,
+    pub epsilon_w: f64,
+    pub zeta_in: f64,
+    pub zeta_out: f64,
 }
 
 impl Default for FfdWeights {
@@ -249,6 +341,14 @@ impl Default for FfdWeights {
             alpha: 1.0,
             beta: 1.0,
             gamma: 10.0,
+            // WHY low defaults: I/O dimensions rarely dominate unless user
+            // explicitly profiles workloads. Prevents FFD from over-weighting
+            // disk/network in generic clusters.
+            delta: 0.1,
+            epsilon_r: 0.01,
+            epsilon_w: 0.01,
+            zeta_in: 0.01,
+            zeta_out: 0.01,
         }
     }
 }
@@ -296,5 +396,40 @@ mod tests {
         assert_eq!(z.cpu, 0.0);
         assert_eq!(z.ram, 0.0);
         assert_eq!(z.gpu, 0.0);
+    }
+
+    #[test]
+    fn resource_vector_8d_fits() {
+        let cap = ResourceVector::new_8d(4.0, 16.0, 1.0, 100.0, 500.0, 500.0, 1000.0, 1000.0);
+        let demand = ResourceVector::new_8d(2.0, 8.0, 1.0, 50.0, 200.0, 100.0, 500.0, 500.0);
+        assert!(cap.fits(demand));
+    }
+
+    #[test]
+    fn resource_vector_8d_rejects_disk_overflow() {
+        let cap = ResourceVector::new_8d(4.0, 16.0, 1.0, 100.0, 500.0, 500.0, 1000.0, 1000.0);
+        let demand = ResourceVector::new_8d(1.0, 1.0, 0.0, 0.0, 600.0, 0.0, 0.0, 0.0);
+        assert!(!cap.fits(demand));
+    }
+
+    #[test]
+    fn resource_vector_8d_add_subtract() {
+        let a = ResourceVector::new_8d(4.0, 16.0, 1.0, 100.0, 500.0, 500.0, 1000.0, 1000.0);
+        let b = ResourceVector::new_8d(1.0, 4.0, 0.0, 20.0, 100.0, 50.0, 200.0, 300.0);
+        let sum = a + b;
+        assert_eq!(sum.storage, 120.0);
+        assert_eq!(sum.disk_read, 600.0);
+        assert_eq!(sum.net_out, 1300.0);
+
+        let diff = a.subtract(b);
+        assert_eq!(diff.storage, 80.0);
+        assert_eq!(diff.net_in, 800.0);
+    }
+
+    #[test]
+    fn resource_vector_8d_is_zero() {
+        assert!(ResourceVector::zero().is_zero());
+        let not_zero = ResourceVector::new_8d(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
+        assert!(!not_zero.is_zero());
     }
 }

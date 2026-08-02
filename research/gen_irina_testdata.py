@@ -36,31 +36,37 @@ def generate_infra() -> dict:
     nodes = []
     daemonsets = _build_daemonsets()
 
-    # 120 Standard nodes: 64C / 256G (was 100, +20%)
-    for i in range(120):
+    # 400 Standard nodes: 64C / 256G
+    for i in range(400):
         nodes.append(_make_node(
             name=f"std-{i:03d}",
             cpu=64.0, ram=256.0, gpu=0.0,
+            storage=1000.0, disk_read=500.0, disk_write=200.0,
+            net_in=1000.0, net_out=1000.0,
             labels={"tier": "standard", "disk": "ssd"},
-            zone=ZONES[i % 3],
+            zone=ZONES[i % 3], rack=f"rack-{i % 5}",
         ))
 
-    # 40 Memory-Optimized nodes: 32C / 512G (was 40)
-    for i in range(36):
+    # 120 Memory-Optimized nodes: 32C / 512G
+    for i in range(120):
         nodes.append(_make_node(
             name=f"mem-{i:03d}",
             cpu=32.0, ram=512.0, gpu=0.0,
+            storage=2000.0, disk_read=2000.0, disk_write=1500.0,
+            net_in=2000.0, net_out=2000.0,
             labels={"tier": "memory", "disk": "nvme"},
-            zone=ZONES[i % 3],
+            zone=ZONES[i % 3], rack=f"rack-{i % 5}",
         ))
 
-    # 30 GPU nodes: 48C / 192G / 8GPU (was 20)
-    for i in range(30):
+    # 100 GPU nodes: 48C / 192G / 8GPU
+    for i in range(100):
         nodes.append(_make_node(
             name=f"gpu-{i:03d}",
             cpu=48.0, ram=192.0, gpu=8.0,
+            storage=500.0, disk_read=1000.0, disk_write=1000.0,
+            net_in=10000.0, net_out=10000.0,
             labels={"tier": "gpu", "gpu": "nvidia-a100", "disk": "nvme"},
-            zone=ZONES[i % 3],
+            zone=ZONES[i % 3], rack=f"rack-{i % 2}",
         ))
 
     return {"nodes": nodes, "daemonsets": daemonsets}
@@ -68,32 +74,37 @@ def generate_infra() -> dict:
 
 def _make_node(
     name: str,
-    cpu: float,
-    ram: float,
-    gpu: float,
+    cpu: float, ram: float, gpu: float,
+    storage: float, disk_read: float, disk_write: float,
+    net_in: float, net_out: float,
     labels: dict[str, str],
-    zone: str,
+    zone: str, rack: str,
 ) -> dict:
     """Create a single node entry."""
     return {
         "name": name,
-        "allocatable": {"cpu": cpu, "ram": ram, "gpu": gpu},
+        "allocatable": {
+            "cpu": cpu, "ram": ram, "gpu": gpu,
+            "storage": storage, "disk_read": disk_read, "disk_write": disk_write,
+            "net_in": net_in, "net_out": net_out,
+        },
         "labels": {**labels, "node-role": "worker"},
         "taints": [],
         "zone": zone,
+        "rack": rack,
     }
 
 
 def _build_daemonsets() -> list[dict]:
     """System DaemonSets consuming ~3-5% overhead per node."""
     return [
-        {"name": "kube-proxy", "resources": {"cpu": 0.5, "ram": 0.5, "gpu": 0.0},
+        {"name": "kube-proxy", "resources": {"cpu": 0.5, "ram": 0.5, "gpu": 0.0, "storage": 1.0, "disk_read": 1.0, "disk_write": 1.0, "net_in": 10.0, "net_out": 10.0},
          "nodeSelector": {}, "tolerations": []},
-        {"name": "calico-node", "resources": {"cpu": 1.0, "ram": 1.0, "gpu": 0.0},
+        {"name": "calico-node", "resources": {"cpu": 1.0, "ram": 1.0, "gpu": 0.0, "storage": 2.0, "disk_read": 5.0, "disk_write": 5.0, "net_in": 50.0, "net_out": 50.0},
          "nodeSelector": {}, "tolerations": []},
-        {"name": "node-exporter", "resources": {"cpu": 0.25, "ram": 0.25, "gpu": 0.0},
+        {"name": "node-exporter", "resources": {"cpu": 0.25, "ram": 0.25, "gpu": 0.0, "storage": 0.5, "disk_read": 10.0, "disk_write": 2.0, "net_in": 5.0, "net_out": 15.0},
          "nodeSelector": {}, "tolerations": []},
-        {"name": "fluentd", "resources": {"cpu": 0.5, "ram": 1.0, "gpu": 0.0},
+        {"name": "fluentd", "resources": {"cpu": 0.5, "ram": 1.0, "gpu": 0.0, "storage": 5.0, "disk_read": 5.0, "disk_write": 20.0, "net_in": 5.0, "net_out": 30.0},
          "nodeSelector": {}, "tolerations": []},
     ]
 
@@ -115,76 +126,74 @@ def _build_daemonsets() -> list[dict]:
 # Net capacity: 7982.5C, 44387.5G, 160 GPU
 # Target 92%:   7344C,   40836G,   147 GPU
 
-# Service definitions: (name, namespace, replicas, cpu_per_pod, ram_per_pod,
-#                        gpu_per_pod, node_selector, is_anti_affinity_spread)
+# Service definitions: (name, namespace, replicas, cpu, ram, gpu, storage, dr, dw, ni, no, node_selector, is_anti_affinity_spread, topology_key)
 SERVICES: list[tuple] = [
     # ── Tier 1: GPU workloads (~300 pods, 152 GPU units on 20 nodes) ───
-    # 20 GPU nodes * 8 GPU = 160. Target 95% = 152 GPU.
-    ("llm-inference",     "ai",        40, 6.0,  24.0, 1.0, {"gpu": "nvidia-a100"}, True),
-    ("embedding-server",  "ai",        24, 5.0,  16.0, 1.0, {"gpu": "nvidia-a100"}, True),
-    ("training-worker",   "ai",        16,12.0,  48.0, 4.0, {"gpu": "nvidia-a100"}, False),
-    ("vision-pipeline",   "ai",        24, 4.0,  12.0, 1.0, {"gpu": "nvidia-a100"}, True),
-    ("recommendation-ml", "ai",        80, 3.0,  10.0, 0.0, {}, True),
-    ("feature-store",     "ai",       100, 2.0,   6.0, 0.0, {}, False),
+    ("llm-inference",     "ai",        40, 6.0,  24.0, 1.0, 20.0,  50.0,  10.0, 500.0, 500.0, {"gpu": "nvidia-a100"}, True, "zone"),
+    ("embedding-server",  "ai",        24, 5.0,  16.0, 1.0, 10.0,  20.0,  10.0, 200.0, 200.0, {"gpu": "nvidia-a100"}, True, "rack"),
+    ("training-worker",   "ai",        16,12.0,  48.0, 4.0, 100.0, 200.0, 200.0,1000.0,1000.0,{"gpu": "nvidia-a100"}, False, None),
+    ("vision-pipeline",   "ai",        24, 4.0,  12.0, 1.0, 50.0, 100.0,  50.0, 300.0, 300.0, {"gpu": "nvidia-a100"}, True, "zone"),
+    ("recommendation-ml", "ai",        80, 3.0,  10.0, 0.0, 10.0,  50.0,  10.0, 100.0, 100.0, {}, True, "zone"),
+    ("feature-store",     "ai",       100, 2.0,   6.0, 0.0, 10.0,  20.0,  10.0, 150.0, 150.0, {}, False, None),
 
     # ── Tier 2: Core platform (heavy CPU, anti-affinity spread) ────────
-    ("api-gateway",       "platform", 100, 6.0,  12.0, 0.0, {},                     True),
-    ("payment-service",   "fintech",  100, 4.0,   8.0, 0.0, {},                     True),
-    ("order-service",     "commerce",  80, 4.0,  10.0, 0.0, {},                     True),
-    ("inventory-service", "commerce",  60, 3.0,   6.0, 0.0, {},                     True),
+    ("api-gateway",       "platform", 100, 6.0,  12.0, 0.0, 5.0,   10.0,  10.0, 800.0, 800.0, {},                     True, "zone"),
+    ("payment-service",   "fintech",  100, 4.0,   8.0, 0.0, 5.0,   10.0,  10.0, 100.0, 100.0, {},                     True, "rack"),
+    ("order-service",     "commerce",  80, 4.0,  10.0, 0.0, 10.0,  10.0,  20.0, 200.0, 200.0, {},                     True, "zone"),
+    ("inventory-service", "commerce",  60, 3.0,   6.0, 0.0, 10.0,  30.0,  10.0, 150.0, 150.0, {},                     True, "rack"),
 
     # ── Tier 3: Data layer (memory-heavy, nvme required) ──────────────
-    ("postgres-primary",  "database",  30, 6.0,  96.0, 0.0, {"disk": "nvme"},       True),
-    ("postgres-replica",  "database",  60, 3.0,  48.0, 0.0, {"disk": "nvme"},       False),
-    ("redis-cache",       "cache",    100, 2.0,  24.0, 0.0, {},                     True),
-    ("elasticsearch",     "search",    30, 6.0,  96.0, 0.0, {"disk": "nvme"},       True),
-    ("kafka-broker",      "streaming", 30, 6.0,  48.0, 0.0, {"disk": "nvme"},       False),
+    ("postgres-primary",  "database",  30, 6.0,  96.0, 0.0, 500.0, 800.0, 800.0, 500.0, 500.0, {"disk": "nvme"},       True, "zone"),
+    ("postgres-replica",  "database",  60, 3.0,  48.0, 0.0, 500.0, 500.0, 800.0, 100.0, 500.0, {"disk": "nvme"},       False, None),
+    ("redis-cache",       "cache",    100, 2.0,  24.0, 0.0, 5.0,   10.0,  10.0, 600.0, 600.0, {},                     True, "rack"),
+    ("elasticsearch",     "search",    30, 6.0,  96.0, 0.0, 300.0, 600.0, 400.0, 300.0, 300.0, {"disk": "nvme"},       True, "zone"),
+    ("kafka-broker",      "streaming", 30, 6.0,  48.0, 0.0, 200.0, 400.0, 800.0, 800.0, 800.0, {"disk": "nvme"},       False, None),
 
     # ── Tier 4: Web frontend + BFF ─────────────────────────────────────
-    ("web-frontend",      "frontend", 100, 3.0,   6.0, 0.0, {},                     True),
-    ("mobile-bff",        "frontend",  80, 2.0,   4.0, 0.0, {},                     False),
-    ("admin-dashboard",   "frontend",  30, 2.0,   4.0, 0.0, {},                     False),
+    ("web-frontend",      "frontend", 100, 3.0,   6.0, 0.0, 5.0,   10.0,  5.0,  300.0, 500.0, {},                     True, "rack"),
+    ("mobile-bff",        "frontend",  80, 2.0,   4.0, 0.0, 5.0,   10.0,  5.0,  200.0, 300.0, {},                     False, None),
+    ("admin-dashboard",   "frontend",  30, 2.0,   4.0, 0.0, 5.0,   10.0,  5.0,   50.0,  50.0, {},                     False, None),
 
     # ── Tier 5: Background workers ─────────────────────────────────────
-    ("email-worker",      "workers",   80, 2.0,   4.0, 0.0, {},                     False),
-    ("notification-svc",  "workers",   60, 2.0,   3.0, 0.0, {},                     False),
-    ("report-generator",  "workers",   80, 3.0,   6.0, 0.0, {},                     False),
-    ("image-processor",   "workers",   60, 4.0,   8.0, 0.0, {},                     False),
-    ("pdf-renderer",      "workers",   40, 3.0,   6.0, 0.0, {},                     False),
+    ("email-worker",      "workers",   80, 2.0,   4.0, 0.0, 10.0,  20.0,  10.0,  50.0,  50.0, {},                     False, None),
+    ("notification-svc",  "workers",   60, 2.0,   3.0, 0.0, 10.0,  10.0,  10.0, 100.0, 100.0, {},                     False, None),
+    ("report-generator",  "workers",   80, 3.0,   6.0, 0.0, 20.0,  50.0, 100.0,  50.0,  50.0, {},                     False, None),
+    ("image-processor",   "workers",   60, 4.0,   8.0, 0.0, 50.0, 100.0, 100.0, 200.0, 200.0, {},                     False, None),
+    ("pdf-renderer",      "workers",   40, 3.0,   6.0, 0.0, 20.0,  50.0,  50.0, 100.0, 100.0, {},                     False, None),
 
     # ── Tier 6: Observability stack ────────────────────────────────────
-    ("prometheus",        "monitoring", 30, 3.0,  12.0, 0.0, {},                    False),
-    ("grafana",           "monitoring", 20, 2.0,   4.0, 0.0, {},                    False),
-    ("jaeger-collector",  "monitoring", 30, 3.0,   6.0, 0.0, {},                    False),
-    ("loki",              "monitoring", 30, 3.0,  12.0, 0.0, {},                    False),
+    ("prometheus",        "monitoring", 30, 3.0,  12.0, 0.0, 200.0, 100.0, 400.0, 300.0,  50.0, {},                    False, None),
+    ("grafana",           "monitoring", 20, 2.0,   4.0, 0.0, 10.0,  20.0,  10.0,  50.0, 100.0, {},                    False, None),
+    ("jaeger-collector",  "monitoring", 30, 3.0,   6.0, 0.0, 100.0, 50.0,  200.0, 400.0,  50.0, {},                    False, None),
+    ("loki",              "monitoring", 30, 3.0,  12.0, 0.0, 200.0, 100.0, 400.0, 300.0,  50.0, {},                    False, None),
 
     # ── Tier 7: Auth & Security ────────────────────────────────────────
-    ("auth-service",      "security", 100, 3.0,   6.0, 0.0, {},                     True),
-    ("vault",             "security",  20, 2.0,   4.0, 0.0, {},                     True),
-    ("cert-manager",      "security",  20, 1.0,   2.0, 0.0, {},                     False),
+    ("auth-service",      "security", 100, 3.0,   6.0, 0.0, 5.0,   10.0,  10.0,  50.0,  50.0, {},                     True, "zone"),
+    ("vault",             "security",  20, 2.0,   4.0, 0.0, 20.0,  30.0,  50.0,  20.0,  20.0, {},                     True, "rack"),
+    ("cert-manager",      "security",  20, 1.0,   2.0, 0.0, 5.0,   10.0,  10.0,  10.0,  10.0, {},                     False, None),
 
     # ── Tier 8: Internal tools ─────────────────────────────────────────
-    ("cronjob-scheduler", "internal",  40, 1.5,   3.0, 0.0, {},                     False),
-    ("config-server",     "internal",  20, 1.0,   2.0, 0.0, {},                     False),
-    ("service-mesh-proxy","internal", 100, 1.0,   2.0, 0.0, {},                     False),
+    ("cronjob-scheduler", "internal",  40, 1.5,   3.0, 0.0, 5.0,   10.0,  10.0,  10.0,  10.0, {},                     False, None),
+    ("config-server",     "internal",  20, 1.0,   2.0, 0.0, 5.0,   10.0,  10.0,  20.0,  20.0, {},                     False, None),
+    ("service-mesh-proxy","internal", 100, 1.0,   2.0, 0.0, 2.0,    5.0,   5.0, 200.0, 200.0, {},                     False, None),
 
     # ── Tier 9: Fillers (reach ~2700 pods, boost CPU fill to ~92%) ─────
-    ("log-aggregator",    "logging",   80, 2.0,   6.0, 0.0, {},                     False),
-    ("metrics-relay",     "logging",   60, 1.0,   2.0, 0.0, {},                     False),
-    ("healthcheck-agent", "ops",      100, 1.0,   2.0, 0.0, {},                     False),
-    ("dns-resolver",      "ops",       40, 1.0,   2.0, 0.0, {},                     False),
-    ("rate-limiter",      "platform",  80, 2.0,   4.0, 0.0, {},                     False),
-    ("session-store",     "platform",  80, 1.0,   6.0, 0.0, {},                     False),
-    ("task-queue",        "workers",   60, 2.0,   4.0, 0.0, {},                     False),
-    ("webhook-relay",     "platform",  40, 1.0,   2.0, 0.0, {},                     False),
-    ("audit-logger",      "security",  40, 1.0,   2.0, 0.0, {},                     False),
-    ("geo-service",       "platform",  40, 2.0,   4.0, 0.0, {},                     False),
-    ("search-indexer",    "search",    40, 3.0,  12.0, 0.0, {"disk": "nvme"},       False),
-    ("cdn-origin",        "frontend",  60, 2.0,   4.0, 0.0, {},                     False),
-    ("ab-test-engine",    "platform",  20, 1.0,   2.0, 0.0, {},                     False),
-    ("feature-flags",     "platform",  20, 1.0,   2.0, 0.0, {},                     False),
-    ("user-profile-svc",  "platform",  80, 2.0,   4.0, 0.0, {},                     False),
-    ("chat-service",      "comms",     60, 2.0,   4.0, 0.0, {},                     False),
+    ("log-aggregator",    "logging",   80, 2.0,   6.0, 0.0, 50.0,  50.0, 100.0, 200.0,  50.0, {},                     False, None),
+    ("metrics-relay",     "logging",   60, 1.0,   2.0, 0.0, 5.0,   10.0,  10.0, 100.0, 100.0, {},                     False, None),
+    ("healthcheck-agent", "ops",      100, 1.0,   2.0, 0.0, 2.0,    5.0,   5.0,  10.0,  10.0, {},                     False, None),
+    ("dns-resolver",      "ops",       40, 1.0,   2.0, 0.0, 2.0,    5.0,   5.0,  50.0,  50.0, {},                     False, None),
+    ("rate-limiter",      "platform",  80, 2.0,   4.0, 0.0, 5.0,    5.0,   5.0, 100.0, 100.0, {},                     False, None),
+    ("session-store",     "platform",  80, 1.0,   6.0, 0.0, 10.0,  10.0,  20.0, 150.0, 150.0, {},                     False, None),
+    ("task-queue",        "workers",   60, 2.0,   4.0, 0.0, 10.0,  20.0,  20.0,  50.0,  50.0, {},                     False, None),
+    ("webhook-relay",     "platform",  40, 1.0,   2.0, 0.0, 5.0,    5.0,   5.0, 100.0, 100.0, {},                     False, None),
+    ("audit-logger",      "security",  40, 1.0,   2.0, 0.0, 20.0,  10.0,  50.0,  50.0,  10.0, {},                     False, None),
+    ("geo-service",       "platform",  40, 2.0,   4.0, 0.0, 10.0,  50.0,  10.0, 100.0, 100.0, {},                     False, None),
+    ("search-indexer",    "search",    40, 3.0,  12.0, 0.0, 100.0, 200.0, 100.0, 150.0, 150.0, {"disk": "nvme"},       False, None),
+    ("cdn-origin",        "frontend",  60, 2.0,   4.0, 0.0, 50.0, 200.0,  10.0,  50.0, 400.0, {},                     False, None),
+    ("ab-test-engine",    "platform",  20, 1.0,   2.0, 0.0, 5.0,   10.0,  10.0,  20.0,  20.0, {},                     False, None),
+    ("feature-flags",     "platform",  20, 1.0,   2.0, 0.0, 2.0,    5.0,   5.0,  10.0,  10.0, {},                     False, None),
+    ("user-profile-svc",  "platform",  80, 2.0,   4.0, 0.0, 10.0,  20.0,  20.0,  50.0,  50.0, {},                     False, None),
+    ("chat-service",      "comms",     60, 2.0,   4.0, 0.0, 10.0,  10.0,  20.0, 100.0, 100.0, {},                     False, None),
 ]
 
 # WHY: 5 affinity chains create cascading dependencies that force the GA
@@ -210,40 +219,44 @@ ANTI_AFFINITY_CROSS: list[tuple[str, str]] = [
 
 def generate_workloads() -> dict:
     """Build 3000-pod workload manifest with hostile constraint matrix."""
+    namespaces: dict[str, list[dict]] = {}
     pods: list[dict] = []
-    pod_name_registry: dict[str, list[str]] = {}  # service -> [pod_names]
+    pod_name_registry: dict[str, list[str]] = {}
 
     for svc_def in SERVICES:
-        svc_name, namespace, replicas = svc_def[0], svc_def[1], svc_def[2]
-        cpu, ram, gpu = svc_def[3], svc_def[4], svc_def[5]
-        node_selector, is_spread = svc_def[6], svc_def[7]
-
-        svc_pod_names: list[str] = []
-
-        for r in range(replicas):
-            pod_name = f"{svc_name}-{r:04d}"
-            svc_pod_names.append(pod_name)
-
-            pod: dict = {
-                "name": pod_name,
-                "namespace": namespace,
-                "requests": {"cpu": cpu, "ram": ram, "gpu": gpu},
+        svc_name, ns_name, replicas = svc_def[0], svc_def[1], svc_def[2]
+        
+        svc_entry = {
+            "name": svc_name,
+            "replicas": replicas,
+            "requests": {
+                "cpu": svc_def[3], "ram": svc_def[4], "gpu": svc_def[5],
+                "storage": svc_def[6], "disk_read": svc_def[7], "disk_write": svc_def[8],
+                "net_in": svc_def[9], "net_out": svc_def[10],
             }
+        }
+        
+        if svc_def[11]: svc_entry["nodeSelector"] = svc_def[11]
+        if svc_def[13]: svc_entry["topologySpread"] = {"maxSkew": 1, "topologyKey": svc_def[13]}
+        
+        namespaces.setdefault(ns_name, []).append(svc_entry)
+        
+        # Build registry for constraints
+        names = [f"{svc_name}-{r:04d}" for r in range(replicas)]
+        pod_name_registry[svc_name] = names
+        
+        # Flatten for legacy constraint logic
+        for name in names:
+            p = svc_entry.copy()
+            p["name"] = name
+            p["namespace"] = ns_name
+            pods.append(p)
 
-            if node_selector:
-                pod["nodeSelector"] = node_selector
-
-            pods.append(pod)
-
-        pod_name_registry[svc_name] = svc_pod_names
-
-    # WHY: apply constraints AFTER all pods are created, so we can
-    # reference cross-service pod names for affinity targets.
     _apply_anti_affinity_spread(pods, pod_name_registry)
     _apply_affinity_chains(pods, pod_name_registry)
     _apply_cross_anti_affinity(pods, pod_name_registry)
 
-    return {"pods": pods, "groups": []}
+    return {"namespaces": namespaces, "pods": pods}
 
 
 def _apply_anti_affinity_spread(
@@ -340,15 +353,15 @@ def compute_resource_summary(infra: dict, workloads: dict) -> None:
     net_ram = total_ram - overhead_ram
 
     # Pod requests
-    pod_cpu = sum(p["requests"]["cpu"] for p in workloads["pods"])
-    pod_ram = sum(p["requests"]["ram"] for p in workloads["pods"])
-    pod_gpu = sum(p["requests"]["gpu"] for p in workloads["pods"])
+    pod_cpu = sum(p["requests"]["cpu"] for ns in workloads.get("namespaces", {}).values() for p in ns for _ in range(p["replicas"]))
+    pod_ram = sum(p["requests"]["ram"] for ns in workloads.get("namespaces", {}).values() for p in ns for _ in range(p["replicas"]))
+    pod_gpu = sum(p["requests"]["gpu"] for ns in workloads.get("namespaces", {}).values() for p in ns for _ in range(p["replicas"]))
 
     fill_cpu = pod_cpu / net_cpu * 100
     fill_ram = pod_ram / net_ram * 100
     fill_gpu = pod_gpu / total_gpu * 100 if total_gpu > 0 else 0
 
-    total_pods = len(workloads["pods"])
+    total_pods = sum(p.get("replicas", 1) for ns in workloads.get("namespaces", {}).values() for p in ns)
     total_nodes = len(infra["nodes"])
 
     anti_aff_count = sum(
@@ -358,7 +371,7 @@ def compute_resource_summary(infra: dict, workloads: dict) -> None:
         len(p.get("affinity", [])) for p in workloads["pods"]
     )
 
-    print(f"\n{'═' * 60}")
+    print(f"{'═' * 60}")
     print(f"  MSC IRINA SCALE — Resource Summary")
     print(f"{'═' * 60}")
     print(f"  Nodes:          {total_nodes}")

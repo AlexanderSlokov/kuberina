@@ -22,15 +22,24 @@ use crate::model::{Blueprint, FfdWeights, Node, Pod, ResourceVector};
 ///     name: "gpu-worker".into(), namespace: "ai".into(),
 ///     requests: ResourceVector::new(8.0, 64.0, 1.0),
 ///     tolerations: vec![], node_selector: Default::default(),
-///     affinity_targets: vec![], anti_affinity_targets: vec![],
+///     affinity_targets: vec![],
+///     anti_affinity_targets: vec![],
 ///     group_name: String::new(),
+///     topology_spread: None,
 /// };
 /// let v = synthetic_volume(&pod, &FfdWeights::default());
 /// assert!((v - 82.0).abs() < 1e-9);
 /// ```
 pub fn synthetic_volume(pod: &Pod, weights: &FfdWeights) -> f64 {
     let r = &pod.requests;
-    weights.alpha * r.cpu + weights.beta * r.ram + weights.gamma * r.gpu
+    weights.alpha * r.cpu
+        + weights.beta * r.ram
+        + weights.gamma * r.gpu
+        + weights.delta * r.storage
+        + weights.epsilon_r * r.disk_read
+        + weights.epsilon_w * r.disk_write
+        + weights.zeta_in * r.net_in
+        + weights.zeta_out * r.net_out
 }
 
 /// Accumulate per-node resource usage from pod assignments.
@@ -60,12 +69,17 @@ pub fn compute_node_loads(
 ///     name: "big".into(), namespace: "ns".into(),
 ///     requests: ResourceVector::new(2.0, 8.0, 0.0),
 ///     tolerations: vec![], node_selector: HashMap::new(),
-///     affinity_targets: vec![], anti_affinity_targets: vec![],
+///     affinity_targets: vec![],
+///     anti_affinity_targets: vec![],
 ///     group_name: String::new(),
+///     topology_spread: None,
 /// }];
 /// let nodes = vec![Node {
 ///     name: "n1".into(), allocatable: ResourceVector::new(4.0, 16.0, 0.0),
-///     labels: HashMap::new(), taints: vec![], zone: String::new(),
+///     labels: HashMap::new(),
+///     taints: vec![],
+///     zone: String::new(),
+///     rack: String::new(),
 /// }];
 /// let bp = ffd_warmstart(&pods, &nodes, &FfdWeights::default());
 /// assert_eq!(bp.assignment, vec![0]);
@@ -108,7 +122,7 @@ pub fn ffd_warmstart(pods: &[Pod], nodes: &[Node], weights: &FfdWeights) -> Blue
             let fallback = (0..num_nodes)
                 .find(|&i| crate::csp::can_place_pod_on_node(&pods[pod_idx], &nodes[i]))
                 .unwrap_or(0);
-                
+
             assignment[pod_idx] = fallback;
             residual[fallback] = residual[fallback].subtract(pods[pod_idx].requests);
         }
@@ -139,6 +153,7 @@ mod tests {
             affinity_targets: vec![],
             anti_affinity_targets: vec![],
             group_name: String::new(),
+            topology_spread: None,
         }
     }
 
@@ -149,6 +164,7 @@ mod tests {
             labels: HashMap::new(),
             taints: vec![],
             zone: String::new(),
+            rack: String::new(),
         }
     }
 
@@ -162,10 +178,7 @@ mod tests {
 
     #[test]
     fn ffd_heaviest_first_fills_tightly() {
-        let pods = vec![
-            pod("small", 1.0, 2.0),
-            pod("big", 3.0, 12.0),
-        ];
+        let pods = vec![pod("small", 1.0, 2.0), pod("big", 3.0, 12.0)];
         let nodes = vec![node("n", 4.0, 16.0)];
         let bp = ffd_warmstart(&pods, &nodes, &FfdWeights::default());
         // Both should fit on node 0 (big=3+12=15 volume, small=1+2=3)

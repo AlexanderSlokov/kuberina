@@ -1,88 +1,150 @@
 # Homelab workloads — 10 services for 3 ThinkCentre nodes
-# Resource values: CPU in cores, RAM in GiB
-
-pods:
-  - name: pihole
-    namespace: dns
-    requests:
-      cpu: 0.2
-      ram: 0.256
-    antiAffinity:
-      - adguard   # don't put two DNS resolvers on same node
-
-  - name: home-assistant
-    namespace: smart-home
-    requests:
-      cpu: 0.5
-      ram: 1.0
-    nodeSelector:
-      usb-dongle: "true"   # needs Zigbee USB stick
-    affinity:
-      - zigbee2mqtt         # must be close to its Zigbee bridge
-
-  - name: zigbee2mqtt
-    namespace: smart-home
-    requests:
-      cpu: 0.2
-      ram: 0.256
-    nodeSelector:
-      usb-dongle: "true"   # also needs the USB dongle
-    affinity:
-      - home-assistant
-
-  - name: jellyfin
-    namespace: media
-    requests:
-      cpu: 2.0
-      ram: 2.0
-    antiAffinity:
-      - postgres            # heavy I/O — keep away from DB
-
-  - name: nextcloud
-    namespace: cloud
-    requests:
-      cpu: 0.5
-      ram: 1.0
-    affinity:
-      - postgres            # low-latency DB access
-
-  - name: postgres
-    namespace: database
-    requests:
-      cpu: 1.0
-      ram: 2.0
-    affinity:
-      - nextcloud
-    antiAffinity:
-      - jellyfin
-
-  - name: grafana
-    namespace: monitoring
-    requests:
-      cpu: 0.3
-      ram: 0.512
-    affinity:
-      - prometheus          # monitoring stack together
-
-  - name: prometheus
-    namespace: monitoring
-    requests:
-      cpu: 0.5
-      ram: 1.5
-    affinity:
-      - grafana
-
-  - name: mosquitto
-    namespace: smart-home
-    requests:
-      cpu: 0.1
-      ram: 0.064
-
-  - name: vaultwarden
-    namespace: security
-    requests:
-      cpu: 0.2
-      ram: 0.256
-
-groups: []
+# Kuberina IR v0.2.0 format: namespace-grouped, K8s units
 # No gang scheduling for homelab — all pods are independent services
+
+namespaces:
+  dns:
+    - name: pihole
+      replicas: 1
+      requests:
+        cpu: 0.2
+        ram: "256Mi"
+        disk:
+          read: "1M"
+          write: "1M"
+        network:
+          in: "10M"
+          out: "10M"
+      antiAffinity:
+        - adguard   # don't put two DNS resolvers on same node
+
+  smart-home:
+    - name: home-assistant
+      replicas: 1
+      requests:
+        cpu: 0.5
+        ram: "1Gi"
+        disk:
+          read: "5M"
+          write: "3M"
+        network:
+          in: "5M"
+          out: "5M"
+      nodeSelector:
+        usb-dongle: "true"   # needs Zigbee USB stick
+      affinity:
+        - zigbee2mqtt         # must be close to its Zigbee bridge
+
+    - name: zigbee2mqtt
+      replicas: 1
+      requests:
+        cpu: 0.2
+        ram: "256Mi"
+        disk:
+          read: "1M"
+          write: "1M"
+        network:
+          in: "2M"
+          out: "2M"
+      nodeSelector:
+        usb-dongle: "true"   # also needs the USB dongle
+      affinity:
+        - home-assistant
+
+    - name: mosquitto
+      replicas: 1
+      requests:
+        cpu: 0.1
+        ram: "64Mi"
+        network:
+          in: "5M"
+          out: "5M"
+
+  media:
+    - name: jellyfin
+      replicas: 1
+      requests:
+        cpu: 2.0
+        ram: "2Gi"
+        disk:
+          read: "100M"    # heavy media streaming — high disk read
+          write: "5M"
+        network:
+          in: "5M"
+          out: "50M"      # streaming out to clients
+      antiAffinity:
+        - postgres        # heavy I/O — keep away from DB
+
+  cloud:
+    - name: nextcloud
+      replicas: 1
+      requests:
+        cpu: 0.5
+        ram: "1Gi"
+        disk:
+          read: "10M"
+          write: "20M"
+        network:
+          in: "20M"
+          out: "20M"
+      affinity:
+        - postgres        # low-latency DB access
+
+  database:
+    - name: postgres
+      replicas: 1
+      requests:
+        cpu: 1.0
+        ram: "2Gi"
+        disk:
+          read: "50M"
+          write: "80M"    # heavy DB writes — high disk write
+        network:
+          in: "10M"
+          out: "10M"
+      affinity:
+        - nextcloud
+      antiAffinity:
+        - jellyfin
+
+  monitoring:
+    - name: grafana
+      replicas: 1
+      requests:
+        cpu: 0.3
+        ram: "512Mi"
+        disk:
+          read: "5M"
+          write: "2M"
+        network:
+          in: "5M"
+          out: "10M"
+      affinity:
+        - prometheus      # monitoring stack together
+
+    - name: prometheus
+      replicas: 1
+      requests:
+        cpu: 0.5
+        ram: "1536Mi"
+        disk:
+          read: "10M"
+          write: "30M"    # scrapes + WAL writes
+        network:
+          in: "20M"
+          out: "5M"
+      affinity:
+        - grafana
+
+  security:
+    - name: vaultwarden
+      replicas: 1
+      requests:
+        cpu: 0.2
+        ram: "256Mi"
+        disk:
+          read: "1M"
+          write: "1M"
+        network:
+          in: "2M"
+          out: "2M"
