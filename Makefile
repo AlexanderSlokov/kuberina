@@ -8,8 +8,14 @@ solver-test:
 solver-clippy:
 	cd solver && cargo clippy
 
+solver-lint:
+	cd solver && cargo clippy -- -D warnings && cargo fmt --check
+
+solver-fmt:
+	cd solver && cargo fmt
+
 solver-homelab:
-	cd solver && cargo run -- plan \
+	cd solver && cargo run --release -- plan \
 	--infra testdata/homelab_infra.yaml \
 	--workloads testdata/homelab_workloads.yaml
 
