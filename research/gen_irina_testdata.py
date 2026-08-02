@@ -36,8 +36,8 @@ def generate_infra() -> dict:
     nodes = []
     daemonsets = _build_daemonsets()
 
-    # 120 Standard nodes: 64C / 256G (was 100, +20%)
-    for i in range(120):
+    # 400 Standard nodes: 64C / 256G
+    for i in range(400):
         nodes.append(_make_node(
             name=f"std-{i:03d}",
             cpu=64.0, ram=256.0, gpu=0.0,
@@ -47,8 +47,8 @@ def generate_infra() -> dict:
             zone=ZONES[i % 3], rack=f"rack-{i % 5}",
         ))
 
-    # 40 Memory-Optimized nodes: 32C / 512G (was 40)
-    for i in range(36):
+    # 120 Memory-Optimized nodes: 32C / 512G
+    for i in range(120):
         nodes.append(_make_node(
             name=f"mem-{i:03d}",
             cpu=32.0, ram=512.0, gpu=0.0,
@@ -58,8 +58,8 @@ def generate_infra() -> dict:
             zone=ZONES[i % 3], rack=f"rack-{i % 5}",
         ))
 
-    # 30 GPU nodes: 48C / 192G / 8GPU (was 20)
-    for i in range(30):
+    # 100 GPU nodes: 48C / 192G / 8GPU
+    for i in range(100):
         nodes.append(_make_node(
             name=f"gpu-{i:03d}",
             cpu=48.0, ram=192.0, gpu=8.0,
