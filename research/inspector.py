@@ -47,10 +47,14 @@ def pre_deduct_daemonsets(nodes, daemonsets):
                     matches = False
                     break
             if matches:
-                # Deduct
                 net_node["allocatable"]["cpu"] -= ds["resources"].get("cpu", 0.0)
                 net_node["allocatable"]["ram"] -= ds["resources"].get("ram", 0.0)
                 net_node["allocatable"]["gpu"] -= ds["resources"].get("gpu", 0.0)
+                net_node["allocatable"]["storage"] -= ds["resources"].get("storage", 0.0)
+                net_node["allocatable"]["disk_read"] -= ds["resources"].get("disk_read", 0.0)
+                net_node["allocatable"]["disk_write"] -= ds["resources"].get("disk_write", 0.0)
+                net_node["allocatable"]["net_in"] -= ds["resources"].get("net_in", 0.0)
+                net_node["allocatable"]["net_out"] -= ds["resources"].get("net_out", 0.0)
         net_nodes.append(net_node)
     return net_nodes
 
@@ -59,7 +63,7 @@ def validate_solution(nodes, pods, solution):
     node_map = {n["name"]: n for n in nodes}
     pod_map = {p["name"]: p for p in pods}
     
-    node_loads = {n["name"]: {"cpu": 0.0, "ram": 0.0, "gpu": 0.0, "pods": []} for n in nodes}
+    node_loads = {n["name"]: {"cpu": 0.0, "ram": 0.0, "gpu": 0.0, "storage": 0.0, "disk_read": 0.0, "disk_write": 0.0, "net_in": 0.0, "net_out": 0.0, "pods": []} for n in nodes}
     
     selector_violations = 0
     unassigned_pods = 0
@@ -77,10 +81,14 @@ def validate_solution(nodes, pods, solution):
         node_loads[node_name]["pods"].append(pod_name)
         
         # Add to load
-        req = pod["requests"]
         node_loads[node_name]["cpu"] += req.get("cpu", 0.0)
         node_loads[node_name]["ram"] += req.get("ram", 0.0)
         node_loads[node_name]["gpu"] += req.get("gpu", 0.0)
+        node_loads[node_name]["storage"] += req.get("storage", 0.0)
+        node_loads[node_name]["disk_read"] += req.get("disk_read", 0.0)
+        node_loads[node_name]["disk_write"] += req.get("disk_write", 0.0)
+        node_loads[node_name]["net_in"] += req.get("net_in", 0.0)
+        node_loads[node_name]["net_out"] += req.get("net_out", 0.0)
         
         # Check selector
         sel = pod.get("nodeSelector", {})
@@ -89,12 +97,12 @@ def validate_solution(nodes, pods, solution):
                 selector_violations += 1
                 break
                 
-    capacity_overflow = {"cpu": 0.0, "ram": 0.0, "gpu": 0.0}
+    capacity_overflow = {"cpu": 0.0, "ram": 0.0, "gpu": 0.0, "storage": 0.0, "disk_read": 0.0, "disk_write": 0.0, "net_in": 0.0, "net_out": 0.0}
     for n_name, load in node_loads.items():
         cap = node_map[n_name]["allocatable"]
-        if load["cpu"] > cap["cpu"]: capacity_overflow["cpu"] += load["cpu"] - cap["cpu"]
-        if load["ram"] > cap["ram"]: capacity_overflow["ram"] += load["ram"] - cap["ram"]
-        if load["gpu"] > cap["gpu"]: capacity_overflow["gpu"] += load["gpu"] - cap["gpu"]
+        for res in ["cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"]:
+            if load[res] > cap.get(res, float('inf')): 
+                capacity_overflow[res] += load[res] - cap.get(res, float('inf'))
         
     return {
         "node_loads": node_loads,
@@ -379,6 +387,11 @@ def main():
     print(f"Capacity Overflow (CPU): {validation['capacity_overflow']['cpu']:.2f}")
     print(f"Capacity Overflow (RAM): {validation['capacity_overflow']['ram']:.2f}")
     print(f"Capacity Overflow (GPU): {validation['capacity_overflow']['gpu']:.2f}")
+    print(f"Capacity Overflow (Storage): {validation['capacity_overflow']['storage']:.2f}")
+    print(f"Capacity Overflow (Disk Read): {validation['capacity_overflow']['disk_read']:.2f}")
+    print(f"Capacity Overflow (Disk Write): {validation['capacity_overflow']['disk_write']:.2f}")
+    print(f"Capacity Overflow (Net In): {validation['capacity_overflow']['net_in']:.2f}")
+    print(f"Capacity Overflow (Net Out): {validation['capacity_overflow']['net_out']:.2f}")
     print(f"Unassigned Pods: {validation['unassigned_pods']}")
     print("--------------------------\n")
     

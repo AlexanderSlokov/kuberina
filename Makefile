@@ -47,5 +47,13 @@ research-inspect:
 		--solution solver/kuberina_solution.yaml \
 		--output kuberina_dashboard.html
 
-research-verify:
-	uv run --with pyyaml python research/mathematical_proof.py
+research-full-pipeline: ## Run the full validation pipeline (Generate testdata -> Solve -> Inspect -> Mathematical Proof)
+	@echo "=> Generating 8D testdata..."
+	cd research && uv run python gen_irina_testdata.py
+	@echo "=> Running solver on generated testdata..."
+	cd solver && cargo run --release -- plan --infra ../research/testdata/irina_infra.yaml --workloads ../research/testdata/irina_workloads.yaml --output kuberina_solution.yaml
+	@echo "=> Running Inspector heatmap & validation..."
+	cd research && uv run python inspector.py --infra testdata/irina_infra.yaml --workloads testdata/irina_workloads.yaml --solution ../solver/kuberina_solution.yaml
+	@echo "=> Running Formal Mathematical Proof..."
+	cd research && uv run python mathematical_proof.py
+	@echo "=> Pipeline Complete."

@@ -50,9 +50,8 @@ def pre_deduct_daemonsets(
                 node.get("labels", {}).get(k) == v
                 for k, v in ds_sel.items()
             ):
-                net["allocatable"]["cpu"] -= ds["resources"].get("cpu", 0.0)
-                net["allocatable"]["ram"] -= ds["resources"].get("ram", 0.0)
-                net["allocatable"]["gpu"] -= ds["resources"].get("gpu", 0.0)
+                for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+                    net["allocatable"][r] -= ds["resources"].get(r, 0.0)
         net_nodes.append(net)
     return net_nodes
 
@@ -72,7 +71,7 @@ def verify_capacity_constraint(
     pod_map = {p["name"]: p for p in pods}
 
     loads: dict[str, dict[str, float]] = {
-        n["name"]: {"cpu": 0.0, "ram": 0.0, "gpu": 0.0}
+        n["name"]: {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")}
         for n in nodes
     }
 
@@ -80,14 +79,13 @@ def verify_capacity_constraint(
         if pod_name not in pod_map or node_name not in node_map:
             continue
         req = pod_map[pod_name]["requests"]
-        loads[node_name]["cpu"] += req.get("cpu", 0.0)
-        loads[node_name]["ram"] += req.get("ram", 0.0)
-        loads[node_name]["gpu"] += req.get("gpu", 0.0)
+        for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+            loads[target if "target" in vars() else node_name][r] += req.get(r, 0.0)
 
-    overflow = {"cpu": 0.0, "ram": 0.0, "gpu": 0.0}
+    overflow = {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")}
     for n_name, load in loads.items():
         cap = node_map[n_name]["allocatable"]
-        for r in ("cpu", "ram", "gpu"):
+        for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
             excess = load[r] - cap.get(r, 0.0)
             if excess > 1e-9:
                 overflow[r] += excess
@@ -132,6 +130,55 @@ def verify_selector_constraint(
     return violations == 0, violations
 
 
+
+def verify_topology_spread(
+    nodes: list[dict],
+    pods: list[dict],
+    solution: dict[str, str],
+) -> float:
+    """Compute topology spread penalty (total skew across all domains)."""
+    node_map = {n["name"]: n for n in nodes}
+    pod_map = {p["name"]: p for p in pods}
+    
+    all_domains = {"zone": set(), "rack": set()}
+    for n in nodes:
+        all_domains["zone"].add(n.get("zone", ""))
+        all_domains["rack"].add(n.get("rack", ""))
+    
+    groups = {}
+    import re
+    for p_name, n_name in solution.items():
+        if p_name not in pod_map or n_name not in node_map: continue
+        pod = pod_map[p_name]
+        if "topologySpread" not in pod: continue
+        
+        ts = pod["topologySpread"]
+        top_key = ts.get("topologyKey")
+        if top_key not in all_domains: continue
+        
+        ns = pod.get("namespace", "default")
+        base_name = re.sub(r'-\d{1,4}$', '', p_name)
+        
+        group_key = (ns, base_name, top_key)
+        groups.setdefault(group_key, []).append(n_name)
+    
+    total_penalty = 0.0
+    for group_key, assigned_nodes in groups.items():
+        ns, base_name, top_key = group_key
+        counts = {domain: 0 for domain in all_domains[top_key]}
+        for n_name in assigned_nodes:
+            domain_val = node_map[n_name].get(top_key, "")
+            if domain_val in counts:
+                counts[domain_val] += 1
+        
+        min_c = min(counts.values()) if counts else 0
+        max_c = max(counts.values()) if counts else 0
+        skew = max(0, max_c - min_c - 1)
+        total_penalty += skew * 100.0
+        
+    return total_penalty
+
+
 # ─── Proof 2: LP Relaxation Lower Bound ──────────────────────────────
 
 def compute_lp_lower_bound(
@@ -148,22 +195,21 @@ def compute_lp_lower_bound(
     This is a well-known bound from Bin Packing theory
     (Coffman, Garey & Johnson, 1978).
     """
-    total_demand = {"cpu": 0.0, "ram": 0.0, "gpu": 0.0}
+    total_demand = {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")}
     for pod in pods:
         req = pod["requests"]
-        total_demand["cpu"] += req.get("cpu", 0.0)
-        total_demand["ram"] += req.get("ram", 0.0)
-        total_demand["gpu"] += req.get("gpu", 0.0)
+        for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+            total_demand[r] += req.get(r, 0.0)
 
     # max capacity per resource across all node types
-    max_cap = {"cpu": 0.0, "ram": 0.0, "gpu": 0.0}
+    max_cap = {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")}
     for node in nodes:
         cap = node["allocatable"]
-        for r in ("cpu", "ram", "gpu"):
+        for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
             max_cap[r] = max(max_cap[r], cap.get(r, 0.0))
 
     bounds = {}
-    for r in ("cpu", "ram", "gpu"):
+    for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
         if max_cap[r] > 0:
             bounds[r] = math.ceil(total_demand[r] / max_cap[r])
         else:
@@ -186,21 +232,21 @@ def compute_heterogeneous_lower_bound(
     If Σᵢ reqᵢ^CPU / Σⱼ Cⱼ^CPU = ρ, then at least ⌈ρ · m⌉ nodes
     must be active (where m = total nodes).
     """
-    total_demand = {"cpu": 0.0, "ram": 0.0, "gpu": 0.0}
-    total_supply = {"cpu": 0.0, "ram": 0.0, "gpu": 0.0}
+    total_demand = {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")}
+    total_supply = {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")}
 
     for pod in pods:
         req = pod["requests"]
-        for r in ("cpu", "ram", "gpu"):
+        for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
             total_demand[r] += req.get(r, 0.0)
 
     for node in nodes:
         cap = node["allocatable"]
-        for r in ("cpu", "ram", "gpu"):
+        for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
             total_supply[r] += cap.get(r, 0.0)
 
     rho = {}
-    for r in ("cpu", "ram", "gpu"):
+    for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
         if total_supply[r] > 0:
             rho[r] = total_demand[r] / total_supply[r]
         else:
@@ -244,20 +290,19 @@ def monte_carlo_random_baseline(
     overflow_sums: list[float] = []
 
     for _ in range(trials):
-        loads = {n: {"cpu": 0.0, "ram": 0.0, "gpu": 0.0} for n in node_names}
+        loads = {n: {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")} for n in node_names}
 
         for pod in pods:
             target = node_names[rng.randrange(num_nodes)]
             req = pod["requests"]
-            loads[target]["cpu"] += req.get("cpu", 0.0)
-            loads[target]["ram"] += req.get("ram", 0.0)
-            loads[target]["gpu"] += req.get("gpu", 0.0)
+            for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+                loads[target if "target" in vars() else node_name][r] += req.get(r, 0.0)
 
         violations = 0
         total_overflow = 0.0
         for n_name, load in loads.items():
             cap = node_map[n_name]["allocatable"]
-            for r in ("cpu", "ram", "gpu"):
+            for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
                 excess = load[r] - cap.get(r, 0.0)
                 if excess > 1e-9:
                     violations += 1
@@ -321,7 +366,7 @@ def monte_carlo_selector_aware(
     cap_violation_counts: list[int] = []
 
     for _ in range(trials):
-        loads = {n["name"]: {"cpu": 0.0, "ram": 0.0, "gpu": 0.0} for n in nodes}
+        loads = {n["name"]: {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")} for n in nodes}
 
         for i, pod in enumerate(pods):
             eligible = pod_eligible[i]
@@ -329,14 +374,13 @@ def monte_carlo_selector_aware(
                 continue
             target = eligible[rng.randrange(len(eligible))]
             req = pod["requests"]
-            loads[target]["cpu"] += req.get("cpu", 0.0)
-            loads[target]["ram"] += req.get("ram", 0.0)
-            loads[target]["gpu"] += req.get("gpu", 0.0)
+            for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+                loads[target if "target" in vars() else node_name][r] += req.get(r, 0.0)
 
         violations = 0
         for n_name, load in loads.items():
             cap = node_map[n_name]["allocatable"]
-            for r in ("cpu", "ram", "gpu"):
+            for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
                 if load[r] - cap.get(r, 0.0) > 1e-9:
                     violations += 1
 
@@ -383,26 +427,35 @@ def main() -> None:
     print("  PROOF 1: CONSTRAINT SATISFACTION (FEASIBILITY)")
     print("─" * 70)
 
+    
     cap_ok, cap_overflow = verify_capacity_constraint(nodes, pods, solution)
     assign_ok, missing = verify_assignment_constraint(pods, solution)
     sel_ok, sel_violations = verify_selector_constraint(nodes, pods, solution)
+    topology_penalty = verify_topology_spread(nodes, pods, solution)
 
-    print(f"\n  Predicate 1 — Capacity:")
+
+    print(f"\\n  Predicate 1 — Capacity:")
     print(f"    ∀j ∈ N: Σᵢ xᵢⱼ · reqᵢʳ ≤ Cⱼʳ")
-    print(f"    CPU overflow: {cap_overflow['cpu']:.6f}")
-    print(f"    RAM overflow: {cap_overflow['ram']:.6f}")
-    print(f"    GPU overflow: {cap_overflow['gpu']:.6f}")
+    for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+        print(f"    {r.upper()} overflow: {cap_overflow[r]:.6f}")
     print(f"    Verdict: {'✅ SATISFIED' if cap_ok else '❌ VIOLATED'}")
 
-    print(f"\n  Predicate 2 — Assignment:")
+    print(f"\\n  Predicate 2 — Assignment:")
     print(f"    ∀i ∈ P: Σⱼ xᵢⱼ = 1")
     print(f"    Missing pods: {missing}")
     print(f"    Verdict: {'✅ SATISFIED' if assign_ok else '❌ VIOLATED'}")
 
-    print(f"\n  Predicate 3 — Node Selector:")
+    print(f"\\n  Predicate 3 — Node Selector:")
     print(f"    ∀i: xᵢⱼ=1 ⟹ Selector(pᵢ) ⊆ Labels(nⱼ)")
     print(f"    Violations: {sel_violations}")
     print(f"    Verdict: {'✅ SATISFIED' if sel_ok else '❌ VIOLATED'}")
+
+    print(f"\\n  Objective — Topology Spread:")
+    print(f"    Soft Penalty (Total Skew): {topology_penalty:.2f}")
+    if topology_penalty == 0.0:
+        print("    Verdict: ✅ PERFECTLY BALANCED")
+    else:
+        print("    Verdict: ⚠️ SOFT PENALTY APPLIED")
 
     feasible = cap_ok and assign_ok and sel_ok
     print(f"\n  ══ FEASIBILITY: {'✅ PROVEN' if feasible else '❌ FAILED'} ══")
