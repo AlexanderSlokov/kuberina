@@ -1,10 +1,45 @@
 # Kuberina
 
-Kuberina is an algorithmic architect CLI tool that uses maritime stowage optimization mathematics to generate pre-deployment scheduling blueprint for heterogeneous Kubernetes clusters.
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21582492.svg)](https://doi.org/10.5281/zenodo.21582492)
+
+Kuberina is a CLI tool that uses maritime stowage optimization mathematics to generate pre-deployment scheduling blueprint for heterogeneous Kubernetes clusters.
 
 Inspired by how supercomputers solve the stowage planning problem for *MSC Irina*, Kuberina applies combinatorial optimization mathematics to pack Pods tightly into a non-standard K8s infrastructure (CPU, RAM, GPU mixed) before you actually run them.
 
 ---
+
+# Licensing Roadmap
+
+Kuberina employs a 3-phase licensing strategy to ensure sustainable development, protect intellectual property and deliver a fully permissive open-source project to the community. 
+
+Please read the following licensing transitions carefully. By using, modifying, or distributing this software, you acknowledge and agree to this roadmap. 
+
+> **Important Note for Contributors:** To ensure the project retains the legal ability to execute these planned license transitions, all community contributions (Pull Requests) require agreeing to our Contributor License Agreement (CLA). This grants the project author the right to re-license your contributions in accordance with the roadmap below.
+
+### Phase 1: Kuberina (AGPLv3)
+
+**Applies to:** All current versions starting from `0.1.0`, and all subsequent releases, up to (but not including) version `12.0.0`, unless Phase 2 is triggered first.  
+**License:** **GNU Affero General Public License v3.0 (AGPLv3)**.  
+**Implication:** Any modifications or deployments of Kuberina provided as a network service must make their source code available to users under the same AGPLv3 license.  
+
+### Phase 2: Naughtian Kuberina (SSPLv1)
+
+**Trigger Condition:** The formal legal incorporation of the author's corporate entity (e.g., "Naughtian Lab" or "Naughtian Corp").  
+**Action:** Upon this event, the intellectual property and repository ownership of Kuberina will be transferred to said corporate entity.   
+**License:** From the exact date of transfer forward, all new versions and commits of Kuberina will be licensed under the **Server Side Public License v1 (SSPLv1)**.  
+*Note: Previously released AGPLv3 versions will permanently remain AGPLv3. Re-licensing applies strictly to new releases following the corporate transfer.*  
+
+### Phase 3: Liberated Kuberina (Apache License 2.0)
+
+The project is committed to an eventual transition to a fully permissive model. The repository and its subsequent releases will transition to the **Apache License 2.0** upon the occurrence of *either* of the following strategic milestones:
+
+1. **CNCF Donation Initiative:** Prior to, and as a formal step for, donating Kuberina to the Cloud Native Computing Foundation (CNCF), the project will be re-licensed to Apache 2.0 to comply with CNCF's intellectual property policies.
+2. **Reaching Version 12.0.0:** Kuberina officially reaches the `12.0.0` milestone.
+
+*(To guarantee Kuberina's permanent availability to the open-source community regardless of versioning speed, any given release of Kuberina will automatically transition to the Apache License 2.0 exactly 48 months after its initial release date).*
+
+**LTS Roadmap:** Upon the release of `12.0.0`, the project will establish a dedicated Long-Term Support branch (`12.0.0-lts`). It is the explicit intent and roadmap of the project's governing entity to provide a minimum **5-year window of maintenance and security patching** for this specific LTS release under the Apache 2.0 license.
+
 
 ## 💡 Why Kuberina?
 
@@ -89,7 +124,7 @@ You can then open `kuberina_dashboard.html` in your browser to interactively vie
 | [DESIGN.md](./DESIGN.md) | Contributors, maintainers | Software design document: architecture, data model, CLI design, testing strategy |
 | `research/` | Algorithm developers | Python POC code for formulas and algorithms in small simulations |
 
-## 📄 License
+
 
 <!-- [Q-Claude] Chọn license nào? MIT, Apache 2.0, hay GPL? 
   Nếu muốn cộng đồng thoải mái contribute: MIT hoặc Apache 2.0.
