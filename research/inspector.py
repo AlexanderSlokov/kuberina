@@ -47,14 +47,11 @@ def pre_deduct_daemonsets(nodes, daemonsets):
                     matches = False
                     break
             if matches:
-                net_node["allocatable"]["cpu"] -= ds["resources"].get("cpu", 0.0)
-                net_node["allocatable"]["ram"] -= ds["resources"].get("ram", 0.0)
-                net_node["allocatable"]["gpu"] -= ds["resources"].get("gpu", 0.0)
-                net_node["allocatable"]["storage"] -= ds["resources"].get("storage", 0.0)
-                net_node["allocatable"]["disk_read"] -= ds["resources"].get("disk_read", 0.0)
-                net_node["allocatable"]["disk_write"] -= ds["resources"].get("disk_write", 0.0)
-                net_node["allocatable"]["net_in"] -= ds["resources"].get("net_in", 0.0)
-                net_node["allocatable"]["net_out"] -= ds["resources"].get("net_out", 0.0)
+                for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+                    if r in net_node["allocatable"]:
+                        net_node["allocatable"][r] -= ds["resources"].get(r, 0.0)
+                    else:
+                        net_node["allocatable"][r] = float('inf')
         net_nodes.append(net_node)
     return net_nodes
 
@@ -82,6 +79,7 @@ def validate_solution(nodes, pods, solution):
         node_loads[node_name]["pods"].append(pod_name)
         
         # Add to load
+        req = pod.get("requests", {})
         node_loads[node_name]["cpu"] += req.get("cpu", 0.0)
         node_loads[node_name]["ram"] += req.get("ram", 0.0)
         node_loads[node_name]["gpu"] += req.get("gpu", 0.0)

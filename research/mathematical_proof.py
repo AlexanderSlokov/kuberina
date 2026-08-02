@@ -51,7 +51,10 @@ def pre_deduct_daemonsets(
                 for k, v in ds_sel.items()
             ):
                 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
-                    net["allocatable"][r] -= ds["resources"].get(r, 0.0)
+                    if r in net["allocatable"]:
+                        net["allocatable"][r] -= ds["resources"].get(r, 0.0)
+                    else:
+                        net["allocatable"][r] = float('inf')
         net_nodes.append(net)
     return net_nodes
 
