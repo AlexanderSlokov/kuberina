@@ -21,6 +21,34 @@ A change moves through them in order; skipping a stage loses the reason the work
    BACKLOG.md and describe the result under `[Unreleased]`, following Keep a Changelog.
    They will be release notes verbatim, so write them for an operator: state what changed and why it mattered.
 
+## Documentation layout
+
+`docs/` follows [Diátaxis](https://diataxis.fr/). Put a document where its *purpose*
+belongs, not where its subject does:
+
+- `docs/tutorials/` — learning-oriented. A beginner following steps to a first result.
+- `docs/how-to/` — task-oriented. A competent user achieving one specific goal.
+- `docs/references/` — information-oriented. Facts to look up: schemas, measured
+  numbers, the paper, session records. Descriptive and accurate, never instructive.
+- `docs/explanation/` — understanding-oriented. Why the design is the way it is.
+
+`docs/plans/` sits outside the four: it holds working artifacts (implementation plans,
+raw benchmark console output) rather than documentation.
+
+## Session records
+
+When a work session produces measurements — a benchmark run, a before/after
+comparison, a reproduction of a defect — write them down in
+`docs/references/sessions/YYYY-MM-DD-<topic>.md` before the session ends.
+
+State what was measured, the commit it was measured at, and the command that produced
+it. A number without its provenance cannot be checked later, and `PAPER.md` is written
+from these records rather than from memory. Record what the run actually reported,
+including results that are worse than the previous ones — the session record is
+evidence, and evidence that only ever improves is not evidence.
+
+Raw console output belongs in `docs/plans/benchmarks/`; the session record cites it.
+
 ## Constraints
 
 - Use the POV of a technical writer writing documents for k8s to write `*.md` artifacts, 
