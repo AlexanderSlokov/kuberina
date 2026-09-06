@@ -107,6 +107,21 @@ pub fn run_ga(
 }
 
 /// Create initial population from FFD seed + random perturbations.
+/// Convert an expected number of relocations into a per-gene probability.
+///
+/// The GA's knobs are expressed as counts so that the operator stays a local move
+/// as the pod count grows; `mutate` needs the probability. See `GaConfig`.
+///
+/// ```ignore
+/// per_gene_rate(4.0, 2714)  // ≈ 0.00147 — four relocations per child
+/// ```
+fn per_gene_rate(expected_relocations: f64, num_pods: usize) -> f64 {
+    if num_pods == 0 {
+        return 0.0;
+    }
+    (expected_relocations / num_pods as f64).clamp(0.0, 1.0)
+}
+
 fn init_population(
     seed: &Blueprint,
     pods: &[Pod],
@@ -118,11 +133,14 @@ fn init_population(
     let mut population = Vec::with_capacity(config.population_size);
     population.push(seed.clone());
 
+    // WHY: perturb the FFD seed to give crossover material to work with. Pure
+    // clones would make it useless, but perturbing a fixed *fraction* makes every
+    // individual worthless at datacenter scale — 20% of 2,714 pods is 543 random
+    // relocations, and no such individual ever beats the seed it came from.
+    let rate = per_gene_rate(config.init_mutations, pods.len());
     for _ in 1..config.population_size {
         let mut variant = seed.clone();
-        // WHY: perturb ~20% of assignments to inject diversity into the
-        // FFD-derived population. Pure clones would make crossover useless.
-        mutate(&mut variant, pods, nodes, groups, 0.2, rng);
+        mutate(&mut variant, pods, nodes, groups, rate, rng);
         population.push(variant);
     }
 
@@ -175,7 +193,8 @@ fn breed_generation(
             }
         };
 
-        mutate(&mut child, pods, nodes, groups, config.mutation_rate, rng);
+        let rate = per_gene_rate(config.mutations_per_child, pods.len());
+        mutate(&mut child, pods, nodes, groups, rate, rng);
         offspring.push(child);
     }
 

@@ -11,8 +11,11 @@ use std::time::Instant;
 
 use clap::{Parser, Subcommand};
 
+use kuberina_solver::csp::{compute_overflow_by_dimension, compute_selector_violations};
 use kuberina_solver::fitness::compute_fitness;
-use kuberina_solver::model::{FfdWeights, FitnessWeights, GaConfig, Node, ResourceVector};
+use kuberina_solver::model::{
+    Blueprint, FfdWeights, FitnessWeights, GaConfig, Node, Pod, ResourceVector,
+};
 use kuberina_solver::parser::{load_infra, load_workloads};
 use kuberina_solver::phase0::pre_deduct_daemonsets;
 use kuberina_solver::phase1_ffd::ffd_warmstart;
@@ -191,7 +194,162 @@ fn run_plan(infra_path: &str, workloads_path: &str, headroom: Option<f64>) {
     let elapsed = start.elapsed().as_secs_f64();
     // Print the blueprint against real capacity — the reserve is withheld from the
     // optimizer, not from the operator reading the result.
-    print_blueprint(&best, &pods, &net_nodes, elapsed);
+    let verdict = classify(&best, &pods, &net_nodes, &planning_nodes, headroom);
+    let infeasible = matches!(verdict, Verdict::Infeasible { .. });
+    print_blueprint(&best, &pods, &net_nodes, elapsed, infeasible);
+    report_verdict(&verdict);
+    if verdict.exit_code() != 0 {
+        std::process::exit(verdict.exit_code());
+    }
+}
+
+/// What the emitted blueprint is actually worth.
+///
+/// A nonzero hard penalty does not make the run fail today, which is how an
+/// assignment violating seven capacity constraints came to be printed under the
+/// heading "Final Blueprint" with exit code 0. See issue #17.
+enum Verdict {
+    /// Every hard constraint holds, including the reserve if one was requested.
+    Feasible,
+    /// Fits the cluster, but spends capacity the operator asked to keep free.
+    ReserveNotMet { headroom: f64, over: ResourceVector },
+    /// Does not fit the cluster. The blueprint is not applicable.
+    Infeasible {
+        over: ResourceVector,
+        selector_violations: usize,
+        gang_penalty: f64,
+    },
+}
+
+impl Verdict {
+    fn exit_code(&self) -> i32 {
+        match self {
+            Verdict::Feasible => 0,
+            Verdict::ReserveNotMet { .. } => 2,
+            Verdict::Infeasible { .. } => 1,
+        }
+    }
+}
+
+/// Decide whether the blueprint holds against real capacity, the reserve, or neither.
+///
+/// ```ignore
+/// match classify(&best, &pods, &net_nodes, &planning_nodes, Some(20.0)) { .. }
+/// ```
+fn classify(
+    best: &Blueprint,
+    pods: &[Pod],
+    net_nodes: &[Node],
+    planning_nodes: &[Node],
+    headroom: Option<f64>,
+) -> Verdict {
+    let real_over = compute_overflow_by_dimension(&best.assignment, pods, net_nodes);
+    let selector_violations = compute_selector_violations(&best.assignment, pods, net_nodes);
+
+    if total_of(&real_over) > 1e-9 || selector_violations > 0 || best.scorecard.gang_penalty > 1e-9
+    {
+        return Verdict::Infeasible {
+            over: real_over,
+            selector_violations,
+            gang_penalty: best.scorecard.gang_penalty,
+        };
+    }
+
+    if let Some(pct) = headroom {
+        let reserved_over = compute_overflow_by_dimension(&best.assignment, pods, planning_nodes);
+        if total_of(&reserved_over) > 1e-9 {
+            return Verdict::ReserveNotMet {
+                headroom: pct,
+                over: reserved_over,
+            };
+        }
+    }
+
+    Verdict::Feasible
+}
+
+fn total_of(v: &ResourceVector) -> f64 {
+    v.cpu + v.ram + v.gpu + v.storage + v.disk_read + v.disk_write + v.net_in + v.net_out
+}
+
+/// List the dimensions carrying overflow, largest first.
+fn overflowing_dimensions(over: &ResourceVector) -> Vec<(&'static str, f64)> {
+    let mut dims = vec![
+        ("cpu", over.cpu),
+        ("ram", over.ram),
+        ("gpu", over.gpu),
+        ("storage", over.storage),
+        ("disk_read", over.disk_read),
+        ("disk_write", over.disk_write),
+        ("net_in", over.net_in),
+        ("net_out", over.net_out),
+    ];
+    dims.retain(|&(_, amount)| amount > 1e-9);
+    dims.sort_by(|a, b| b.1.total_cmp(&a.1));
+    dims
+}
+
+/// State the verdict where the operator cannot miss it.
+fn report_verdict(verdict: &Verdict) {
+    match verdict {
+        Verdict::Feasible => {
+            println!("  ✅ FEASIBLE — every hard constraint holds.");
+        }
+        Verdict::ReserveNotMet { headroom, over } => {
+            println!(
+                "
+═══ ⚠️  RESERVE NOT MET ═══"
+            );
+            println!(
+                "  The blueprint fits the cluster, but spends capacity you asked to keep free.
+                   Requested reserve: {:.1}%. Over the reserve by:",
+                headroom,
+            );
+            for (dim, amount) in overflowing_dimensions(over) {
+                println!("    {dim:<10} {amount:>14.2}");
+            }
+            println!(
+                "
+  Lower --headroom, or add nodes. The exported plan is applicable as-is;
+                   it simply leaves less runtime margin than you specified."
+            );
+        }
+        Verdict::Infeasible {
+            over,
+            selector_violations,
+            gang_penalty,
+        } => {
+            println!(
+                "
+═══ ❌ INFEASIBLE — DO NOT APPLY ═══"
+            );
+            println!("  This assignment exceeds real node capacity. It is not a plan.");
+            let dims = overflowing_dimensions(over);
+            if !dims.is_empty() {
+                println!(
+                    "
+  Capacity exceeded, by dimension:"
+                );
+                for (dim, amount) in dims {
+                    println!("    {dim:<10} {amount:>14.2}");
+                }
+            }
+            if *selector_violations > 0 {
+                println!(
+                    "
+  NodeSelector violations: {selector_violations}"
+                );
+            }
+            if *gang_penalty > 1e-9 {
+                println!("  Gang penalty: {gang_penalty:.0}");
+            }
+            println!(
+                "
+  kuberina_solution.yaml was written for inspection and is marked infeasible.
+                   Applying it would schedule pods onto nodes that cannot hold them."
+            );
+        }
+    }
 }
 
 /// Auto-scale GA parameters based on problem size.
@@ -209,7 +367,8 @@ fn select_ga_config(num_pods: usize) -> GaConfig {
         GaConfig {
             population_size: 1024,
             tournament_size: 5,
-            mutation_rate: 0.03,
+            mutations_per_child: 4.0,
+            init_mutations: 16.0,
             crossover_rate: 0.85,
             max_generations: 1000,
             early_stop_generations: 200,
@@ -248,13 +407,12 @@ fn print_phase0_summary(
     }
 }
 
-fn print_blueprint(
-    best: &kuberina_solver::model::Blueprint,
-    pods: &[kuberina_solver::model::Pod],
-    nodes: &[kuberina_solver::model::Node],
-    elapsed: f64,
-) {
-    println!("\n═══ Final Blueprint (Stowage Plan) ═══");
+fn print_blueprint(best: &Blueprint, pods: &[Pod], nodes: &[Node], elapsed: f64, infeasible: bool) {
+    if infeasible {
+        println!("\n═══ Rejected Assignment (NOT a blueprint) ═══");
+    } else {
+        println!("\n═══ Final Blueprint (Stowage Plan) ═══");
+    }
     println!("  Fitness: {:.4}", best.fitness);
     println!("  Time: {:.2}s", elapsed);
     println!("  Scorecard:");
@@ -297,6 +455,13 @@ fn print_blueprint(
 
     // Export full solution to YAML
     let mut yaml_out = String::new();
+    if infeasible {
+        // WHY: the file is written for inspection, not application. A reader who
+        // opens it without having seen the console output must still be told.
+        yaml_out.push_str(
+            "# INFEASIBLE — this assignment exceeds real node capacity.\n             # Written for inspection only. Do not apply. See the solver output.\n",
+        );
+    }
     yaml_out.push_str("solution:\n");
     for (pod_idx, &node_idx) in best.assignment.iter().enumerate() {
         yaml_out.push_str(&format!(
@@ -524,5 +689,98 @@ mod tests {
         let reserved = reserve_headroom(&nodes, 0.0);
         assert!((reserved[0].allocatable.cpu - 64.0).abs() < 1e-9);
         assert!((reserved[0].allocatable.net_out - 1000.0).abs() < 1e-9);
+    }
+}
+
+#[cfg(test)]
+mod verdict_tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn node(name: &str, cpu: f64) -> Node {
+        Node {
+            name: name.into(),
+            allocatable: ResourceVector::new(cpu, 1000.0, 0.0),
+            labels: HashMap::new(),
+            taints: Vec::new(),
+            zone: String::new(),
+            rack: String::new(),
+        }
+    }
+
+    fn pod(name: &str, cpu: f64) -> Pod {
+        Pod {
+            name: name.into(),
+            namespace: "ns".into(),
+            requests: ResourceVector::new(cpu, 1.0, 0.0),
+            tolerations: Vec::new(),
+            node_selector: HashMap::new(),
+            affinity_targets: Vec::new(),
+            anti_affinity_targets: Vec::new(),
+            group_name: String::new(),
+            topology_spread: None,
+        }
+    }
+
+    fn blueprint(assignment: Vec<usize>, pods: &[Pod], num_nodes: usize) -> Blueprint {
+        Blueprint {
+            node_load: kuberina_solver::phase1_ffd::compute_node_loads(
+                &assignment,
+                pods,
+                num_nodes,
+            ),
+            assignment,
+            fitness: 0.0,
+            scorecard: Default::default(),
+        }
+    }
+
+    #[test]
+    fn fitting_assignment_is_feasible() {
+        let nodes = vec![node("n", 10.0)];
+        let pods = vec![pod("p", 4.0)];
+        let bp = blueprint(vec![0], &pods, 1);
+        let v = classify(&bp, &pods, &nodes, &nodes, None);
+        assert_eq!(v.exit_code(), 0);
+    }
+
+    #[test]
+    fn exceeding_real_capacity_is_infeasible() {
+        let nodes = vec![node("n", 5.0)];
+        let pods = vec![pod("a", 4.0), pod("b", 4.0)];
+        let bp = blueprint(vec![0, 0], &pods, 1);
+        let v = classify(&bp, &pods, &nodes, &nodes, None);
+        assert_eq!(v.exit_code(), 1);
+        match v {
+            Verdict::Infeasible { over, .. } => assert!((over.cpu - 3.0).abs() < 1e-9),
+            _ => panic!("expected Infeasible"),
+        }
+    }
+
+    #[test]
+    fn fitting_the_cluster_but_not_the_reserve_is_its_own_verdict() {
+        // 9 of 10 cores used: fits the node, spends into a 20% reserve.
+        let nodes = vec![node("n", 10.0)];
+        let reserved = vec![node("n", 8.0)];
+        let pods = vec![pod("p", 9.0)];
+        let bp = blueprint(vec![0], &pods, 1);
+        let v = classify(&bp, &pods, &nodes, &reserved, Some(20.0));
+        assert_eq!(v.exit_code(), 2);
+        match v {
+            Verdict::ReserveNotMet { over, .. } => assert!((over.cpu - 1.0).abs() < 1e-9),
+            _ => panic!("expected ReserveNotMet"),
+        }
+    }
+
+    #[test]
+    fn overflowing_dimensions_are_ranked_largest_first() {
+        let mut over = ResourceVector::zero();
+        over.cpu = 5.0;
+        over.disk_write = 100.0;
+        over.net_in = 40.0;
+        let dims = overflowing_dimensions(&over);
+        assert_eq!(dims.len(), 3);
+        assert_eq!(dims[0].0, "disk_write");
+        assert_eq!(dims[2].0, "cpu");
     }
 }

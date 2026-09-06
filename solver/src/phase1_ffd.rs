@@ -10,10 +10,58 @@
 use crate::csp::can_place_pod_on_node;
 use crate::model::{Blueprint, FfdWeights, Node, Pod, ResourceVector};
 
+/// Largest capacity present in the cluster, per dimension.
+///
+/// Used to make `synthetic_volume` scale-invariant. A dimension no node declares
+/// stays at `f64::MAX`, which divides pod demand down to nothing — correct, since
+/// an unconstrained dimension cannot make a pod hard to place.
+///
+/// ```ignore
+/// let scale = max_node_capacity(&nodes);
+/// ```
+pub fn max_node_capacity(nodes: &[Node]) -> ResourceVector {
+    let mut max = ResourceVector::zero();
+    for node in nodes {
+        let c = &node.allocatable;
+        max.cpu = max.cpu.max(c.cpu);
+        max.ram = max.ram.max(c.ram);
+        max.gpu = max.gpu.max(c.gpu);
+        max.storage = max.storage.max(c.storage);
+        max.disk_read = max.disk_read.max(c.disk_read);
+        max.disk_write = max.disk_write.max(c.disk_write);
+        max.net_in = max.net_in.max(c.net_in);
+        max.net_out = max.net_out.max(c.net_out);
+    }
+    max
+}
+
+/// One dimension's share of the largest node's capacity in that dimension.
+///
+/// ```ignore
+/// capacity_share(32.0, 64.0)  // 0.5 — half of the biggest node's CPU
+/// ```
+fn capacity_share(demand: f64, max_capacity: f64) -> f64 {
+    if max_capacity <= 0.0 || !max_capacity.is_finite() {
+        return 0.0;
+    }
+    demand / max_capacity
+}
+
 /// Compute scalar weight for a pod based on normalized resource scarcity.
 ///
-/// V_i = α·CPU_i + β·RAM_i + γ·GPU_i
+/// V_i = Σ_r w_r · (req_i^r / max_j C_j^r)
+///
 /// Higher V means the pod is "heavier" and should be placed first.
+///
+/// WHY normalize: summing raw magnitudes across dimensions compares quantities in
+/// different units — 500 units of net_in is not 500 GiB of RAM. The previous form
+/// compensated with small I/O weights (0.01 against 1.0 for CPU), which hardcoded
+/// a belief about which dimension binds. On a testbed where disk_write is the
+/// scarce dimension that ordering placed the I/O-heavy pods last, by which point
+/// no node had I/O headroom left, and 15 of them fell through to the overloading
+/// fallback below. Dividing by the largest node capacity in each dimension makes
+/// the terms comparable, so the weights express preference rather than unit
+/// conversion. See issue #18.
 ///
 /// ```
 /// # use kuberina_solver::model::*;
@@ -27,19 +75,22 @@ use crate::model::{Blueprint, FfdWeights, Node, Pod, ResourceVector};
 ///     group_name: String::new(),
 ///     topology_spread: None,
 /// };
-/// let v = synthetic_volume(&pod, &FfdWeights::default());
-/// assert!((v - 82.0).abs() < 1e-9);
+/// // Against a cluster whose biggest node is 64 CPU / 256 RAM / 8 GPU:
+/// let scale = ResourceVector::new(64.0, 256.0, 8.0);
+/// let v = synthetic_volume(&pod, &FfdWeights::default(), &scale);
+/// // 1.0*(8/64) + 1.0*(64/256) + 10.0*(1/8) = 0.125 + 0.25 + 1.25
+/// assert!((v - 1.625).abs() < 1e-9);
 /// ```
-pub fn synthetic_volume(pod: &Pod, weights: &FfdWeights) -> f64 {
+pub fn synthetic_volume(pod: &Pod, weights: &FfdWeights, scale: &ResourceVector) -> f64 {
     let r = &pod.requests;
-    weights.alpha * r.cpu
-        + weights.beta * r.ram
-        + weights.gamma * r.gpu
-        + weights.delta * r.storage
-        + weights.epsilon_r * r.disk_read
-        + weights.epsilon_w * r.disk_write
-        + weights.zeta_in * r.net_in
-        + weights.zeta_out * r.net_out
+    weights.alpha * capacity_share(r.cpu, scale.cpu)
+        + weights.beta * capacity_share(r.ram, scale.ram)
+        + weights.gamma * capacity_share(r.gpu, scale.gpu)
+        + weights.delta * capacity_share(r.storage, scale.storage)
+        + weights.epsilon_r * capacity_share(r.disk_read, scale.disk_read)
+        + weights.epsilon_w * capacity_share(r.disk_write, scale.disk_write)
+        + weights.zeta_in * capacity_share(r.net_in, scale.net_in)
+        + weights.zeta_out * capacity_share(r.net_out, scale.net_out)
 }
 
 /// Accumulate per-node resource usage from pod assignments.
@@ -89,10 +140,11 @@ pub fn ffd_warmstart(pods: &[Pod], nodes: &[Node], weights: &FfdWeights) -> Blue
     let num_nodes = nodes.len();
 
     // Sort pod indices by synthetic volume descending (heaviest first)
+    let scale = max_node_capacity(nodes);
     let mut sorted_indices: Vec<usize> = (0..num_pods).collect();
     sorted_indices.sort_by(|&a, &b| {
-        synthetic_volume(&pods[b], weights)
-            .partial_cmp(&synthetic_volume(&pods[a], weights))
+        synthetic_volume(&pods[b], weights, &scale)
+            .partial_cmp(&synthetic_volume(&pods[a], weights, &scale))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
@@ -195,14 +247,65 @@ mod tests {
     }
 
     #[test]
-    fn synthetic_volume_calculation() {
+    fn synthetic_volume_scales_by_cluster_capacity() {
         let p = pod("gpu", 8.0, 64.0);
         let p_gpu = Pod {
             requests: ResourceVector::new(8.0, 64.0, 1.0),
             ..p
         };
-        let v = synthetic_volume(&p_gpu, &FfdWeights::default());
-        // 1.0*8 + 1.0*64 + 10.0*1 = 82.0
-        assert!((v - 82.0).abs() < 1e-9);
+        let scale = ResourceVector::new(64.0, 256.0, 8.0);
+        let v = synthetic_volume(&p_gpu, &FfdWeights::default(), &scale);
+        // 1.0*(8/64) + 1.0*(64/256) + 10.0*(1/8) = 0.125 + 0.25 + 1.25
+        assert!((v - 1.625).abs() < 1e-9);
+    }
+
+    #[test]
+    fn synthetic_volume_ranks_by_scarcity_not_magnitude() {
+        // A pod wanting most of the cluster's disk_write should outrank one
+        // wanting a sliver of its much larger network budget, even though the
+        // latter's raw numbers are an order of magnitude bigger. This ordering
+        // is what the pre-#18 formula got backwards.
+        let base = pod("x", 1.0, 1.0);
+        let io_heavy = Pod {
+            requests: ResourceVector::new_8d(1.0, 1.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.0),
+            ..base.clone()
+        };
+        let net_light = Pod {
+            requests: ResourceVector::new_8d(1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 500.0, 0.0),
+            ..base
+        };
+        let scale =
+            ResourceVector::new_8d(64.0, 256.0, 8.0, 1000.0, 500.0, 200.0, 10000.0, 10000.0);
+        let w = FfdWeights::default();
+        assert!(synthetic_volume(&io_heavy, &w, &scale) > synthetic_volume(&net_light, &w, &scale));
+    }
+
+    #[test]
+    fn unconstrained_dimension_contributes_nothing() {
+        let p = Pod {
+            requests: ResourceVector::new_8d(1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 900.0, 0.0),
+            ..pod("x", 1.0, 1.0)
+        };
+        let mut scale = ResourceVector::new(64.0, 256.0, 8.0);
+        scale.net_in = f64::MAX;
+        let w = FfdWeights::default();
+        let with_net = synthetic_volume(&p, &w, &scale);
+        let expected = 1.0 / 64.0 + 1.0 / 256.0;
+        assert!((with_net - expected).abs() < 1e-9);
+    }
+
+    #[test]
+    fn max_node_capacity_takes_the_largest_per_dimension() {
+        let mut gpu_node = node("gpu", 32.0, 192.0);
+        gpu_node.allocatable.gpu = 8.0;
+        let nodes = vec![
+            node("small", 16.0, 128.0),
+            node("big-cpu", 64.0, 64.0),
+            gpu_node,
+        ];
+        let max = max_node_capacity(&nodes);
+        assert_eq!(max.cpu, 64.0);
+        assert_eq!(max.ram, 192.0);
+        assert_eq!(max.gpu, 8.0);
     }
 }

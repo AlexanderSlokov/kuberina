@@ -273,7 +273,19 @@ pub struct Blueprint {
 pub struct GaConfig {
     pub population_size: usize,
     pub tournament_size: usize,
-    pub mutation_rate: f64,
+    /// Expected number of pods relocated per child, NOT a per-gene probability.
+    ///
+    /// WHY a count: a fixed per-gene rate is a different operator at different
+    /// problem sizes. At 10 pods, 0.03 relocates 0.3 assignments — a local move.
+    /// At 2,714 pods it relocates 81, which is a random restart: no child lands
+    /// near its parent, so elitism preserves the seed and the search never starts.
+    /// A count keeps the operator local as |P| grows.
+    pub mutations_per_child: f64,
+    /// Expected number of pods relocated when seeding each initial individual.
+    ///
+    /// Large enough that crossover has material to work with, small enough that
+    /// the population starts as a neighborhood of the FFD seed rather than noise.
+    pub init_mutations: f64,
     pub crossover_rate: f64,
     pub max_generations: usize,
     pub early_stop_generations: usize,
@@ -285,7 +297,8 @@ impl Default for GaConfig {
         Self {
             population_size: 128,
             tournament_size: 3,
-            mutation_rate: 0.05,
+            mutations_per_child: 4.0,
+            init_mutations: 16.0,
             crossover_rate: 0.8,
             max_generations: 500,
             early_stop_generations: 50,
@@ -338,17 +351,21 @@ pub struct FfdWeights {
 impl Default for FfdWeights {
     fn default() -> Self {
         Self {
+            // WHY uniform: synthetic_volume divides each dimension by the largest
+            // node capacity in that dimension, so the terms are already comparable
+            // and a weight expresses preference, not unit conversion. The previous
+            // 0.01 defaults on I/O were compensating for raw magnitudes and made
+            // FFD blind to whichever I/O dimension actually binds (#18).
             alpha: 1.0,
             beta: 1.0,
+            // GPU stays elevated: it is indivisible and confined to a small node
+            // subset, so a GPU pod placed late has nowhere left to go.
             gamma: 10.0,
-            // WHY low defaults: I/O dimensions rarely dominate unless user
-            // explicitly profiles workloads. Prevents FFD from over-weighting
-            // disk/network in generic clusters.
-            delta: 0.1,
-            epsilon_r: 0.01,
-            epsilon_w: 0.01,
-            zeta_in: 0.01,
-            zeta_out: 0.01,
+            delta: 1.0,
+            epsilon_r: 1.0,
+            epsilon_w: 1.0,
+            zeta_in: 1.0,
+            zeta_out: 1.0,
         }
     }
 }

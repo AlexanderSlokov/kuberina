@@ -41,26 +41,52 @@ pub fn can_place_pod_on_node(pod: &Pod, node: &Node) -> bool {
 /// Instead of boolean pass/fail, returns total resource over-commitment.
 /// Overflow = Σ max(0, load − cap) for CPU, RAM, GPU.
 pub fn compute_capacity_overflow(assignment: &[usize], pods: &[Pod], nodes: &[Node]) -> f64 {
+    let by_dim = compute_overflow_by_dimension(assignment, pods, nodes);
+    by_dim.cpu
+        + by_dim.ram
+        + by_dim.gpu
+        + by_dim.storage
+        + by_dim.disk_read
+        + by_dim.disk_write
+        + by_dim.net_in
+        + by_dim.net_out
+}
+
+/// Capacity overflow per dimension, summed across every node.
+///
+/// The scalar `compute_capacity_overflow` collapses this into one number for the
+/// fitness function. Reporting needs the breakdown: "over by 11,328 on disk_write"
+/// tells an operator what to change, where a single total does not.
+///
+/// ```ignore
+/// let over = compute_overflow_by_dimension(&assignment, &pods, &nodes);
+/// assert_eq!(over.disk_write, 0.0);
+/// ```
+pub fn compute_overflow_by_dimension(
+    assignment: &[usize],
+    pods: &[Pod],
+    nodes: &[Node],
+) -> ResourceVector {
     let mut loads = vec![ResourceVector::zero(); nodes.len()];
     for (pod_idx, &node_idx) in assignment.iter().enumerate() {
         loads[node_idx] = loads[node_idx] + pods[pod_idx].requests;
     }
 
-    let mut overflow = 0.0_f64;
+    let mut over = ResourceVector::zero();
     for (node_idx, load) in loads.iter().enumerate() {
         let cap = &nodes[node_idx].allocatable;
-        overflow += (load.cpu - cap.cpu).max(0.0);
-        overflow += (load.ram - cap.ram).max(0.0);
-        overflow += (load.gpu - cap.gpu).max(0.0);
-        overflow += (load.storage - cap.storage).max(0.0);
+        over.cpu += (load.cpu - cap.cpu).max(0.0);
+        over.ram += (load.ram - cap.ram).max(0.0);
+        over.gpu += (load.gpu - cap.gpu).max(0.0);
+        over.storage += (load.storage - cap.storage).max(0.0);
         // WHY: Disk/Network overflow is the Noisy Neighbor signal —
         // 10 DB pods crushing a node's IOPS triggers massive penalty.
-        overflow += (load.disk_read - cap.disk_read).max(0.0);
-        overflow += (load.disk_write - cap.disk_write).max(0.0);
-        overflow += (load.net_in - cap.net_in).max(0.0);
-        overflow += (load.net_out - cap.net_out).max(0.0);
+        over.disk_read += (load.disk_read - cap.disk_read).max(0.0);
+        over.disk_write += (load.disk_write - cap.disk_write).max(0.0);
+        over.net_in += (load.net_in - cap.net_in).max(0.0);
+        over.net_out += (load.net_out - cap.net_out).max(0.0);
     }
-    overflow
+    over
 }
 
 /// Count number of pods placed on nodes violating Taint or NodeSelector.
