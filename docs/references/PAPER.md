@@ -10,7 +10,7 @@
 
 ## Abstract
 
-The default Kubernetes scheduler (`kube-scheduler`) makes millisecond-latency placement decisions using a first-come, first-served heuristic optimized for homogeneous, stateless microservices. As clusters become increasingly heterogeneous — incorporating GPUs, TPUs, and memory-optimized nodes — this reactive approach produces severe resource fragmentation, with industry analyses consistently reporting 30–40% average CPU utilization across cloud environments. Existing solutions such as Volcano, Kueue, and Google Autopilot address scheduling fairness or vertical scaling but do not solve the underlying combinatorial packing problem offline. We present **Kuberina**, an offline, pre-deployment CLI engine that reformulates Kubernetes pod scheduling as a Multi-Dimensional Bin Packing Problem (MDBP) — drawing a structural isomorphism from the Container Stowage Planning Problem (CSPP) used by mega-vessel shipping lines. Kuberina employs a three-phase hybrid pipeline: (1) Vector Packing First-Fit Decreasing (FFD) warm-start, (2) Genetic Algorithm (GA) optimization with gang-aware repair, and (3) Constraint Satisfaction Problem (CSP) enforcement with Forward Checking — all integrated tightly rather than executed sequentially. On a synthetic benchmark modeled after the MSC Irina mega-vessel (186 nodes, 2,714 pods, 5,128 affinity constraints), Kuberina achieves 100% scheduling success with zero constraint violations, consolidates workloads onto 152 of 186 nodes (18.3% node reduction), reaches 88.7% average CPU utilization, and produces a mathematically verified feasible solution with approximation ratio $\alpha = 1.34$ relative to the LP lower bound — all computed in under 44 seconds. Monte Carlo testing confirms the result is statistically significant ($p < 10^{-4}$). The output is a declarative YAML blueprint that can be reviewed, version-controlled, and applied via `kubectl` without touching the live cluster.
+The default Kubernetes scheduler (`kube-scheduler`) makes millisecond-latency placement decisions using a first-come, first-served heuristic optimized for homogeneous, stateless microservices. As clusters become increasingly heterogeneous — incorporating GPUs, TPUs, and memory-optimized nodes — this reactive approach produces severe resource fragmentation, with industry analyses consistently reporting 30–40% average CPU utilization across cloud environments. Existing solutions such as Volcano, Kueue, and Google Autopilot address scheduling fairness or vertical scaling but do not solve the underlying combinatorial packing problem offline. We present **Kuberina**, an offline, pre-deployment CLI engine that reformulates Kubernetes pod scheduling as a Multi-Dimensional Bin Packing Problem (MDBP) — drawing a structural isomorphism from the Container Stowage Planning Problem (CSPP) used by mega-vessel shipping lines. Kuberina employs a three-phase hybrid pipeline: (1) Vector Packing First-Fit Decreasing (FFD) warm-start, (2) Genetic Algorithm (GA) optimization with gang-aware repair, and (3) Constraint Satisfaction Problem (CSP) enforcement with Forward Checking — all integrated tightly rather than executed sequentially. On a synthetic benchmark modeled after the MSC Irina mega-vessel (620 nodes, 2,714 pods, 14,258 affinity constraints), Kuberina places 100% of pods with zero constraint violations across all eight resource dimensions, independently verified. Under full packing it consolidates onto 539 of 620 nodes (13.1% reduction, approximation ratio $\alpha = 1.53$); reserving 20% of every node for runtime bursts, it uses 615 of 620 with a fifth of the cluster left free ($\alpha = 1.39$), each ratio measured against an LP lower bound computed under the capacity model that run planned in. The binding dimension on this benchmark is disk write throughput rather than CPU, and the results are reported against it. Monte Carlo testing confirms the result is statistically significant ($p < 10^{-4}$). The output is a declarative YAML blueprint that can be reviewed, version-controlled, and applied via `kubectl` without touching the live cluster.
 
 ---
 
@@ -222,11 +222,13 @@ To implement maritime stowage heuristics in a cloud environment, the scheduling 
 
 **Motivation.** A purely random initialization for the Genetic Algorithm in a highly constrained space (such as heterogeneous Kubernetes scheduling) results in an initial population composed almost entirely of infeasible solutions that violate capacity constraints. Correcting these violations takes the GA an exorbitant number of generations.
 
-**The FFD Warm-Start.** We apply a greedy First-Fit Decreasing algorithm to generate a set of *feasible* initial blueprints, accelerating GA convergence by 3–5×.
+**The FFD Warm-Start.** We apply a greedy First-Fit Decreasing algorithm to generate a set of *feasible* initial blueprints. On the benchmark of §6, the seed accounts for essentially all of the final solution quality (§7.1, §7.2); the GA refines it rather than discovering it.
 
-1. **Synthetic Volume Calculation.** We calculate a scalar weight $V_i$ for each pod based on normalized resource scarcity:
-   $$V_i = \alpha \cdot \text{CPU}_i + \beta \cdot \text{RAM}_i + \gamma \cdot \text{GPU}_i$$
-   where $\alpha, \beta, \gamma$ are tunable parameters reflecting the relative cost or scarcity of resources in the specific cluster. Because pod resources are multi-dimensional (RAM cannot compensate for CPU), a simple size-based sort is insufficient — the synthetic volume unifies dimensions into a single comparable metric.
+1. **Synthetic Volume Calculation.** We calculate a scalar weight $V_i$ for each pod as a weighted sum of the *capacity share* it consumes in each of the eight dimensions:
+   $$V_i = \sum_{r \in R} w_r \cdot \frac{\text{req}_i^r}{\max_j C_j^r}$$
+   where $\max_j C_j^r$ is the largest allocatable value of dimension $r$ across the cluster, and $w_r$ are tunable priority weights. Dimensions whose capacity is unconstrained contribute nothing.
+
+   The normalization is load-bearing, not cosmetic. Summing native units — cores, GiB, MB/s — makes $V_i$ a function of which units a dimension happens to be measured in, so the weights end up compensating for unit magnitude instead of expressing priority. Because pod resources are multi-dimensional (RAM cannot compensate for CPU), a simple size-based sort is insufficient; the capacity share unifies dimensions into a single comparable, scale-invariant metric.
 
 2. **Decreasing Sort.** Pods are sorted in descending order of $V_i$. Maritime analogy: stow the heaviest and largest containers first.
 
@@ -244,9 +246,9 @@ The GA optimizes the soft constraints (affinity, resource balancing, fragmentati
 
 3. **Crossover with Gang Repair.** We apply Uniform Crossover. However, standard crossover can break the feasibility of gang scheduling (Block Booking). If a crossover operation splits a gang (e.g., pods 1–4 inherit from parent A, pods 5–8 inherit from parent B) and violates a node's capacity, a **Gang Repair Mechanism** is triggered: the algorithm rolls back the entire gang's assignment to match the parent that yielded a feasible placement for that gang.
 
-4. **Mutation with Forward Checking.** We apply a random reset mutation with rate $p_m \approx 0.05$. Crucially, mutation is deeply integrated with the CSP solver. Before a pod is moved to a new node, the solver performs a forward capacity check. If the mutation violates hard constraints (or breaks a gang's all-or-nothing constraint), the mutation is rejected (rolled back). This prevents computational effort from being wasted on dead-end branches.
+4. **Mutation with Forward Checking.** Mutation is parameterized by the *expected number of pod relocations per child*, $\mu$, from which the per-gene rate is derived as $p_m = \min(1, \mu / k)$. Expressing it this way keeps the operator's behavior stable as $k$ grows: a fixed per-gene rate that produces a local move on a 50-pod chromosome randomizes a 2,714-pod chromosome entirely, and the offspring stops being a neighbor of its parent. Crucially, mutation is deeply integrated with the CSP solver. Before a pod is moved to a new node, the solver performs a forward capacity check. If the mutation violates hard constraints (or breaks a gang's all-or-nothing constraint), the mutation is rejected (rolled back). This prevents computational effort from being wasted on dead-end branches.
 
-5. **Termination.** The GA employs an early stopping criterion. If the best fitness score in the population does not improve for $N_{\text{stop}}$ consecutive generations (e.g., 200 generations), the algorithm assumes convergence to a near-optimal solution and halts.
+5. **Termination.** The GA employs an early stopping criterion. If the best fitness score in the population does not improve for $N_{\text{stop}}$ consecutive generations (e.g., 200 generations), the algorithm assumes convergence and halts. The criterion currently tests for *any* improvement rather than a meaningful one, which is why it does not fire on the benchmark runs of §7.4.
 
 ### 4.4. Phase 3: Constraint Enforcement via CSP Solver with Forward Checking
 
@@ -290,37 +292,54 @@ This transforms infrastructure security review from a reactive runtime process i
 
 ### 6.1. Testbed Description
 
-We evaluate Kuberina on a synthetic benchmark designed to mirror the scale and heterogeneity of the MSC Irina mega-vessel. The testbed is generated using `../../bench/gen_irina_testdata.py` and comprises:
+We evaluate Kuberina on a synthetic benchmark designed to mirror the scale and heterogeneity of the MSC Irina mega-vessel. The testbed is generated deterministically (`SEED = 42`) by `../../bench/gen_irina_testdata.py`, so every configuration below solves the same instance.
 
 | Parameter | Value |
 |---|---|
-| **Total nodes** | 186 |
+| **Total nodes** | 620 — 400 standard, 120 memory-optimized, 100 GPU |
 | **Node types** | Standard (64-core, 256 GiB), Memory-optimized (32-core, 512 GiB), GPU (48-core, 192 GiB, 8× GPU) |
-| **Total pods** | 2,714 |
-| **Constraint count** | 4,632 anti-affinity + 496 affinity = **5,128 total** |
-| **Cluster CPU (raw / net)** | 10,272 / 9,853.5 cores |
-| **Cluster RAM (raw / net)** | 54,912 / 54,400.5 GiB |
-| **Cluster GPU** | 240 units |
-| **Pod CPU demand** | 7,198 cores (73.1% fill) |
-| **Pod RAM demand** | 27,840 GiB (51.2% fill) |
-| **Pod GPU demand** | 152 units (63.3% fill) |
-| **DaemonSets** | 4 (CNI, CSI, logging, monitoring — pre-deducted) |
+| **Total pods** | 2,714 across 49 microservices |
+| **Constraint count** | 13,762 anti-affinity + 496 affinity = **14,258 total** |
+| **Pod groups (gangs)** | 0 — see §8.5 |
+| **DaemonSets** | 4 (CNI, CSI, logging, monitoring — pre-deducted in Phase 0) |
 
-The "net" capacity reflects post-DaemonSet pre-deduction (Phase 0), ensuring the optimizer operates on physically allocatable resources only.
+Phase 0 deducts the four DaemonSets from every one of the 620 nodes before planning begins: 2.25 cores, 2.75 GiB RAM, 8.5 GiB storage, 21/28 MB/s disk read/write and 70/105 MB/s network in/out per node. "Net" capacity below is the post-deduction figure, which is what the optimizer actually sees.
+
+| Dimension | Raw capacity | Net capacity | Pod demand | Fill of net |
+|---|---|---|---|---|
+| `disk_write` (MB/s) | 360,000 | 342,640 | 194,790 | **56.8%** |
+| `net_out` (MB/s) | 1,640,000 | 1,574,900 | 547,400 | 34.8% |
+| `net_in` (MB/s) | 1,640,000 | 1,596,600 | 512,500 | 32.1% |
+| `disk_read` (MB/s) | 540,000 | 526,980 | 163,580 | 31.0% |
+| `cpu` (cores) | 34,240 | 32,845 | 7,198 | 21.9% |
+| `gpu` (units) | 800 | 800 | 152 | 19.0% |
+| `storage` (GiB) | 690,000 | 684,730 | 109,410 | 16.0% |
+| `ram` (GiB) | 183,040 | 181,335 | 27,840 | 15.4% |
+
+**`disk_write` is the binding dimension on this testbed, not CPU.** This matters for reading §7: CPU utilization is the conventional headline metric for a scheduling paper, but on this instance CPU is the fifth-tightest of eight dimensions and a plan that maximizes CPU packing is not the plan that minimizes node count. Any result below that is reported in CPU terms should be read against the 56.8% `disk_write` fill that actually constrains it.
+
+The instance is also comparatively loose: 620 nodes hold 2,714 pods with the tightest dimension at 56.8%. Consolidation results on a loose instance are bounded by that looseness, and §7 reports what the run produced rather than what a denser instance would have produced.
 
 ### 6.2. Experimental Configurations
 
 We evaluate two configurations:
 
-1. **Full Packing (100%)**: No capacity cap — the optimizer packs pods as tightly as possible to minimize active nodes.
-2. **Pareto 80/20**: Node capacities are artificially capped at 80% to leave headroom for runtime bursts, simulating a production-realistic Resource Canal configuration.
+1. **Full packing.** No reserve. The optimizer plans against the full net capacity of every node.
+2. **20% headroom** (`--headroom 20`, Resource Canal Mode). Every node's net capacity is scaled by $1 - h/100 = 0.8$ before planning, leaving a fifth of the cluster untouched for runtime bursts and vertical autoscaling.
+
+The headroom configuration uses a **dual capacity model**, and every figure in §7.2 depends on which half of it is being read:
+
+* The optimizer — FFD ordering, GA fitness, CSP feasibility checks — sees only reserved capacity. A plan is "feasible" to the solver when it fits inside 80%.
+* The emitted blueprint, the independent verifiers, and every utilization figure reported to an operator are measured against **real** post-DaemonSet capacity. The reserve is a planning constraint, not a fiction about the hardware.
+
+This is structural rather than conventional: `reserve_headroom` in `../../solver/src/main.rs` builds a scaled copy of the node set for planning and never mutates the original, so the two models cannot drift. The same split governs the approximation ratio in §7.3 — a plan produced under a reserved-capacity model must be compared against a lower bound computed under that same model, or the ratio measures the reserve rather than the algorithm.
 
 ### 6.3. Baselines
 
 * **Random Uniform Placement**: Each pod is assigned to a uniformly random node (10,000 Monte Carlo trials).
 * **Selector-Aware Random Placement**: Each pod is assigned to a uniformly random *eligible* node (respecting NodeSelector constraints only, 10,000 Monte Carlo trials).
 * **FFD-only**: Phase 1 output without GA optimization (the seed fitness).
-* **Theoretical LP Lower Bound**: Computed via the Coffman-Garey-Johnson (1978) homogeneous bound and a heterogeneous utilization bound.
+* **Theoretical LP Lower Bound**: Computed via the Coffman-Garey-Johnson (1978) homogeneous bound and a heterogeneous utilization bound, over all eight dimensions.
 
 ### 6.4. Metrics
 
@@ -328,71 +347,82 @@ We evaluate two configurations:
 |---|---|
 | **Active Nodes** | Number of nodes with ≥1 pod assigned |
 | **Node Reduction** | $(m - \text{active}) / m \times 100\%$ |
-| **Avg CPU Utilization** | Mean of $U_j^{\text{CPU}}$ across active nodes |
+| **Avg CPU Utilization** | Mean of $U_j^{\text{CPU}}$ across active nodes, against real capacity |
 | **Fragmentation** | Total wasted capacity across active nodes: $\sum_{j: y_j=1} \sum_r (C_j^r - \sum_i x_{ij} \cdot \text{req}_i^r)$ |
-| **Constraint Violations** | Count of capacity, selector, and gang violations |
+| **Constraint Violations** | Count of capacity, selector, and gang violations, over all eight dimensions |
 | **Scheduling Success** | $\text{placed pods} / \text{total pods} \times 100\%$ |
 | **Utilization Variance** | $\text{Var}(\{U_j^r : y_j = 1\})$ |
 | **Wall-Clock Time** | Solver execution time in seconds |
-| **Approximation Ratio** ($\alpha$) | $\text{active nodes} / \text{LP lower bound}$ |
+| **Approximation Ratio** ($\alpha$) | $\text{active nodes} / \text{LP lower bound}$, both computed under the same capacity model (§6.2) |
 
 ### 6.5. Verification Methodology
 
-All results are independently verified by an external Python validator (`../../inspector/inspector.py`) that re-reads the infrastructure, workload, and solution YAML files and checks every constraint from scratch. Additionally, `../../bench/mathematical_proof.py` performs:
+All results are independently verified by an external Python validator (`../../inspector/inspector.py`) that re-reads the infrastructure, workload, and solution YAML files and checks every constraint from scratch across all eight dimensions. It shares no code with the solver, which is what makes the agreement meaningful — and what caught the four-dimensional planning defect corrected in `93993c6`. Additionally, `../../bench/mathematical_proof.py` performs:
 
-1. **Feasibility Proof**: Verifies all hard constraint predicates (capacity, assignment, node selector).
-2. **Optimality Bound**: Computes LP relaxation lower bounds and the approximation ratio.
+1. **Feasibility Proof**: Verifies all hard constraint predicates (capacity in eight dimensions, assignment, node selector).
+2. **Optimality Bound**: Computes LP relaxation lower bounds per dimension and the approximation ratio, under a capacity model selected by `--headroom` to match the run being verified.
 3. **Statistical Significance**: Runs 10,000 Monte Carlo random trials to compute $p$-values.
+
+Raw console output for every figure in §7 is preserved under `../plans/benchmarks/v0.3.0-regen/`, and the measurements are recorded with their provenance in `sessions/2026-09-06-solver-audit.md`.
 
 ---
 
 ## 7. Results and Analysis
 
-### 7.1. Full Packing Configuration (100% Capacity)
+All figures below were produced at commit `1ab1ad7` on a consumer-grade laptop, with the Rust solver built in release mode.
+
+### 7.1. Full Packing Configuration
 
 | Metric | Kuberina | Best Random (Selector-Aware) |
 |---|---|---|
 | **Pods placed** | 2,714 / 2,714 (100%) | — |
-| **Active nodes** | 152 / 186 | — |
-| **Node reduction** | 18.3% (34 nodes freed) | — |
-| **Avg CPU utilization** | 88.7% | — |
-| **Capacity violations** | 0 | 76 (best of 10,000 trials) |
+| **Active nodes** | 539 / 620 | — |
+| **Node reduction** | 13.1% (81 nodes freed) | — |
+| **Avg CPU utilization** | 29.6% | — |
+| **Max node CPU utilization** | 96% | — |
+| **Capacity violations (8 dimensions)** | 0 | 379 (best of 10,000 trials) |
 | **Selector violations** | 0 | 0 |
 | **Gang violations** | 0 | — |
-| **Fragmentation** | 18,418.00 | — |
-| **Affinity violations** | 643 | — |
-| **Utilization variance** | 0.0374 | — |
-| **Fitness** | 23,153.07 | — |
-| **Wall-clock time** | 43.67 s | — |
+| **Fragmentation** | 1,567,313.50 | — |
+| **Affinity violations** | 0 | — |
+| **Utilization variance** | 0.0537 | — |
+| **Topology spread penalty** | 11.00 | — |
+| **FFD seed fitness** | 1,582,568.13 | — |
+| **Final fitness** | 1,572,736.61 | — |
+| **Wall-clock time** | 912.49 s | — |
 
 **Key findings:**
 
-- **100% scheduling success** with zero hard constraint violations across all three dimensions (CPU, RAM, GPU).
-- **34 nodes freed** for shutdown, representing direct infrastructure cost savings.
-- **88.7% average CPU utilization** — more than double the industry average of 30–40%.
-- FFD alone found the optimal seed (fitness did not improve after 199 GA generations), indicating that for this workload mix, the greedy warm-start was already near-optimal and the GA served primarily as a verification layer.
+- **100% scheduling success** with zero hard constraint violations, confirmed independently across all eight dimensions.
+- **81 nodes freed** for shutdown — a 13.1% reduction, bounded by the looseness of the instance rather than by the algorithm.
+- **All 14,258 affinity and anti-affinity constraints satisfied.** On a cluster this loose the anti-affinity matrix is fully satisfiable, and the optimizer finds a placement that satisfies it.
+- **29.6% average CPU utilization is not a consolidation result and should not be read as one.** It is what CPU looks like on an instance whose binding dimension is `disk_write`; the CPU dimension is 21.9% full cluster-wide, so no placement can average much above that without emptying more nodes than `disk_write` permits.
+- **The GA improves the FFD seed by 0.62%** (1,582,568.13 → 1,572,736.61 over 1,000 generations), entirely by trimming fragmentation. Active-node count does not move. Reducing it requires emptying a node outright, which a mutation operator that relocates one pod at a time effectively never achieves; the coordinated multi-pod move that would empty a node has vanishing probability under independent single-gene mutation. This is a structural limit of the current operator, stated here rather than in §8 because it bounds the result in this table.
 
-### 7.2. Pareto 80/20 Configuration (Resource Canal Mode)
+### 7.2. 20% Headroom Configuration (Resource Canal Mode)
 
-| Metric | Pareto 80% | Full Packing 100% |
+| Metric | 20% headroom | Full packing |
 |---|---|---|
 | **Pods placed** | 2,714 (100%) | 2,714 (100%) |
-| **Active nodes** | 182 / 186 | 152 / 186 |
-| **Node reduction** | 2.2% (4 nodes freed) | 18.3% (34 nodes freed) |
-| **Avg CPU utilization** | 74.6% | 88.7% |
-| **Max node utilization** | 79% | 100% |
-| **Fragmentation** | 15,627.60 | 18,418.00 |
-| **Affinity violations** | 549 | 643 |
-| **Utilization variance** | 0.0256 | 0.0374 |
-| **Fitness** | 20,192.65 | 23,153.07 |
-| **Wall-clock time** | 43.71 s | 43.67 s |
+| **Active nodes** | 615 / 620 | 539 / 620 |
+| **Node reduction** | 0.8% (5 nodes freed) | 13.1% (81 nodes freed) |
+| **Avg CPU utilization** | 25.0% | 29.6% |
+| **Max node CPU utilization** | 77% | 96% |
+| **Capacity violations (8 dimensions)** | 0 | 0 |
+| **Fragmentation** | 2,299,752.00 | 1,567,313.50 |
+| **Affinity violations** | 0 | 0 |
+| **Utilization variance** | 0.0383 | 0.0537 |
+| **Topology spread penalty** | 12.00 | 11.00 |
+| **FFD seed fitness** | 2,305,971.13 | 1,582,568.13 |
+| **Final fitness** | 2,305,938.08 | 1,572,736.61 |
+| **Wall-clock time** | 895.07 s | 912.49 s |
 
 **Key findings:**
 
-- Even at 80% capacity cap, 100% of pods are successfully placed with zero violations.
-- The 80% cap produces **lower utilization variance** (0.0256 vs 0.0374) — more evenly balanced nodes, directly analogous to better vessel stability (lower GM deviation).
-- **Fewer affinity violations** (549 vs 643) because the optimizer has more room to satisfy soft constraints when not packing at maximum density.
-- No node exceeds 79% utilization, leaving 20%+ headroom for runtime autoscaling — the "canal banks" for Autopilot to operate within.
+- **The reserve is honored and the plan is feasible against real capacity.** Zero overflow in all eight dimensions, verified independently, with a fifth of every node left untouched. The solver exits 0 — `Verdict::Feasible` — and would have exited 2 with an explicit `ReserveNotMet` report had the plan fit real capacity but breached the reserve.
+- **Reserving 20% costs 76 nodes** (615 active against 539). This is the price of the Resource Canal, stated plainly: headroom and consolidation trade directly against each other, and on this instance headroom consumes almost all of the consolidation.
+- **Lower utilization variance** (0.0383 vs 0.0537) — more evenly balanced nodes, directly analogous to better vessel stability. **No node exceeds 77% CPU**, against 96% under full packing, leaving the burst room Autopilot-style vertical autoscaling needs.
+- **The GA contributes 0.0014%** here (2,305,971.13 → 2,305,938.08), all of it utilization variance (0.0647 → 0.0383). Active nodes sit at 615 from generation 0 to generation 1,000. The reserve raises the per-node ceiling the FFD seed packs against, so the seed already spreads across nearly every node and there is no node left for the GA to empty.
 
 ### 7.3. Mathematical Verification
 
@@ -402,36 +432,72 @@ The external verifier (`mathematical_proof.py`) confirms:
 
 | Predicate | Result |
 |---|---|
-| $\forall j \in \mathcal{N}: \sum_i x_{ij} \cdot \text{req}_i^r \leq C_j^r$ (Capacity) | ✅ Satisfied (0 overflow on CPU, RAM, GPU) |
+| $\forall j \in \mathcal{N}: \sum_i x_{ij} \cdot \text{req}_i^r \leq C_j^r$ (Capacity) | ✅ Satisfied — 0.000000 overflow in all eight dimensions, both configurations |
 | $\forall i \in \mathcal{P}: \sum_j x_{ij} = 1$ (Assignment) | ✅ Satisfied (0 missing pods) |
 | $\forall i: x_{ij}=1 \implies \text{Selector}(p_i) \subseteq \text{Labels}(n_j)$ (NodeSelector) | ✅ Satisfied (0 violations) |
 
+The capacity predicate is evaluated against real post-DaemonSet capacity in both configurations, including the headroom run.
+
 **Proof 2 — Optimality Bound (LP Relaxation):**
 
-| Bound | Value |
-|---|---|
-| $L^{\text{CPU}} = \lceil 7198 / 61.75 \rceil$ | 117 |
-| $L^{\text{RAM}} = \lceil 27840 / 509.25 \rceil$ | 55 |
-| $L^{\text{GPU}} = \lceil 152 / 8.00 \rceil$ | 19 |
-| Homogeneous lower bound $L = \max(L^r)$ | 117 |
-| Heterogeneous utilization bound $L_{\text{het}} = \max(\lceil \rho^r \cdot m \rceil)$ | 136 |
-| Kuberina active nodes (Pareto 80%) | 182 |
-| **Approximation ratio** $\alpha = 182 / 136$ | **1.3382** |
+Bounds under the real-capacity model, all eight dimensions ($m = 620$):
 
-The approximation ratio $\alpha = 1.34$ exceeds the theoretical 11/9 OPT + 6/9 guarantee of FFD in one dimension, which is expected for multi-dimensional bin packing where dimensional conflicts prevent achieving the 1D bound.
+| Dimension | $L^r = \lceil \sum \text{req} / \max_j C_j \rceil$ | $\rho^r$ | $\lceil \rho^r \cdot m \rceil$ |
+|---|---|---|---|
+| `cpu` | 117 | 0.2192 | 136 |
+| `ram` | 55 | 0.1535 | 96 |
+| `gpu` | 19 | 0.1900 | 118 |
+| `storage` | 55 | 0.1598 | 100 |
+| `disk_read` | 83 | 0.3104 | 193 |
+| `disk_write` | **133** | 0.5685 | **353** |
+| `net_in` | 52 | 0.3210 | 200 |
+| `net_out` | 56 | 0.3476 | 216 |
+
+$L = \max(L^r) = 133$, $L_{\text{het}} = \max(\lceil \rho^r \cdot m \rceil) = 353$. Both are set by `disk_write`, not CPU.
+
+Bounds under the reserved-capacity model (20% withheld), which is the model the headroom run planned in:
+
+| Dimension | $L^r$ | $\rho^r$ | $\lceil \rho^r \cdot m \rceil$ |
+|---|---|---|---|
+| `cpu` | 146 | 0.2739 | 170 |
+| `ram` | 69 | 0.1919 | 119 |
+| `gpu` | 24 | 0.2375 | 148 |
+| `storage` | 69 | 0.1997 | 124 |
+| `disk_read` | 104 | 0.3880 | 241 |
+| `disk_write` | **166** | 0.7106 | **441** |
+| `net_in` | 65 | 0.4012 | 249 |
+| `net_out` | 70 | 0.4345 | 270 |
+
+$L = 166$, $L_{\text{het}} = 441$.
+
+| Configuration | Active nodes | Matched bound | $\alpha$ |
+|---|---|---|---|
+| Full packing | 539 | 353 (real) | **1.5269** |
+| 20% headroom | 615 | 441 (reserved) | **1.3946** |
+
+Each ratio divides an active-node count by the bound computed from the capacity that run was given. For the headroom configuration the mismatched ratio is 615 / 353 = 1.7422; it is reported here only to show the size of the error that arises from comparing a reserved-capacity result against a real-capacity bound, which is a ratio that measures the reserve rather than the algorithm.
+
+Both ratios exceed the 11/9 OPT + 6/9 guarantee FFD carries in one dimension, which is expected for multi-dimensional bin packing: with eight dimensions and NodeSelector partitioning, dimensional conflicts prevent achieving the 1D bound. The headroom configuration scores the better ratio because its bound rises faster than its node count.
 
 **Proof 3 — Statistical Significance (Monte Carlo):**
 
 | Trial Type | Zero-Violation Rate | Avg Violations |
 |---|---|---|
-| Random Uniform (10,000 trials) | 0 / 10,000 | 125.7 ± 5.8 |
-| Selector-Aware Random (10,000 trials) | 0 / 10,000 | 89.1 ± 3.3 (best: 76) |
+| Random Uniform (10,000 trials) | 0 / 10,000 | 699.7 ± 18.6 (range 634–770) |
+| Selector-Aware Random (10,000 trials) | 0 / 10,000 | 439.4 ± 15.9 (best: 379) |
 
-Kuberina achieves 0 violations; the best random trial (even with selector awareness) achieves 76. The probability of random placement matching Kuberina's result is $p < 10^{-4}$, confirming statistical significance.
+The Monte Carlo baseline depends on the instance, not on the solver configuration, so both configurations are compared against the same figures. Kuberina achieves 0 violations; the best random trial, even with selector awareness, achieves 379. The probability of random placement matching Kuberina's result is $p < 10^{-4}$.
 
 ### 7.4. Computational Performance
 
-Both configurations complete in under 44 seconds wall-clock time on a consumer-grade laptop (solver implemented in Rust with release-mode optimizations). The GA detects datacenter-scale input (2,714 pods) and automatically increases population size and generation budget, yet converges via early stopping at generation 199 — indicating that the FFD warm-start provides a strong initial solution that the GA efficiently validates.
+| Configuration | Generations run | Wall-clock |
+|---|---|---|
+| Full packing | 1,000 / 1,000 | 912.49 s |
+| 20% headroom | 1,000 / 1,000 | 895.07 s |
+
+The GA detects datacenter-scale input (2,714 pods) and raises population size and generation budget accordingly. Neither run stopped early. `stale_count` resets on any improvement at all, including gains on the order of $10^{-4}$ in absolute fitness, so the early-stopping heuristic never fires on a run that is still making arbitrarily small progress: both configurations spent their full 1,000-generation budget to gain 0.62% and 0.0014% respectively. An improvement threshold relative to current fitness would end these runs far sooner at no measurable cost to solution quality; this is an open defect, not a tuning preference.
+
+Fifteen minutes is nonetheless within the operating envelope this tool is designed for. Kuberina runs once per infrastructure change in a CI/CD pipeline, not once per pod admission, and it is competing against a review cycle measured in hours.
 
 ---
 
@@ -445,11 +511,13 @@ Both configurations complete in under 44 seconds wall-clock time on a consumer-g
 
 ### 8.2. Scalability
 
-The GA's search space grows as $m^k$, but the combination of FFD warm-start and CSP pruning keeps practical runtime manageable. Our benchmark (186 nodes, 2,714 pods) completes in under 44 seconds. Scaling to 5,000+ pods on 1,000+ nodes would require profiling to determine whether the current early-stopping heuristic remains effective or whether adaptive population sizing and parallelism adjustments are needed.
+The GA's search space grows as $m^k$, but the combination of FFD warm-start and CSP pruning keeps practical runtime manageable. Our benchmark (620 nodes, 2,714 pods) completes in approximately 15 minutes, dominated by a 1,000-generation GA budget that the early-stopping heuristic never truncates (§7.4). Scaling to 5,000+ pods on 1,000+ nodes would first require fixing that heuristic — an improvement threshold relative to current fitness — before the question of adaptive population sizing or parallelism becomes the limiting one.
 
 ### 8.3. Sensitivity to Hyperparameters
 
-The weighting coefficients $w_1, w_2, w_3, w_4$ in the objective function, as well as FFD scarcity parameters $\alpha, \beta, \gamma$ and GA parameters ($|Pop|$, $p_m$, $k_{\text{tour}}$, $N_{\text{stop}}$), influence solution quality. In our experiments, the FFD seed was already near-optimal, suggesting that for well-structured workloads, the heuristic initialization dominates and GA hyperparameters have limited marginal impact. A formal sensitivity analysis across diverse workload profiles remains future work.
+The weighting coefficients $w_1, w_2, w_3, w_4$ in the objective function, as well as FFD scarcity parameters $\alpha, \beta, \gamma$ and GA parameters ($|Pop|$, $k_{\text{tour}}$, $N_{\text{stop}}$), influence solution quality — in one case decisively. The FFD weights originally scored the eight dimensions in their native units, weighting throughput at 0.01 against 1.0 for CPU, which ordered pods by a dimension that does not bind on this testbed and drove 15 pods into a silent overload fallback. Ordering is now scale-invariant: each dimension contributes the share of the largest node's capacity it consumes, so the weights express priority rather than compensate for units.
+
+The GA mutation parameters are likewise expressed as expected relocation counts per chromosome rather than per-gene probabilities, because a per-gene rate that is reasonable at 50 genes randomizes a 2,714-gene chromosome completely. A formal sensitivity analysis across diverse workload profiles remains future work.
 
 ### 8.4. Practical Deployment
 
@@ -459,7 +527,9 @@ Kuberina is designed for integration into CI/CD pipelines: an infrastructure cha
 
 **Synthetic workloads.** Our benchmark uses synthetic data generated to mirror mega-vessel-scale heterogeneity. While the constraint structure and resource profiles are realistic, validation on real-world cluster traces (e.g., Google Cluster Trace, Alibaba Cluster Trace) would strengthen external validity.
 
-**No gang scheduling in benchmark.** The current benchmark loads 0 pod groups (gangs). While the gang scheduling machinery (coupled CSP variables, forward checking, gang repair) is implemented and formally specified, its effectiveness under load has not been empirically evaluated in this experiment.
+**No gang scheduling in benchmark.** The current benchmark loads 0 pod groups (gangs). The machinery described in §4.3–§4.5 (coupled CSP variables, forward checking, gang repair) is implemented, but it is not merely unbenchmarked: `auto_group_gangs` hardcodes $\text{min\_members} = |G|$ and `colocate = false` in the parser, so no workload file can express partial gang admission or forced co-location. Until the IR exposes those fields, the mechanisms have no reachable input and their effectiveness under load cannot be evaluated at all.
+
+**Instance looseness.** The testbed's binding dimension is 56.8% full and CPU is 21.9% full. Consolidation results on a loose instance understate what the algorithm can do on a tight one, and the node-reduction figures in §7 should not be extrapolated to clusters running near capacity. The converse also holds: an instance this loose exercises the constraint machinery (14,258 affinity constraints, three NodeSelector classes) more than it exercises packing density.
 
 ---
 
@@ -469,7 +539,7 @@ Kuberina is designed for integration into CI/CD pipelines: an infrastructure cha
 
 We presented Kuberina, an offline pre-deployment scheduling engine for heterogeneous Kubernetes clusters that draws a structural isomorphism from maritime container stowage planning. By reformulating pod scheduling as a Multi-Dimensional Bin Packing Problem and applying a three-phase hybrid pipeline — FFD warm-start, Genetic Algorithm optimization with gang-aware repair, and CSP Forward Checking — Kuberina produces declarative placement blueprints that are mathematically verified, auditable, and directly deployable via `kubectl apply`.
 
-On a benchmark modeled after the MSC Irina mega-vessel (186 nodes, 2,714 pods, 5,128 constraints), Kuberina achieves 100% scheduling success with zero constraint violations, consolidates workloads from 186 to 152 active nodes (18.3% reduction), and reaches 88.7% average CPU utilization — more than doubling the industry average. The solution is statistically significant ($p < 10^{-4}$) and computes in under 44 seconds on a consumer laptop.
+On a benchmark modeled after the MSC Irina mega-vessel (620 nodes, 2,714 pods, 14,258 constraints), Kuberina places 100% of pods with zero violations across eight resource dimensions and 14,258 affinity constraints, consolidating onto 539 of 620 nodes under full packing and 615 of 620 while holding a 20% reserve. Both plans are verified feasible by an independent checker that shares no code with the solver, carry approximation ratios of 1.53 and 1.39 against matched LP lower bounds, and are statistically significant ($p < 10^{-4}$). Each run takes roughly 15 minutes on a consumer laptop — once per infrastructure change, not once per pod.
 
 Beyond solution quality, Kuberina's primary contribution is the auditable blueprint artifact itself — a scheduling decision computed through thousands of evolutionary generations with mathematical justification for every placement, replacing opaque runtime decisions that cannot be reviewed, reproduced, or challenged.
 
@@ -496,6 +566,8 @@ Using the CRediT (Contributor Roles Taxonomy) framework, the author's contributi
 ## 11. Data Availability
 
 The Kuberina CLI tool, the synthetic MSC Irina benchmark datasets (`irina_infra.yaml`, `irina_workloads.yaml`), and the verification scripts used in this study are available in the project's open-source repository: [https://github.com/AlexanderSlokov/kuberina](https://github.com/AlexanderSlokov/kuberina)
+
+Every figure in §7 was produced at commit `1ab1ad7`. The raw console output is committed under `../plans/benchmarks/v0.3.0-regen/`, the measurements and their provenance under `sessions/2026-09-06-solver-audit.md`, and the reproduction sequence is listed at the end of that record. The benchmark generator is seeded, so the instance is identical across runs.
 
 The source code is released under the GNU Affero General Public License v3.0 (AGPLv3) to ensure modifications and integrations in network-accessible services remain open-source.
 
@@ -591,87 +663,16 @@ The author acknowledges the use of Anthropic's Claude and Google's Gemini models
 
 ## Errata
 
-Recorded 2026-09-06, pending a full rewrite of §6 and §7 in a later session. Nothing
-below has been corrected in the text above; the sections named are known wrong and
-should not be cited until they are regenerated.
+Recorded 2026-09-06. Entries E-1 through E-7 have been resolved: §6 and §7 were
+rewritten from the benchmark run at commit `1ab1ad7`, recorded in
+`sessions/2026-09-06-solver-audit.md` with raw output under
+`../plans/benchmarks/v0.3.0-regen/`. §8.3 and §8.5 were amended in the same pass. The
+defects those entries described are fixed in `93993c6` and `1ab1ad7`; the numbers they
+invalidated no longer appear in the text above.
 
 Per `AGENTS.md`, this paper follows the repository. Where the two disagree, the paper
-is what changes. Every entry here is a case of the paper describing something the
-repository no longer does, or never did.
-
-### E-1 — The testbed in §6.1 does not exist ([#15](https://github.com/AlexanderSlokov/kuberina/issues/15))
-
-§6.1 describes 186 nodes. `bench/gen_irina_testdata.py` emits 620 (400 standard, 120
-memory-optimized, 100 GPU). Pod demand is unchanged, so cluster capacity grew roughly
-3.3× and CPU fill fell from the reported 73.1% to 21.9%. Every figure in §7 descends
-from the 186-node run and none of it reproduces.
-
-### E-2 — The solver was planning in four dimensions, not eight ([#16](https://github.com/AlexanderSlokov/kuberina/issues/16))
-
-The generator wrote the throughput dimensions flat (`disk_read`, `net_in`) while
-Kuberina IR v0.2.0 nests them under `disk` and `network`. `RawResources` did not deny
-unknown fields, so serde discarded all four keys: pod I/O demand parsed as zero and
-node I/O capacity fell through to the `f64::MAX` unconstrained default.
-
-Every published result was therefore produced against CPU, RAM, GPU and storage only,
-while §3.2, §6 and §7 describe an 8-dimensional model. Fixed in `93993c6`.
-
-This also supersedes the framing of §7.3. On corrected data `disk_write` is the
-binding dimension, not CPU: `L^disk_write = 133` against `L^CPU = 117`, and
-`L_het = 353` driven by ρ^disk_write = 0.5685. The published `L = 117` was not merely
-measured on an older testbed — it was reading a dimension that does not bind.
-
-### E-3 — The approximation ratio in §7.3 mixes two capacity models ([#8](https://github.com/AlexanderSlokov/kuberina/issues/8))
-
-α = 182 / 136 divides an active-node count from a capacity-reserved run by a lower
-bound computed from full capacity. `bench/mathematical_proof.py` now accepts
-`--headroom` and reports both ratios with the model each assumes named. On the
-corrected run the two differ by 0.33 — 1.6459 against the real-capacity bound,
-1.3175 against the reserved one.
-
-### E-4 — §7.3 reports 3 of the 8 dimensions the verifier checks ([#11](https://github.com/AlexanderSlokov/kuberina/issues/11))
-
-Proof 1 reports overflow "on CPU, RAM, GPU" and Proof 2 gives `L^r` for the same
-three. The verifier iterates all eight. §6.1's testbed table has the same gap: it
-lists cluster CPU, RAM and GPU totals and no storage, disk or network totals.
-
-### E-5 — §7.2's headroom configuration does not currently produce a feasible plan ([#17](https://github.com/AlexanderSlokov/kuberina/issues/17), [#18](https://github.com/AlexanderSlokov/kuberina/issues/18))
-
-§7.2 reports the 80% configuration placing 100% of pods with zero violations. On
-corrected data the solver returns a blueprint carrying a capacity penalty of
-412,668,000, infeasible against real capacity in seven of eight dimensions, and
-prints it under the heading "Final Blueprint" with exit code 0.
-
-The instance itself is feasible — a plain first-fit-decreasing places all 2,714 pods
-with zero overflow. The failure is in `ffd_warmstart`: `FfdWeights::default()` weights
-the I/O dimensions at 0.01 against 1.0 for CPU and RAM, so the ordering ignores the
-dimension that binds, and 15 pods reach the silent fallback that overloads a single
-node.
-
-### E-6 — §7.1's conclusion about the genetic algorithm does not follow ([#19](https://github.com/AlexanderSlokov/kuberina/issues/19))
-
-§7.1 states:
-
-> FFD alone found the optimal seed (fitness did not improve after 199 GA generations),
-> indicating that for this workload mix, the greedy warm-start was already near-optimal
-> and the GA served primarily as a verification layer.
-
-The GA did not converge on the seed because the seed was near-optimal. It never
-searched. `init_population` perturbs at rate 0.2 and `mutate` at 0.03, both per-gene,
-on a chromosome of 2,714 genes — approximately 543 random relocations per initial
-individual and 81 per child thereafter. No offspring ever lands near its parent, and
-elitism preserves the FFD seed unchanged.
-
-The seed is demonstrably 15 single-pod relocations from a far better solution, and the
-GA returned it untouched. Until this is fixed, no claim in this paper resting on
-evolutionary optimization is supported by the benchmark.
-
-### E-7 — Gang scheduling is not merely unbenchmarked; it is unreachable ([#9](https://github.com/AlexanderSlokov/kuberina/issues/9))
-
-§8.5 acknowledges that the benchmark loads zero pod groups. The stronger statement is
-that `auto_group_gangs` hardcodes `min_members = |G|` and `colocate = false`
-(`parser.rs:391,397`), so no workload file can express partial gang admission or
-forced co-location. The mechanisms described in §4.3–§4.5 have no reachable input.
+is what changes. What remains below is a case of the paper being cited for something
+it does not contain.
 
 ### E-8 — Dangling citation
 

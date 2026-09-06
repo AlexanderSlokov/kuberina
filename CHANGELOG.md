@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Explicit feasibility verdict and exit codes for the solver.** A plan that does not
+  fit is no longer printed under the heading "Final Blueprint" with exit code 0. The
+  solver now classifies its result against real capacity first and the reserve second,
+  and exits `0` when feasible, `2` when the plan fits the hardware but breaches the
+  requested `--headroom` reserve, and `1` when it does not fit at all. A rejected plan
+  prints under "Rejected Assignment (NOT a blueprint)" with the overflow broken out per
+  dimension, and the exported YAML carries a warning header. CI pipelines can now branch
+  on the exit code instead of parsing output. (#17)
+- **`--headroom` and path overrides in `bench/mathematical_proof.py`.** The script had
+  no command line at all; the three input paths were hardcoded. It now accepts
+  `--headroom`, `--infra`, `--workloads` and `--solution`, and reports the LP lower
+  bounds under both the real and the reserved capacity model with the approximation
+  ratio for each, naming which one matches the run being verified. `make
+  bench-proof-headroom-20` runs the reserved configuration. (#8)
+- **Session records under `docs/references/sessions/`.** Benchmark runs, before/after
+  comparisons and defect reproductions are now written down with the commit they were
+  measured at and the command that produced them, before the session ends. `PAPER.md` is
+  written from these records rather than from memory. The practice is documented in
+  `AGENTS.md`; raw console output lives in `docs/plans/benchmarks/` and is cited by
+  filename.
+- **`BACKLOG.md`**, holding the concrete tasks that roadmap items decompose into. The
+  documentation flow — `ROADMAP.md` for intent, `BACKLOG.md` for tasks, `CHANGELOG.md`
+  for what shipped — is recorded in `AGENTS.md`.
+
 ### Changed
 - **Component naming disambiguation.** Three distinct artifacts were all named
   `kuberina`, so which one a bare `kuberina plan` invoked depended on `PATH`
@@ -30,6 +55,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now writes into `research/testdata/` for the reference implementation; the target
   that writes into `solver/testdata/` is now `bench-generate-testdata`.
 
+- **BREAKING: `--pareto 80` is now `--headroom 20`.** The old flag named the cap and the
+  new one names the reserve, so the number inverts: `--pareto 80` and `--headroom 20`
+  request the same thing. Operators think in terms of how much they are holding back,
+  not what fraction they are allowed to fill, and the old name promised a Pareto
+  frontier the flag never computed. The value is now validated — a percentage in
+  `[0, 100)` — where `--pareto 800` was previously accepted. The Makefile target
+  `solver-irina-pareto-80` is now `solver-irina-headroom-20`.
+- **FFD pod ordering is now scale-invariant.** `synthetic_volume` scored each dimension
+  in its native units — cores against GiB against MB/s — so the weights were doing the
+  work of unit conversion rather than expressing priority. Each dimension now contributes
+  the share of the largest node's capacity that the pod consumes, and the default weights
+  are uniform. Dimensions with unconstrained capacity contribute nothing. (#18)
+- **GA mutation is parameterized by expected relocations per chromosome, not per-gene
+  probability.** `GaConfig.mutation_rate` is replaced by `mutations_per_child` and
+  `init_mutations`, from which the per-gene rate is derived. A per-gene rate that gives a
+  local move on a 50-pod chromosome randomizes a 2,714-pod chromosome completely; the
+  new knobs mean the same value behaves the same way at any cluster size. (#19)
+- **`docs/references/PAPER.md` §6 and §7 rewritten against the current repository.** All
+  published figures descended from a 186-node testbed that commit `f7520f0` replaced with
+  620 nodes, and none of them reproduced. The sections now report the run at commit
+  `1ab1ad7`: 539 of 620 nodes under full packing, 615 of 620 while holding a 20% reserve,
+  zero violations across all eight dimensions in both, and approximation ratios of 1.53
+  and 1.39 each measured against a bound computed under the capacity model that run
+  planned in. §4.2, §4.3, §8.3 and §8.5 were corrected in the same pass, and the abstract
+  and conclusion restated. Errata E-1 through E-7 retire with them. The testbed's binding
+  dimension is disk write throughput, not CPU, and the paper now says so. (#15, #8, #11)
+
 ### Fixed
 - `README.md` documented `make solver-inspect`, a target that never existed; the
   validator target is now correctly referenced as `make inspector-run`.
@@ -39,6 +91,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and marks the Go forge as planned rather than present.
 - `docs/references/PAPER.md` §6.1 and §6.5 referenced the testdata generator and
   verification scripts at their pre-move `research/` paths.
+- **The solver was planning in four of its eight dimensions.** The benchmark generator
+  emitted throughput flat (`disk_read`, `net_in`) while Kuberina IR v0.2.0 nests it under
+  `disk` and `network`. `RawResources` did not deny unknown fields, so `serde` silently
+  discarded all four keys: pod I/O demand parsed as zero and node I/O capacity fell
+  through to the unconstrained `f64::MAX` default. Every result published before this was
+  produced against CPU, RAM, GPU and storage only. The generator now emits the nested
+  shape, the parser rejects unknown fields rather than dropping them, and both Python
+  tools normalize either shape on load. Caught by `inspector/`, which shares no code with
+  the solver. (#16)
+- **The genetic algorithm never searched.** `init_population` perturbed at rate 0.2 and
+  `mutate` at 0.03, both per-gene, on a 2,714-gene chromosome — roughly 543 random
+  relocations per initial individual and 81 per child. No offspring landed anywhere near
+  its parent, elitism preserved the FFD seed unchanged, and every run terminated on the
+  early-stopping criterion with its final fitness identical to the seed. The published
+  conclusion that "FFD alone found the optimal seed" was an artifact of this. On the
+  headroom configuration the fix improves final fitness 66× and removes 99.2% of the
+  capacity overflow. (#19)
+- **15 pods were being placed on a node that could not hold them, silently.** The FFD
+  ordering defect above pushed I/O-heavy pods to the end of the queue, where they reached
+  a fallback in `ffd_warmstart` that assigns a pod to a node without capacity and without
+  recording that it did so. All 15 landed on the same node. With the ordering fixed the
+  fallback is not reached on this benchmark. (#18)
+- `solver/testdata/irina_infra.yaml` carried a generated header reading "100 Standard + 30
+  Memory + 20 GPU nodes" while the generator emitted 400/120/100. The header is now
+  computed from the data it describes.
 
 ## [0.2.0] - 2026-08-02
 

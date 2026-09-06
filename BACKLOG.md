@@ -21,39 +21,6 @@ twice. The Borg paper followed Borg by a decade for the same reason.
 
 ## Solver (`solver/`)
 
-### S-1 — Rename `--pareto p` to `--headroom h`
-
-**Issue:** [#12](https://github.com/AlexanderSlokov/kuberina/issues/12) ·
-**ROADMAP:** Phase 1 (v0.3.0) · **Blocks:** W-1, W-4
-
-The flag reserves capacity headroom. "Pareto" names neither a Pareto front nor an 80/20
-distributional claim, and the direction of the number is ambiguous — `--pareto 80`
-reserves 20%, which reads backwards. `--headroom 20` says what is reserved.
-
-The semantics invert with the name: today `factor = p / 100.0`, after the rename
-`factor = 1.0 - h / 100.0`.
-
-Touches `solver/src/main.rs` only (arg definition at `main.rs:41-43`, destructuring at
-`main.rs:54-59`, the capped-node construction at `main.rs:83-95`) plus the Makefile
-target `solver-irina-pareto-80`. No test references the flag.
-
-Two defects to fix in the same pass:
-
-- The current code accepts `--pareto 800` and silently multiplies capacity by 8.
-  Validate `0.0 <= h < 100.0` and exit naming the offending value.
-- The doc comment on `run_plan` does not describe the dual-capacity model, which is why
-  W-4 exists. State it there while the function is open.
-
-Preserve the `f64::MAX` guard comment at `main.rs:91` — it records why unconstrained
-dimensions are skipped rather than scaled.
-
-**Done when:** the flag is `--headroom`, out-of-range values are rejected with the
-value in the message, `cargo test && cargo clippy -- -D warnings && cargo fmt --check`
-passes, and `grep -rn pareto --include=*.rs .` returns nothing.
-
-**Breaking CLI change.** It lands at a release boundary and needs its own CHANGELOG
-callout.
-
 ### S-2 — Make gang IR fields reachable from a workload file
 
 **Issue:** [#9](https://github.com/AlexanderSlokov/kuberina/issues/9) ·
@@ -75,31 +42,29 @@ today's defaults, and parser tests cover `min_members < |G|` and `colocate: true
 
 ---
 
+### S-3 — Give early stopping an improvement threshold
+
+**Issue:** none yet — file one · **ROADMAP:** Phase 1 (v0.3.0)
+
+`stale_count` resets whenever the best fitness improves at all, including by ~0.0003 in
+absolute terms. On the MSC Irina benchmark neither configuration ever triggers the
+`N_stop` criterion: both burn the full 1,000-generation budget, ~900 s each, for total
+gains of 0.62% (full packing) and 0.0014% (20% headroom). The run at commit `1ab1ad7`
+is recorded in `docs/references/sessions/2026-09-06-solver-audit.md`, and the behavior
+is stated as an open defect in `docs/references/PAPER.md` §7.4.
+
+The criterion should test for improvement that matters, not improvement that exists —
+a relative threshold against current best fitness, so that a run stops when progress
+falls below it.
+
+**Done when:** `GaConfig` carries a relative improvement threshold with a documented
+default, `stale_count` resets only on gains exceeding it, and a regression test asserts
+that a run whose fitness improves by less than the threshold for `N_stop` generations
+terminates early.
+
+---
+
 ## Benchmark and testdata (`bench/`)
-
-### B-1 — Teach the proof script the capacity reserve
-
-**Issue:** [#8](https://github.com/AlexanderSlokov/kuberina/issues/8) ·
-**Depends on:** S-1 · **Blocks:** W-2
-
-`bench/mathematical_proof.py` has no CLI. Its three input paths are hardcoded
-(`mathematical_proof.py:415-417`) and it has no way to express the capacity reserve the
-solver applied. The consequence is W-2: §7.3 divides an active-node count from a
-reserved-capacity run by a lower bound computed from full capacity.
-
-Add `argparse` to `main()` with `--headroom`, plus `--infra`, `--workloads` and
-`--solution` overrides so the script can verify a run other than the default one.
-Scale `total_supply` in `compute_heterogeneous_lower_bound`
-(`mathematical_proof.py:243`) and per-node capacity in `compute_lp_lower_bound` by the
-same `1 - h/100` factor the solver uses, guarding `float('inf')` the way the solver
-guards `f64::MAX`.
-
-Add a `bench-proof-headroom-20` Makefile target. `make bench-proof --headroom 20` would
-be parsed as a flag to `make` itself, so the argument needs a target of its own.
-
-**Done when:** both ratios can be produced from the same script, each labeled with the
-capacity model it assumes, and the reserved run reports a strictly smaller
-`total_supply` and a larger `L_het` than the unreserved one.
 
 ### B-2 — Populate the benchmark with pod groups
 
@@ -122,17 +87,6 @@ all-or-nothing rejection is observable. `inspector/inspector.py` verifies the
 all-or-nothing predicate independently, as it already does for capacity and selectors.
 
 Blocked by S-2: there is no IR syntax to express any of this yet.
-
-### B-3 — Correct the generated infra header comment
-
-`solver/testdata/irina_infra.yaml` opens with
-`# 100 Standard + 30 Memory + 20 GPU nodes`. The generator emits 400 standard, 120
-memory-optimized and 100 GPU (`bench/gen_irina_testdata.py:40,51,62`), for 620 total.
-The comment matches neither the file it heads nor the code that wrote it.
-
-The line is emitted by the generator, so fix it there and regenerate.
-
-**Done when:** the header reports the counts the generator actually produces.
 
 ---
 
@@ -256,130 +210,12 @@ contract exists, which is Phase 3 work.
 
 ## White paper (`docs/references/PAPER.md`)
 
-**Gated on every section above.** These items are corrections to a document that
-reports results; they cannot be completed while the results are still moving.
+**Empty.** W-1 through W-4 shipped on 2026-09-06: §6 and §7 were regenerated from the
+run at commit `1ab1ad7`, the approximation ratio is now reported against a matching
+capacity model, the feasibility proof and LP bounds cover all eight dimensions, and the
+dual-capacity model behind `--headroom` is documented in §6.2. See `CHANGELOG.md` under
+`[Unreleased]`, and `docs/references/sessions/2026-09-06-solver-audit.md` for the
+measurements.
 
-The published figures in §6 and §7 were measured against a testbed that is no longer in
-the repository, and three accuracy gaps sit on top of that. W-1 is a prerequisite for
-W-2 and W-3: correcting the ratio or the dimension coverage before the underlying run
-is regenerated means computing both twice.
-
-### W-1 — Regenerate §6.1 and §7 against the current testbed
-
-**Blocks:** W-2, W-3 · **Depends on:** S-1, B-1, B-3
-
-Commit `f7520f0` regenerated `solver/testdata/` to IR v0.2.0 and, in doing so, moved
-the testbed from 186 nodes to 620. Its own message records the consequence: "The
-paper's numbers are not reproducible against this file and the benchmark section needs
-re-running before the next release."
-
-| Quantity | §6.1 states | `solver/testdata/` holds |
-|---|---|---|
-| Total nodes | 186 | 620 |
-| Total pods | 2,714 | 2,714 |
-| Cluster CPU (raw) | 10,272 | 34,240 |
-| Cluster RAM (raw) | 54,912 | 183,040 |
-| Cluster GPU | 240 | 800 |
-| CPU fill | 73.1% | 21.0% |
-| RAM fill | 51.2% | 15.2% |
-
-Pod demand is unchanged while capacity grew roughly 3.3×, so the published run
-describes a materially harder instance than `make solver-irina` solves today. Every
-figure in §7.1, §7.2 and §7.3 descends from the 186-node run: 152 active nodes, 88.7%
-average CPU utilization, fragmentation 18,418.00, `L = 117`, `L_het = 136`,
-`α = 1.3382`. None of them reproduce.
-
-**The correction is to the paper, not the testbed.** `AGENTS.md` is explicit that the
-paper follows the repository and that the repository is not to be changed to serve the
-paper's claims. The regenerated numbers will describe a looser instance and will read
-as less impressive; that is the honest result of the benchmark as it currently stands.
-Making the benchmark denser is a legitimate goal on its own merits — a 21%-fill
-instance under-exercises multi-dimensional bin packing — but it is benchmark work,
-judged as benchmark work, and never a step taken to protect a published figure.
-
-**Done when:** §6.1 and all of §7 are regenerated from a single recorded run of the
-current testdata, that run's console output is committed under
-`docs/plans/benchmarks/`, and the run reproduces via `make solver-irina`,
-`make solver-irina-headroom-20`, `make inspector-run` and `make bench-proof`.
-
-Note that `make solver-irina` overwrites `solver/kuberina_solution.yaml` and both
-verifiers read that path, so each configuration must be verified before the next runs.
-
-### W-2 — Report the approximation ratio against a matching capacity model
-
-**Issue:** [#8](https://github.com/AlexanderSlokov/kuberina/issues/8) ·
-**Depends on:** W-1, B-1
-
-§7.3 computes `α = 182 / 136`, where the numerator is an active-node count from a
-capacity-reserved run and the denominator is a lower bound derived from full node
-capacities. The two halves come from different capacity models.
-
-The error understates the result. On the same published data the full-packing
-configuration gives `152 / 136 = 1.118`, which sits *below* the 11/9 ≈ 1.222 FFD bound
-that the following sentence explains the result as exceeding.
-
-**Done when:** §7.3 reports α for the full-packing configuration, whose objective
-matches the bound, and reports the reserved configuration against the reserved bound
-produced by B-1. The abstract names the configuration its α came from.
-
-### W-3 — Extend the feasibility proof and LP bound to all 8 dimensions
-
-**Issue:** [#11](https://github.com/AlexanderSlokov/kuberina/issues/11) ·
-**Depends on:** W-1
-
-`bench/mathematical_proof.py` iterates all eight dimensions in `compute_lp_lower_bound`,
-`compute_heterogeneous_lower_bound` and the capacity verifier. §7.3 reports three:
-overflow "on CPU, RAM, GPU", and `L^r` for CPU, RAM and GPU only. §6.1's testbed table
-has the same 3-of-8 gap. A reader cannot distinguish "checked and slack" from "not
-checked" — which is the distinction a proof section exists to settle.
-
-The five dimensions added in v0.2.0 are not slack on the current testbed. All 620 nodes
-carry finite capacity in all eight dimensions, and four of the new dimensions show
-higher fill than CPU:
-
-| Dimension | Fill |
-|---|---|
-| disk_write | 54.1% |
-| net_out | 33.4% |
-| net_in | 31.2% |
-| disk_read | 30.3% |
-| cpu | 21.0% |
-| gpu | 19.0% |
-| storage | 15.9% |
-| ram | 15.2% |
-
-**Done when:** Proof 1 reports overflow per dimension and Proof 2 reports `L^r` per
-dimension, both across all eight; §6.1 carries cluster totals for storage, disk and
-network; and any dimension left unconstrained is marked as such rather than omitted.
-
-**Note:** the `float('inf')` default at `mathematical_proof.py:57` (mirroring the
-solver's `f64::MAX`) does not trigger on this testbed — no node omits a dimension. The
-branch stays correct for hand-written infra files; it is simply not what §7.3 is
-currently hiding.
-
-### W-4 — Document the dual-capacity model behind `--headroom`
-
-**Issue:** [#12](https://github.com/AlexanderSlokov/kuberina/issues/12) ·
-**Depends on:** S-1
-
-Under a capacity reserve, `solver/src/main.rs` builds a reduced copy of the node set and
-hands it to the FFD warm-start (`main.rs:116`), the fitness function (`main.rs:118`) and
-the GA (`main.rs:129`), then prints the blueprint against the true post-DaemonSet
-capacities (`main.rs:137`). That asymmetry is the flag's defining property and is
-documented only in the source comment at `main.rs:136`.
-
-It is worth stating because the guarantee is stronger than §7.2 currently claims. "No
-node exceeds 79% utilization" reads as an observed outcome; the mechanism makes it
-structural and per-node — the optimizer never sees the reserve, so every node in the
-blueprint carries at least the reserved fraction of its real capacity unallocated.
-
-Left undocumented, two misreadings are available: that the cap is a post-hoc rejection
-filter, making the reserve a soft target; or that reported utilization percentages are
-relative to reduced capacity, making 74.6% mean 59.7% of real capacity.
-
-**Done when:** §6.2 states which components see reduced capacity and which see real
-capacity, and §7.2 notes that its fragmentation row is measured against reduced
-capacity in the reserved column and real capacity in the full-packing column — the two
-are not comparable as printed. Reporting both against real capacity would make the
-table comparable and would show the reserved run's true waste, which is the more honest
-number.
+The ordering rule stated above stands for the next round: the paper reports on the
+repository and is worked last.
