@@ -120,7 +120,7 @@ You can then open `kuberina_dashboard.html` in your browser to interactively vie
 
 | Document | Audience | Description |
 |---|---|---|
-| [PAPER.md](./PAPER.md) | Researchers, reviewers | Full research paper: mathematical foundation, problem formulation, experimental results |
+| [PAPER.md](docs/references/PAPER.md) | Researchers, reviewers | Full research paper: mathematical foundation, problem formulation, experimental results |
 | [DESIGN.md](./DESIGN.md) | Contributors, maintainers | Software design document: architecture, data model, CLI design, testing strategy |
 | `research/` | Algorithm developers | Python POC code for formulas and algorithms in small simulations |
 

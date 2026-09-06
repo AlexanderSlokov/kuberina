@@ -5,7 +5,8 @@
 
 ## Constraints
 
-- Use the POV of a technical writer writing documents of k8s to write `.md` artifacts, like CHANGELOG, ROADMAP,.etc. Focus on clarity, accuracy explainations.
+- Use the POV of a technical writer writing documents of k8s to write `.md` artifacts, 
+like CHANGELOG, ROADMAP,.etc. Focus on clarity, accuracy explanations.
 
 ## Code style
 

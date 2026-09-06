@@ -290,7 +290,7 @@ This transforms infrastructure security review from a reactive runtime process i
 
 ### 6.1. Testbed Description
 
-We evaluate Kuberina on a synthetic benchmark designed to mirror the scale and heterogeneity of the MSC Irina mega-vessel. The testbed is generated using `research/gen_irina_testdata.py` and comprises:
+We evaluate Kuberina on a synthetic benchmark designed to mirror the scale and heterogeneity of the MSC Irina mega-vessel. The testbed is generated using `../../research/gen_irina_testdata.py` and comprises:
 
 | Parameter | Value |
 |---|---|
@@ -338,7 +338,7 @@ We evaluate two configurations:
 
 ### 6.5. Verification Methodology
 
-All results are independently verified by an external Python validator (`research/inspector.py`) that re-reads the infrastructure, workload, and solution YAML files and checks every constraint from scratch. Additionally, `research/mathematical_proof.py` performs:
+All results are independently verified by an external Python validator (`../../research/inspector.py`) that re-reads the infrastructure, workload, and solution YAML files and checks every constraint from scratch. Additionally, `../../research/mathematical_proof.py` performs:
 
 1. **Feasibility Proof**: Verifies all hard constraint predicates (capacity, assignment, node selector).
 2. **Optimality Bound**: Computes LP relaxation lower bounds and the approximation ratio.
