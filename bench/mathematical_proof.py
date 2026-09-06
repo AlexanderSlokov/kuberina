@@ -55,6 +55,61 @@ def load_yaml(path: str) -> dict:
         return yaml.safe_load(f)
 
 
+def _as_float(value: object, dimension: str) -> float:
+    """Coerce one IR quantity to a float, naming it if the shape is wrong."""
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"resource dimension {dimension!r} must be a number, got {value!r}. "
+            "Kubernetes suffix notation (e.g. '256Mi') is understood by the solver "
+            "but not by this verifier."
+        ) from None
+
+
+def flatten_resources(block: dict) -> dict[str, float]:
+    """Project a Kuberina IR resource block onto the flat 8-dimension vector.
+
+    IR v0.2.0 nests throughput under `disk: {read, write}` and
+    `network: {in, out}`; the rest of this script indexes dimensions by their
+    flat names. Absent dimensions stay absent, because the callers distinguish
+    "declared as zero" from "not declared" — pre_deduct_daemonsets turns the
+    latter into an unconstrained node dimension.
+
+    Example:
+        >>> flatten_resources({"cpu": 4.0, "disk": {"read": 50.0}})
+        {'cpu': 4.0, 'disk_read': 50.0}
+    """
+    disk = block.get("disk") or {}
+    network = block.get("network") or {}
+    sources = (
+        ("cpu", block.get("cpu")),
+        ("ram", block.get("ram")),
+        ("gpu", block.get("gpu")),
+        ("storage", block.get("storage")),
+        ("disk_read", disk.get("read")),
+        ("disk_write", disk.get("write")),
+        ("net_in", network.get("in")),
+        ("net_out", network.get("out")),
+    )
+    return {r: _as_float(v, r) for r, v in sources if v is not None}
+
+
+def normalize_ir(infra: dict, workloads: dict) -> None:
+    """Rewrite every resource block in place into flat 8-dimension form.
+
+    WHY: the solver reads the nested IR shape. A verifier that reads flat keys
+    would silently disagree with it about I/O capacity and demand, which is the
+    one thing an independent verifier must never do quietly.
+    """
+    for node in infra.get("nodes", []):
+        node["allocatable"] = flatten_resources(node.get("allocatable", {}))
+    for ds in infra.get("daemonsets", []):
+        ds["resources"] = flatten_resources(ds.get("resources", {}))
+    for pod in workloads.get("pods", []):
+        pod["requests"] = flatten_resources(pod.get("requests", {}))
+
+
 def pre_deduct_daemonsets(
     nodes: list[dict],
     daemonsets: list[dict],
@@ -346,7 +401,7 @@ def monte_carlo_random_baseline(
             target = node_names[rng.randrange(num_nodes)]
             req = pod["requests"]
             for r in DIMENSIONS:
-                loads[node_name][r] += req.get(r, 0.0)
+                loads[target][r] += req.get(r, 0.0)
 
         violations = 0
         total_overflow = 0.0
@@ -425,7 +480,7 @@ def monte_carlo_selector_aware(
             target = eligible[rng.randrange(len(eligible))]
             req = pod["requests"]
             for r in DIMENSIONS:
-                loads[node_name][r] += req.get(r, 0.0)
+                loads[target][r] += req.get(r, 0.0)
 
         violations = 0
         for n_name, load in loads.items():
@@ -538,6 +593,7 @@ def main() -> None:
     infra = load_yaml(infra_path)
     workloads = load_yaml(work_path)
     solution = load_yaml(soln_path).get("solution", {})
+    normalize_ir(infra, workloads)
 
     nodes = pre_deduct_daemonsets(infra["nodes"], infra.get("daemonsets", []))
     pods = workloads["pods"]
@@ -650,7 +706,9 @@ def main() -> None:
     print("  SUMMARY")
     print("=" * 70)
     print(f"  1. Feasibility:    {'PROVEN ✅' if feasible else 'FAILED ❌'}")
-    print(f"  2. Approx ratio:   α = {ratio:.4f} (LB = {lb} nodes)")
+    matched_model = "reserved capacity" if args.headroom > 0.0 else "real capacity"
+    print(f"  2. Approx ratio:   α = {ratio_or_inf(active_nodes, matched_lb):.4f} "
+          f"(LB = {matched_lb} nodes, against {matched_model})")
     print(f"  3. Significance:   p < {1/n_trials:.1e}")
     print("=" * 70)
 
