@@ -289,6 +289,18 @@ pub struct GaConfig {
     pub crossover_rate: f64,
     pub max_generations: usize,
     pub early_stop_generations: usize,
+    /// Smallest relative gain that counts as progress for early stopping.
+    ///
+    /// WHY a relative threshold (#20): the stale counter used to reset on any
+    /// improvement at all, including 0.0003 on a fitness of 1.58 million, so the
+    /// criterion never fired and both benchmark runs burned their full budget.
+    ///
+    /// WHY 1e-4: on the MSC Irina benchmark at `1ab1ad7`, smooth drift accumulates
+    /// 3.0e-6 over 200 generations and a real gain — one node emptied — is 6.2e-3.
+    /// 1e-4 is the geometric mean of the two: 33x above the noise floor, 62x below
+    /// the smallest gain worth keeping. Derivation and sources in
+    /// `docs/references/papers/ga-termination-criteria.md` §2.
+    pub min_relative_improvement: f64,
     pub random_seed: u64,
 }
 
@@ -302,6 +314,7 @@ impl Default for GaConfig {
             crossover_rate: 0.8,
             max_generations: 500,
             early_stop_generations: 50,
+            min_relative_improvement: 1e-4,
             random_seed: 42,
         }
     }

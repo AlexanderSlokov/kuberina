@@ -83,6 +83,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dimension is disk write throughput, not CPU, and the paper now says so. (#15, #8, #11)
 
 ### Fixed
+- **GA early stopping never fired, so every run cost its full generation budget.** The
+  convergence check reset its stale counter on any improvement at all, including gains of
+  0.0003 on a fitness of 1.58 million, so a run making arbitrarily small progress ran to
+  the end no matter what. Both MSC Irina configurations spent all 1,000 generations,
+  roughly fifteen minutes each. Progress is now measured against a relative threshold —
+  `GaConfig.min_relative_improvement`, defaulting to 0.01% of current best fitness — and
+  the counter resets only on cumulative gains that exceed it. Both configurations now
+  converge at generation 200 in about three minutes, a 4.9× speedup, and the solver
+  prints the generation it converged at so a wall-clock figure means something. The
+  reserved-capacity run gives up nothing measurable for the saving; the full-packing run
+  finishes on 540 active nodes instead of 539, because the GA's only real gain in 1,000
+  generations was a single chance node evacuation at generation ≈581. The threshold value
+  is derived from the benchmark rather than tuned, and the derivation, the proof that no
+  patience setting below 581 behaves differently on this instance, and the supporting
+  literature are recorded in `docs/references/papers/ga-termination-criteria.md`;
+  before-and-after measurements are in
+  `docs/references/sessions/2026-09-06-ga-early-stop-threshold.md`. (#20)
 - `README.md` documented `make solver-inspect`, a target that never existed; the
   validator target is now correctly referenced as `make inspector-run`.
 - `README.md` linked to `./DESIGN.md`; the file lives at `docs/DESIGN.md`.
