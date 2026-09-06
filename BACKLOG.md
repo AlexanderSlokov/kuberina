@@ -42,29 +42,6 @@ today's defaults, and parser tests cover `min_members < |G|` and `colocate: true
 
 ---
 
-### S-3 — Give early stopping an improvement threshold
-
-**Issue:** [#20](https://github.com/AlexanderSlokov/kuberina/issues/20) ·
-**ROADMAP:** Phase 1 (v0.3.0)
-
-`stale_count` resets whenever the best fitness improves at all, including by ~0.0003 in
-absolute terms. On the MSC Irina benchmark neither configuration ever triggers the
-`N_stop` criterion: both burn the full 1,000-generation budget, ~900 s each, for total
-gains of 0.62% (full packing) and 0.0014% (20% headroom). The run at commit `1ab1ad7`
-is recorded in `docs/references/sessions/2026-09-06-solver-audit.md`, and the behavior
-is stated as an open defect in `docs/references/PAPER.md` §7.4.
-
-The criterion should test for improvement that matters, not improvement that exists —
-a relative threshold against current best fitness, so that a run stops when progress
-falls below it.
-
-**Done when:** `GaConfig` carries a relative improvement threshold with a documented
-default, `stale_count` resets only on gains exceeding it, and a regression test asserts
-that a run whose fitness improves by less than the threshold for `N_stop` generations
-terminates early.
-
----
-
 ## Benchmark and testdata (`bench/`)
 
 ### B-2 — Populate the benchmark with pod groups

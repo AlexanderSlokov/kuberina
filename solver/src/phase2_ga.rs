@@ -18,10 +18,30 @@ use crate::fitness::compute_fitness;
 use crate::model::{Blueprint, FitnessWeights, GaConfig, Node, Pod, PodGroup};
 use crate::phase1_ffd::compute_node_loads;
 
+/// What a GA run did, beyond the plan it produced.
+///
+/// WHY it exists: wall-clock and generation figures are reported in the paper, and
+/// a run that stops at generation 200 is a different measurement from one that ran
+/// its budget out. Returning only the blueprint made that indistinguishable.
+#[derive(Debug, Clone)]
+pub struct GaOutcome {
+    pub best: Blueprint,
+    /// Generations actually bred, whether the loop ended early or on budget.
+    pub generations_run: usize,
+    /// True when the improvement criterion ended the run before `max_generations`.
+    pub stopped_early: bool,
+}
+
 /// Execute the GA optimization loop starting from FFD seed.
 ///
-/// Returns the best blueprint found after convergence or max generations.
-/// From ga_estimation.md §5: with FFD warm-start, converges 3-5x faster.
+/// Returns the best blueprint found after convergence or max generations, together
+/// with how the run ended. From ga_estimation.md §5: with FFD warm-start, converges
+/// 3-5x faster.
+///
+/// ```ignore
+/// let outcome = run_ga(&seed, &pods, &nodes, &groups, &config, &weights);
+/// assert!(outcome.best.fitness <= seed.fitness);
+/// ```
 pub fn run_ga(
     seed: &Blueprint,
     pods: &[Pod],
@@ -29,15 +49,23 @@ pub fn run_ga(
     groups: &[PodGroup],
     config: &GaConfig,
     fitness_weights: &FitnessWeights,
-) -> Blueprint {
+) -> GaOutcome {
     let mut rng = StdRng::seed_from_u64(config.random_seed);
     let mut population = init_population(seed, pods, nodes, groups, config, &mut rng);
     evaluate_all(&mut population, pods, nodes, groups, fitness_weights);
 
     let mut best = find_best(&population).clone();
+    // WHY two variables (#20): `best` must track every improvement so the run never
+    // returns a worse plan than it found, but the stale counter measures progress
+    // against the last gain that *mattered*. Comparing staleness to `best` is what
+    // let 0.0003 reset the counter forever.
+    let mut anchor_fitness = best.fitness;
     let mut stale_count = 0_usize;
+    let mut generations_run = 0_usize;
+    let mut stopped_early = false;
 
     for generation in 0..config.max_generations {
+        generations_run = generation + 1;
         let mut offspring = breed_generation(
             &population,
             pods,
@@ -55,6 +83,14 @@ pub fn run_ga(
         let current_best = find_best(&next);
         if current_best.fitness < best.fitness {
             best = current_best.clone();
+        }
+
+        if exceeds_improvement_threshold(
+            anchor_fitness,
+            best.fitness,
+            config.min_relative_improvement,
+        ) {
+            anchor_fitness = best.fitness;
             stale_count = 0;
         } else {
             stale_count += 1;
@@ -62,9 +98,12 @@ pub fn run_ga(
 
         if stale_count >= config.early_stop_generations {
             eprintln!(
-                "Early stop at generation {} (no improvement for {} gens)",
-                generation, config.early_stop_generations,
+                "Early stop at generation {} (gain under {:.4}% for {} gens)",
+                generation,
+                config.min_relative_improvement * 100.0,
+                config.early_stop_generations,
             );
+            stopped_early = true;
             break;
         }
 
@@ -103,7 +142,34 @@ pub fn run_ga(
         population = next;
     }
 
-    best
+    GaOutcome {
+        best,
+        generations_run,
+        stopped_early,
+    }
+}
+
+/// Is the gain from `anchor` to `candidate` worth resetting the stale counter for?
+///
+/// Fitness is minimized, so a gain is a decrease. The test is relative to the anchor
+/// because absolute gains are meaningless across instance sizes: 0.0003 is progress
+/// on a fitness of 1.0 and rounding error on a fitness of 1.58 million (#20).
+///
+/// ```ignore
+/// assert!(exceeds_improvement_threshold(1_000_000.0, 999_000.0, 1e-4));  // 0.1%
+/// assert!(!exceeds_improvement_threshold(1_000_000.0, 999_999.0, 1e-4)); // 0.0001%
+/// ```
+fn exceeds_improvement_threshold(anchor: f64, candidate: f64, min_relative: f64) -> bool {
+    let gain = anchor - candidate;
+    if gain <= 0.0 {
+        return false;
+    }
+    // An anchor of zero has no scale to measure against, so any gain counts.
+    let scale = anchor.abs();
+    if scale <= f64::EPSILON {
+        return true;
+    }
+    gain / scale > min_relative
 }
 
 /// Create initial population from FFD seed + random perturbations.
@@ -559,7 +625,69 @@ mod tests {
         let weights = FitnessWeights::default();
         let (seed_fitness, _) = compute_fitness(&seed, &pods, &nodes, &[], &weights);
 
-        let best = run_ga(&seed, &pods, &nodes, &[], &config, &weights);
-        assert!(best.fitness <= seed_fitness + 1e-9);
+        let outcome = run_ga(&seed, &pods, &nodes, &[], &config, &weights);
+        assert!(outcome.best.fitness <= seed_fitness + 1e-9);
+    }
+
+    #[test]
+    fn improvement_threshold_ignores_gains_below_the_bound() {
+        // 0.0003 on 1.58 million is the gain that kept resetting stale_count (#20).
+        assert!(!exceeds_improvement_threshold(
+            1582568.126,
+            1582568.1257,
+            1e-4
+        ));
+        // One node emptied: 6.2e-3 relative, comfortably over the bound.
+        assert!(exceeds_improvement_threshold(
+            1582553.117,
+            1572736.618,
+            1e-4
+        ));
+    }
+
+    #[test]
+    fn improvement_threshold_rejects_non_gains_and_scales_to_the_anchor() {
+        assert!(!exceeds_improvement_threshold(100.0, 100.0, 1e-4));
+        assert!(!exceeds_improvement_threshold(100.0, 101.0, 1e-4));
+        // Exactly at the bound is not "exceeding" it. Values chosen to be exact in
+        // binary so the assertion tests the comparison, not float representation.
+        assert!(!exceeds_improvement_threshold(128.0, 64.0, 0.5));
+        assert!(exceeds_improvement_threshold(128.0, 63.0, 0.5));
+        // A zero anchor has no scale to measure against, so any gain counts.
+        assert!(exceeds_improvement_threshold(0.0, -1e-9, 1e-4));
+    }
+
+    /// Regression for #20: a run whose gains stay under the threshold must stop.
+    ///
+    /// The threshold is set to 50% so that no realistic generation qualifies as
+    /// progress, which is the situation the MSC Irina benchmark was in at 1e-4.
+    #[test]
+    fn run_stops_early_when_gains_stay_under_the_threshold() {
+        let pods = vec![pod("a", 1.0, 2.0), pod("b", 1.0, 2.0), pod("c", 1.0, 2.0)];
+        let nodes = vec![node("n0", 4.0, 16.0), node("n1", 4.0, 16.0)];
+        let seed = Blueprint {
+            assignment: vec![0, 0, 1],
+            fitness: 0.0,
+            node_load: compute_node_loads(&[0, 0, 1], &pods, 2),
+            scorecard: Default::default(),
+        };
+        let config = GaConfig {
+            population_size: 16,
+            max_generations: 200,
+            early_stop_generations: 5,
+            min_relative_improvement: 0.5,
+            ..GaConfig::default()
+        };
+        let weights = FitnessWeights::default();
+
+        let outcome = run_ga(&seed, &pods, &nodes, &[], &config, &weights);
+
+        assert!(outcome.stopped_early, "run burned its whole budget");
+        assert!(
+            outcome.generations_run <= config.early_stop_generations + 1,
+            "stopped at generation {}, expected at most {}",
+            outcome.generations_run,
+            config.early_stop_generations + 1,
+        );
     }
 }

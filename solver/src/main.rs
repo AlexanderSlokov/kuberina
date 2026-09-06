@@ -19,7 +19,7 @@ use kuberina_solver::model::{
 use kuberina_solver::parser::{load_infra, load_workloads};
 use kuberina_solver::phase0::pre_deduct_daemonsets;
 use kuberina_solver::phase1_ffd::ffd_warmstart;
-use kuberina_solver::phase2_ga::run_ga;
+use kuberina_solver::phase2_ga::{GaOutcome, run_ga};
 
 #[derive(Parser)]
 #[command(
@@ -182,7 +182,7 @@ fn run_plan(infra_path: &str, workloads_path: &str, headroom: Option<f64>) {
     // Phase 2: GA optimization (evolutionary stowage planning)
     // WHY: auto-scale GA params based on problem size (ga_estimation.md §3).
     let ga_config = select_ga_config(pods.len());
-    let best = run_ga(
+    let outcome = run_ga(
         &seed,
         &pods,
         &planning_nodes,
@@ -190,6 +190,8 @@ fn run_plan(infra_path: &str, workloads_path: &str, headroom: Option<f64>) {
         &ga_config,
         &fitness_weights,
     );
+    report_ga_termination(&outcome, &ga_config);
+    let best = outcome.best;
 
     let elapsed = start.elapsed().as_secs_f64();
     // Print the blueprint against real capacity — the reserve is withheld from the
@@ -372,6 +374,7 @@ fn select_ga_config(num_pods: usize) -> GaConfig {
             crossover_rate: 0.85,
             max_generations: 1000,
             early_stop_generations: 200,
+            min_relative_improvement: 1e-4,
             random_seed: 42,
         }
     } else if num_pods > 100 {
@@ -384,6 +387,27 @@ fn select_ga_config(num_pods: usize) -> GaConfig {
     } else {
         GaConfig::default()
     }
+}
+
+/// Tell the operator how the GA run ended, not just what it produced.
+///
+/// WHY: a wall-clock figure means one thing for a run that converged and another
+/// for one that hit its budget. PAPER §7.4 could not tell the two apart (#20).
+fn report_ga_termination(outcome: &GaOutcome, config: &GaConfig) {
+    if outcome.stopped_early {
+        eprintln!(
+            "Phase 2 (GA): converged at generation {} of {} — gain stayed under {:.4}% for {} generations",
+            outcome.generations_run,
+            config.max_generations,
+            config.min_relative_improvement * 100.0,
+            config.early_stop_generations,
+        );
+        return;
+    }
+    eprintln!(
+        "Phase 2 (GA): ran the full budget of {} generations without converging",
+        config.max_generations,
+    );
 }
 
 fn print_phase0_summary(
