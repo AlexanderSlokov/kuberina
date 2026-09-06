@@ -586,3 +586,94 @@ The author acknowledges the use of Anthropic's Claude and Google's Gemini models
 [39] "Gang scheduling, Priority scheduling, and Autoscaling for KubeRay CRDs with Kueue," Ray Documentation. [Online]. Available: https://docs.ray.io/en/latest/cluster/kubernetes/k8s-ecosystem/kueue.html
 
 [40] "Container Security in 2026: 7 Key Components, Risks & Defenses," Checkmarx. [Online]. Available: https://checkmarx.com/learn/container-security/
+
+---
+
+## Errata
+
+Recorded 2026-09-06, pending a full rewrite of §6 and §7 in a later session. Nothing
+below has been corrected in the text above; the sections named are known wrong and
+should not be cited until they are regenerated.
+
+Per `AGENTS.md`, this paper follows the repository. Where the two disagree, the paper
+is what changes. Every entry here is a case of the paper describing something the
+repository no longer does, or never did.
+
+### E-1 — The testbed in §6.1 does not exist ([#15](https://github.com/AlexanderSlokov/kuberina/issues/15))
+
+§6.1 describes 186 nodes. `bench/gen_irina_testdata.py` emits 620 (400 standard, 120
+memory-optimized, 100 GPU). Pod demand is unchanged, so cluster capacity grew roughly
+3.3× and CPU fill fell from the reported 73.1% to 21.9%. Every figure in §7 descends
+from the 186-node run and none of it reproduces.
+
+### E-2 — The solver was planning in four dimensions, not eight ([#16](https://github.com/AlexanderSlokov/kuberina/issues/16))
+
+The generator wrote the throughput dimensions flat (`disk_read`, `net_in`) while
+Kuberina IR v0.2.0 nests them under `disk` and `network`. `RawResources` did not deny
+unknown fields, so serde discarded all four keys: pod I/O demand parsed as zero and
+node I/O capacity fell through to the `f64::MAX` unconstrained default.
+
+Every published result was therefore produced against CPU, RAM, GPU and storage only,
+while §3.2, §6 and §7 describe an 8-dimensional model. Fixed in `93993c6`.
+
+This also supersedes the framing of §7.3. On corrected data `disk_write` is the
+binding dimension, not CPU: `L^disk_write = 133` against `L^CPU = 117`, and
+`L_het = 353` driven by ρ^disk_write = 0.5685. The published `L = 117` was not merely
+measured on an older testbed — it was reading a dimension that does not bind.
+
+### E-3 — The approximation ratio in §7.3 mixes two capacity models ([#8](https://github.com/AlexanderSlokov/kuberina/issues/8))
+
+α = 182 / 136 divides an active-node count from a capacity-reserved run by a lower
+bound computed from full capacity. `bench/mathematical_proof.py` now accepts
+`--headroom` and reports both ratios with the model each assumes named. On the
+corrected run the two differ by 0.33 — 1.6459 against the real-capacity bound,
+1.3175 against the reserved one.
+
+### E-4 — §7.3 reports 3 of the 8 dimensions the verifier checks ([#11](https://github.com/AlexanderSlokov/kuberina/issues/11))
+
+Proof 1 reports overflow "on CPU, RAM, GPU" and Proof 2 gives `L^r` for the same
+three. The verifier iterates all eight. §6.1's testbed table has the same gap: it
+lists cluster CPU, RAM and GPU totals and no storage, disk or network totals.
+
+### E-5 — §7.2's headroom configuration does not currently produce a feasible plan ([#17](https://github.com/AlexanderSlokov/kuberina/issues/17), [#18](https://github.com/AlexanderSlokov/kuberina/issues/18))
+
+§7.2 reports the 80% configuration placing 100% of pods with zero violations. On
+corrected data the solver returns a blueprint carrying a capacity penalty of
+412,668,000, infeasible against real capacity in seven of eight dimensions, and
+prints it under the heading "Final Blueprint" with exit code 0.
+
+The instance itself is feasible — a plain first-fit-decreasing places all 2,714 pods
+with zero overflow. The failure is in `ffd_warmstart`: `FfdWeights::default()` weights
+the I/O dimensions at 0.01 against 1.0 for CPU and RAM, so the ordering ignores the
+dimension that binds, and 15 pods reach the silent fallback that overloads a single
+node.
+
+### E-6 — §7.1's conclusion about the genetic algorithm does not follow ([#19](https://github.com/AlexanderSlokov/kuberina/issues/19))
+
+§7.1 states:
+
+> FFD alone found the optimal seed (fitness did not improve after 199 GA generations),
+> indicating that for this workload mix, the greedy warm-start was already near-optimal
+> and the GA served primarily as a verification layer.
+
+The GA did not converge on the seed because the seed was near-optimal. It never
+searched. `init_population` perturbs at rate 0.2 and `mutate` at 0.03, both per-gene,
+on a chromosome of 2,714 genes — approximately 543 random relocations per initial
+individual and 81 per child thereafter. No offspring ever lands near its parent, and
+elitism preserves the FFD seed unchanged.
+
+The seed is demonstrably 15 single-pod relocations from a far better solution, and the
+GA returned it untouched. Until this is fixed, no claim in this paper resting on
+evolutionary optimization is supported by the benchmark.
+
+### E-7 — Gang scheduling is not merely unbenchmarked; it is unreachable ([#9](https://github.com/AlexanderSlokov/kuberina/issues/9))
+
+§8.5 acknowledges that the benchmark loads zero pod groups. The stronger statement is
+that `auto_group_gangs` hardcodes `min_members = |G|` and `colocate = false`
+(`parser.rs:391,397`), so no workload file can express partial gang admission or
+forced co-location. The mechanisms described in §4.3–§4.5 have no reachable input.
+
+### E-8 — Dangling citation
+
+`inspector/README.md` and `CHANGELOG.md` both cite "the Kalena interface contract
+(Appendix C.1)" of this paper. This paper has ten numbered sections and no appendices.

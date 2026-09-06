@@ -40,7 +40,14 @@ struct RawNetworkIO {
     out: Option<ResourceValue>,
 }
 
+/// WHY `deny_unknown_fields`: the I/O dimensions nest under `disk` and `network`.
+/// A file writing them flat as `disk_read`/`net_in` used to deserialize cleanly —
+/// serde dropped the unknown keys — leaving pod demand at 0 and node capacity at
+/// f64::MAX, so the solver planned in four dimensions while reporting eight. That
+/// shipped in the MSC Irina testdata and was caught only by the inspector. Schema
+/// drift must fail at parse time, not become a silently smaller problem.
 #[derive(Debug, Clone, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 struct RawResources {
     cpu: Option<ResourceValue>,
     ram: Option<ResourceValue>,

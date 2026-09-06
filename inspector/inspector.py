@@ -32,6 +32,59 @@ def load_yaml(path: str):
         return yaml.safe_load(f)
 
 
+def _as_float(value, dimension):
+    """Coerce one IR quantity to a float, naming it if the shape is wrong."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"resource dimension {dimension!r} must be a number, got {value!r}. "
+            "Kubernetes suffix notation (e.g. '256Mi') is understood by the solver "
+            "but not by this validator."
+        ) from None
+
+
+def flatten_resources(block):
+    """Project a Kuberina IR resource block onto the flat 8-dimension vector.
+
+    IR v0.2.0 nests throughput under `disk: {read, write}` and
+    `network: {in, out}`. Absent dimensions stay absent so that
+    pre_deduct_daemonsets can tell "declared zero" from "not declared".
+
+    Example:
+        >>> flatten_resources({"cpu": 4.0, "network": {"in": 500.0}})
+        {'cpu': 4.0, 'net_in': 500.0}
+    """
+    disk = block.get("disk") or {}
+    network = block.get("network") or {}
+    sources = (
+        ("cpu", block.get("cpu")),
+        ("ram", block.get("ram")),
+        ("gpu", block.get("gpu")),
+        ("storage", block.get("storage")),
+        ("disk_read", disk.get("read")),
+        ("disk_write", disk.get("write")),
+        ("net_in", network.get("in")),
+        ("net_out", network.get("out")),
+    )
+    return {r: _as_float(v, r) for r, v in sources if v is not None}
+
+
+def normalize_ir(infra, workloads):
+    """Rewrite every resource block in place into flat 8-dimension form.
+
+    WHY: the solver reads the nested IR shape. A validator reading flat keys
+    would disagree with it about I/O capacity and demand without saying so,
+    which defeats the point of validating independently.
+    """
+    for node in infra.get("nodes", []):
+        node["allocatable"] = flatten_resources(node.get("allocatable", {}))
+    for ds in infra.get("daemonsets", []):
+        ds["resources"] = flatten_resources(ds.get("resources", {}))
+    for pod in workloads.get("pods", []):
+        pod["requests"] = flatten_resources(pod.get("requests", {}))
+
+
 def pre_deduct_daemonsets(nodes, daemonsets):
     """Subtract DaemonSet resources from node allocatable capacity (Phase 0)."""
     net_nodes = []
@@ -374,6 +427,8 @@ def main():
     solution_data = load_yaml(args.solution)
     solution_map = solution_data.get("solution", {})
     
+    normalize_ir(infra_data, workloads_data)
+
     # Pre-deduct daemonsets
     nodes = pre_deduct_daemonsets(infra_data["nodes"], infra_data.get("daemonsets", []))
     pods = workloads_data["pods"]
