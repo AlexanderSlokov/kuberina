@@ -8,10 +8,19 @@ Proves three things:
 
 Usage:
     uv run --with pyyaml python bench/mathematical_proof.py
+    uv run --with pyyaml python bench/mathematical_proof.py --headroom 20
+
+Pass --headroom with the same value the solver was given. Feasibility is always
+verified against real capacity, since that is the cluster the blueprint runs on,
+but the optimality bound is computed against the capacity the optimizer was
+actually allowed to see. Comparing a reserved run against an unreserved bound
+attributes the operator's reserve to the algorithm (#8).
 """
 
 from __future__ import annotations
 
+import argparse
+import copy
 import math
 import os
 import random
@@ -22,6 +31,20 @@ try:
 except ImportError:
     print("Error: PyYAML required. Run: uv pip install pyyaml")
     sys.exit(1)
+
+
+# The 8-dimensional resource vector of Kuberina IR v0.2.0. Order is fixed so that
+# printed proofs list dimensions the same way every run.
+DIMENSIONS = (
+    "cpu",
+    "ram",
+    "gpu",
+    "storage",
+    "disk_read",
+    "disk_write",
+    "net_in",
+    "net_out",
+)
 
 
 # ─── Data Loading ─────────────────────────────────────────────────────
@@ -50,13 +73,33 @@ def pre_deduct_daemonsets(
                 node.get("labels", {}).get(k) == v
                 for k, v in ds_sel.items()
             ):
-                for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+                for r in DIMENSIONS:
                     if r in net["allocatable"]:
                         net["allocatable"][r] -= ds["resources"].get(r, 0.0)
                     else:
                         net["allocatable"][r] = float('inf')
         net_nodes.append(net)
     return net_nodes
+
+
+def reserve_headroom(nodes: list[dict], headroom_pct: float) -> list[dict]:
+    """Withhold `headroom_pct` of every node's capacity, as `--headroom` does.
+
+    Mirrors `reserve_headroom` in solver/src/main.rs, including the guard that
+    leaves unconstrained dimensions alone — the solver skips f64::MAX, this skips
+    the float('inf') that pre_deduct_daemonsets assigns to an absent dimension.
+
+    Example:
+        >>> reserve_headroom([{"allocatable": {"cpu": 64.0}}], 20.0)
+        [{'allocatable': {'cpu': 51.2}}]
+    """
+    factor = 1.0 - headroom_pct / 100.0
+    reserved = copy.deepcopy(nodes)
+    for node in reserved:
+        for r, capacity in node["allocatable"].items():
+            if capacity < float('inf'):
+                node["allocatable"][r] = capacity * factor
+    return reserved
 
 
 # ─── Proof 1: Constraint Satisfaction (Feasibility) ──────────────────
@@ -74,7 +117,7 @@ def verify_capacity_constraint(
     pod_map = {p["name"]: p for p in pods}
 
     loads: dict[str, dict[str, float]] = {
-        n["name"]: {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")}
+        n["name"]: {r: 0.0 for r in DIMENSIONS}
         for n in nodes
     }
 
@@ -83,13 +126,13 @@ def verify_capacity_constraint(
         if pod_name not in pod_map or node_name not in node_map:
             continue
         req = pod_map[pod_name]["requests"]
-        for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
-            loads[target if "target" in vars() else node_name][r] += req.get(r, 0.0)
+        for r in DIMENSIONS:
+            loads[node_name][r] += req.get(r, 0.0)
 
-    overflow = {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")}
+    overflow = {r: 0.0 for r in DIMENSIONS}
     for n_name, load in loads.items():
         cap = node_map[n_name]["allocatable"]
-        for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+        for r in DIMENSIONS:
             excess = load[r] - cap.get(r, 0.0)
             if excess > 1e-9:
                 overflow[r] += excess
@@ -202,21 +245,21 @@ def compute_lp_lower_bound(
     This is a well-known bound from Bin Packing theory
     (Coffman, Garey & Johnson, 1978).
     """
-    total_demand = {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")}
+    total_demand = {r: 0.0 for r in DIMENSIONS}
     for pod in pods:
         req = pod["requests"]
-        for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+        for r in DIMENSIONS:
             total_demand[r] += req.get(r, 0.0)
 
     # max capacity per resource across all node types
-    max_cap = {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")}
+    max_cap = {r: 0.0 for r in DIMENSIONS}
     for node in nodes:
         cap = node["allocatable"]
-        for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+        for r in DIMENSIONS:
             max_cap[r] = max(max_cap[r], cap.get(r, 0.0))
 
     bounds = {}
-    for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+    for r in DIMENSIONS:
         if max_cap[r] > 0:
             bounds[r] = math.ceil(total_demand[r] / max_cap[r])
         else:
@@ -239,21 +282,21 @@ def compute_heterogeneous_lower_bound(
     If Σᵢ reqᵢ^CPU / Σⱼ Cⱼ^CPU = ρ, then at least ⌈ρ · m⌉ nodes
     must be active (where m = total nodes).
     """
-    total_demand = {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")}
-    total_supply = {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")}
+    total_demand = {r: 0.0 for r in DIMENSIONS}
+    total_supply = {r: 0.0 for r in DIMENSIONS}
 
     for pod in pods:
         req = pod["requests"]
-        for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+        for r in DIMENSIONS:
             total_demand[r] += req.get(r, 0.0)
 
     for node in nodes:
         cap = node["allocatable"]
-        for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+        for r in DIMENSIONS:
             total_supply[r] += cap.get(r, 0.0)
 
     rho = {}
-    for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+    for r in DIMENSIONS:
         if total_supply[r] > 0:
             rho[r] = total_demand[r] / total_supply[r]
         else:
@@ -297,19 +340,19 @@ def monte_carlo_random_baseline(
     overflow_sums: list[float] = []
 
     for _ in range(trials):
-        loads = {n: {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")} for n in node_names}
+        loads = {n: {r: 0.0 for r in DIMENSIONS} for n in node_names}
 
         for pod in pods:
             target = node_names[rng.randrange(num_nodes)]
             req = pod["requests"]
-            for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
-                loads[target if "target" in vars() else node_name][r] += req.get(r, 0.0)
+            for r in DIMENSIONS:
+                loads[node_name][r] += req.get(r, 0.0)
 
         violations = 0
         total_overflow = 0.0
         for n_name, load in loads.items():
             cap = node_map[n_name]["allocatable"]
-            for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+            for r in DIMENSIONS:
                 excess = load[r] - cap.get(r, 0.0)
                 if excess > 1e-9:
                     violations += 1
@@ -373,7 +416,7 @@ def monte_carlo_selector_aware(
     cap_violation_counts: list[int] = []
 
     for _ in range(trials):
-        loads = {n["name"]: {r: 0.0 for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out")} for n in nodes}
+        loads = {n["name"]: {r: 0.0 for r in DIMENSIONS} for n in nodes}
 
         for i, pod in enumerate(pods):
             eligible = pod_eligible[i]
@@ -381,13 +424,13 @@ def monte_carlo_selector_aware(
                 continue
             target = eligible[rng.randrange(len(eligible))]
             req = pod["requests"]
-            for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
-                loads[target if "target" in vars() else node_name][r] += req.get(r, 0.0)
+            for r in DIMENSIONS:
+                loads[node_name][r] += req.get(r, 0.0)
 
         violations = 0
         for n_name, load in loads.items():
             cap = node_map[n_name]["allocatable"]
-            for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+            for r in DIMENSIONS:
                 if load[r] - cap.get(r, 0.0) > 1e-9:
                     violations += 1
 
@@ -409,12 +452,88 @@ def monte_carlo_selector_aware(
 
 # ─── Main ─────────────────────────────────────────────────────────────
 
+def ratio_or_inf(active_nodes: int, lower_bound: int) -> float:
+    """Approximation ratio, or infinity when the bound degenerates to zero.
+
+    Example:
+        >>> ratio_or_inf(152, 136)
+        1.1176470588235294
+    """
+    return active_nodes / lower_bound if lower_bound > 0 else float("inf")
+
+
+def print_capacity_model(label: str, nodes: list[dict], pods: list[dict]) -> int:
+    """Print both lower bounds for one capacity model and return the tighter one.
+
+    Reports every dimension rather than the CPU/RAM/GPU triple, so a reader can
+    tell a slack dimension from an unchecked one (#11).
+
+    Example:
+        >>> print_capacity_model("real capacity", nodes, pods)  # doctest: +SKIP
+        136
+    """
+    lp = compute_lp_lower_bound(nodes, pods)
+    het = compute_heterogeneous_lower_bound(nodes, pods)
+
+    print(f"\n  ══ Bounds against {label} ══")
+    print("\n  ── Homogeneous LP Lower Bound (Coffman-Garey-Johnson 1978) ──")
+    for r in DIMENSIONS:
+        demand, cap = lp["total_demand"][r], lp["max_node_cap"][r]
+        note = "" if cap > 0 else "  (node capacity unconstrained)"
+        print(f"    L^{r:<10} = ⌈{demand:>12,.0f} / {cap:>10,.2f}⌉ = "
+              f"{lp['per_resource_lb'][r]:>4}{note}")
+    print(f"    L = max(L^r) = {lp['overall_lb']}")
+
+    print("\n  ── Heterogeneous Utilization Bound ──")
+    for r in DIMENSIONS:
+        print(f"    ρ^{r:<10} = {het['utilization_ratio'][r]:.4f}   "
+              f"⌈ρ·m⌉ = {het['per_resource_lb'][r]:>4}")
+    print(f"    L_het = max(⌈ρʳ · m⌉) = {het['overall_lb']}")
+
+    return max(lp["overall_lb"], het["overall_lb"])
+
+
+def print_ratio_verdict(ratio: float) -> None:
+    """Classify α against the 1D FFD guarantee of 11/9 · OPT + 6/9."""
+    if ratio <= 1.0 + 1e-9:
+        print("\n  ══ OPTIMAL (α = 1.0) ══")
+    elif ratio <= 11 / 9 + 1e-9:
+        print(f"\n  ══ WITHIN FFD GUARANTEE (α = {ratio:.4f} ≤ 11/9 ≈ 1.222) ══")
+    else:
+        print(f"\n  ══ α = {ratio:.4f} — above FFD 1D guarantee, expected for multi-D ══")
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments, defaulting to the MSC Irina testbed.
+
+    Example:
+        >>> parse_args().headroom  # with --headroom 20 on the command line
+        20.0
+    """
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument(
+        "--headroom",
+        type=float,
+        default=0.0,
+        help="Capacity percentage the solver was told to reserve (e.g. 20)",
+    )
+    parser.add_argument("--infra", default=os.path.join(base, "solver/testdata/irina_infra.yaml"))
+    parser.add_argument("--workloads", default=os.path.join(base, "solver/testdata/irina_workloads.yaml"))
+    parser.add_argument("--solution", default=os.path.join(base, "solver/kuberina_solution.yaml"))
+    args = parser.parse_args()
+
+    if not 0.0 <= args.headroom < 100.0:
+        parser.error(f"--headroom must be a percentage in [0, 100), got {args.headroom}")
+    return args
+
+
 def main() -> None:
     """Run all mathematical proofs and print results."""
-    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    infra_path = os.path.join(base, "solver/testdata/irina_infra.yaml")
-    work_path = os.path.join(base, "solver/testdata/irina_workloads.yaml")
-    soln_path = os.path.join(base, "solver/kuberina_solution.yaml")
+    args = parse_args()
+    infra_path = args.infra
+    work_path = args.workloads
+    soln_path = args.solution
 
     infra = load_yaml(infra_path)
     workloads = load_yaml(work_path)
@@ -428,6 +547,11 @@ def main() -> None:
     print("=" * 70)
     print(f"  Dataset: {len(nodes)} nodes, {len(pods)} pods")
     print(f"  Solution: {len(solution)} assignments")
+    if args.headroom > 0.0:
+        print(f"  Headroom: {args.headroom:.1f}% reserved — the optimizer saw "
+              f"{100.0 - args.headroom:.1f}% of real capacity")
+    else:
+        print("  Headroom: none — the optimizer saw full capacity")
 
     # ── Proof 1: Feasibility ──────────────────────────────────────────
     print("\n" + "─" * 70)
@@ -441,23 +565,23 @@ def main() -> None:
     topology_penalty = verify_topology_spread(nodes, pods, solution)
 
 
-    print(f"\\n  Predicate 1 — Capacity:")
+    print(f"\n  Predicate 1 — Capacity:")
     print(f"    ∀j ∈ N: Σᵢ xᵢⱼ · reqᵢʳ ≤ Cⱼʳ")
-    for r in ("cpu", "ram", "gpu", "storage", "disk_read", "disk_write", "net_in", "net_out"):
+    for r in DIMENSIONS:
         print(f"    {r.upper()} overflow: {cap_overflow[r]:.6f}")
     print(f"    Verdict: {'✅ SATISFIED' if cap_ok else '❌ VIOLATED'}")
 
-    print(f"\\n  Predicate 2 — Assignment:")
+    print(f"\n  Predicate 2 — Assignment:")
     print(f"    ∀i ∈ P: Σⱼ xᵢⱼ = 1")
     print(f"    Missing pods: {missing}")
     print(f"    Verdict: {'✅ SATISFIED' if assign_ok else '❌ VIOLATED'}")
 
-    print(f"\\n  Predicate 3 — Node Selector:")
+    print(f"\n  Predicate 3 — Node Selector:")
     print(f"    ∀i: xᵢⱼ=1 ⟹ Selector(pᵢ) ⊆ Labels(nⱼ)")
     print(f"    Violations: {sel_violations}")
     print(f"    Verdict: {'✅ SATISFIED' if sel_ok else '❌ VIOLATED'}")
 
-    print(f"\\n  Objective — Topology Spread:")
+    print(f"\n  Objective — Topology Spread:")
     print(f"    Soft Penalty (Total Skew): {topology_penalty:.2f}")
     if topology_penalty == 0.0:
         print("    Verdict: ✅ PERFECTLY BALANCED")
@@ -472,46 +596,25 @@ def main() -> None:
     print("  PROOF 2: OPTIMALITY BOUND (LP RELAXATION)")
     print("─" * 70)
 
-    lp = compute_lp_lower_bound(nodes, pods)
-    het = compute_heterogeneous_lower_bound(nodes, pods)
-
-    print(f"\n  Total pod demand:")
-    print(f"    CPU: {lp['total_demand']['cpu']:.0f} cores")
-    print(f"    RAM: {lp['total_demand']['ram']:.0f} GiB")
-    print(f"    GPU: {lp['total_demand']['gpu']:.0f} units")
-
-    print(f"\n  Max single-node capacity (after DaemonSet deduction):")
-    print(f"    CPU: {lp['max_node_cap']['cpu']:.2f} cores")
-    print(f"    RAM: {lp['max_node_cap']['ram']:.2f} GiB")
-    print(f"    GPU: {lp['max_node_cap']['gpu']:.2f} units")
-
-    print(f"\n  ── Homogeneous LP Lower Bound (Coffman-Garey-Johnson 1978) ──")
-    print(f"    L^CPU = ⌈{lp['total_demand']['cpu']:.0f} / {lp['max_node_cap']['cpu']:.2f}⌉ = {lp['per_resource_lb']['cpu']}")
-    print(f"    L^RAM = ⌈{lp['total_demand']['ram']:.0f} / {lp['max_node_cap']['ram']:.2f}⌉ = {lp['per_resource_lb']['ram']}")
-    print(f"    L^GPU = ⌈{lp['total_demand']['gpu']:.0f} / {lp['max_node_cap']['gpu']:.2f}⌉ = {lp['per_resource_lb']['gpu']}")
-    print(f"    L = max(L^r) = {lp['overall_lb']}")
-
-    print(f"\n  ── Heterogeneous Utilization Bound ──")
-    print(f"    ρ^CPU = {het['utilization_ratio']['cpu']:.4f}")
-    print(f"    ρ^RAM = {het['utilization_ratio']['ram']:.4f}")
-    print(f"    ρ^GPU = {het['utilization_ratio']['gpu']:.4f}")
-    print(f"    L_het = max(⌈ρʳ · m⌉) = {het['overall_lb']}")
-
-    # Count active nodes in solution
-    active_nodes = len(set(solution.values()))
-    lb = max(lp["overall_lb"], het["overall_lb"])
-    ratio = active_nodes / lb if lb > 0 else float("inf")
-
-    print(f"\n  Kuberina used: {active_nodes} active nodes")
-    print(f"  Theoretical lower bound: {lb}")
-    print(f"  Approximation ratio α = {active_nodes}/{lb} = {ratio:.4f}")
-
-    if ratio <= 1.0 + 1e-9:
-        print(f"  ══ OPTIMAL (α = 1.0) ══")
-    elif ratio <= 11 / 9 + 1e-9:
-        print(f"  ══ WITHIN FFD GUARANTEE (α ≤ 11/9 ≈ 1.222) ══")
+    real_lb = print_capacity_model("real capacity", nodes, pods)
+    if args.headroom > 0.0:
+        reserved_nodes = reserve_headroom(nodes, args.headroom)
+        label = f"reserved capacity ({args.headroom:.1f}% withheld)"
+        matched_lb = print_capacity_model(label, reserved_nodes, pods)
     else:
-        print(f"  ══ α = {ratio:.4f} — above FFD 1D guarantee, expected for multi-D ══")
+        matched_lb = real_lb
+
+    active_nodes = len(set(solution.values()))
+    print(f"\n  Kuberina used: {active_nodes} active nodes")
+    print(f"    α vs real-capacity bound     = {active_nodes}/{real_lb} = "
+          f"{ratio_or_inf(active_nodes, real_lb):.4f}")
+    if args.headroom > 0.0:
+        print(f"    α vs reserved-capacity bound = {active_nodes}/{matched_lb} = "
+              f"{ratio_or_inf(active_nodes, matched_lb):.4f}")
+        print("\n  The reserved-capacity bound is the comparable one: it is the only")
+        print("  model under which numerator and denominator saw the same cluster.")
+
+    print_ratio_verdict(ratio_or_inf(active_nodes, matched_lb))
 
     # ── Proof 3: Monte Carlo ──────────────────────────────────────────
     print("\n" + "─" * 70)

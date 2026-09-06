@@ -59,6 +59,11 @@ bench-generate-testdata:
 bench-proof:
 	uv run --with pyyaml python bench/mathematical_proof.py
 
+# The reserve must match the one the solver was given, or the optimality bound is
+# computed against a cluster the optimizer never saw. See #8.
+bench-proof-headroom-20:
+	uv run --with pyyaml python bench/mathematical_proof.py --headroom 20
+
 # --- Research (Python reference implementation) -----------------------------
 
 research-homelab:
@@ -92,5 +97,5 @@ full-pipeline: ## Generate testdata -> solve -> inspect -> prove
 
 .PHONY: solver-build solver-test solver-clippy solver-lint solver-fmt \
 	solver-homelab solver-irina solver-irina-headroom-20 \
-	inspector-run bench-generate-testdata bench-proof \
+	inspector-run bench-generate-testdata bench-proof bench-proof-headroom-20 \
 	research-homelab research-irina research-generate-testdata full-pipeline
