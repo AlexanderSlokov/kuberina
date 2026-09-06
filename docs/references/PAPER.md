@@ -348,7 +348,7 @@ This is structural rather than conventional: `reserve_headroom` in `../../solver
 | **Active Nodes** | Number of nodes with ≥1 pod assigned |
 | **Node Reduction** | $(m - \text{active}) / m \times 100\%$ |
 | **Avg CPU Utilization** | Mean of $U_j^{\text{CPU}}$ across active nodes, against real capacity |
-| **Fragmentation** | Total wasted capacity across active nodes: $\sum_{j: y_j=1} \sum_r (C_j^r - \sum_i x_{ij} \cdot \text{req}_i^r)$ |
+| **Fragmentation** | Total wasted capacity across active nodes: $\sum_{j: y_j=1} \sum_r (C_j^r - \sum_i x_{ij} \cdot \text{req}_i^r)$. The solver's scorecard evaluates it over the node set the optimizer was given, so under `--headroom` it is measured against reserved capacity; §7.2 reports it against both. |
 | **Constraint Violations** | Count of capacity, selector, and gang violations, over all eight dimensions |
 | **Scheduling Success** | $\text{placed pods} / \text{total pods} \times 100\%$ |
 | **Utilization Variance** | $\text{Var}(\{U_j^r : y_j = 1\})$ |
@@ -409,7 +409,8 @@ All figures below were produced at commit `1ab1ad7` on a consumer-grade laptop, 
 | **Avg CPU utilization** | 25.0% | 29.6% |
 | **Max node CPU utilization** | 77% | 96% |
 | **Capacity violations (8 dimensions)** | 0 | 0 |
-| **Fragmentation** | 2,299,752.00 | 1,567,313.50 |
+| **Fragmentation** (vs real capacity) | 3,265,407.50 | 1,567,313.50 |
+| **Fragmentation** (vs the capacity each run planned in) | 2,299,752.00 | 1,567,313.50 |
 | **Affinity violations** | 0 | 0 |
 | **Utilization variance** | 0.0383 | 0.0537 |
 | **Topology spread penalty** | 12.00 | 11.00 |
@@ -423,6 +424,8 @@ All figures below were produced at commit `1ab1ad7` on a consumer-grade laptop, 
 - **Reserving 20% costs 76 nodes** (615 active against 539). This is the price of the Resource Canal, stated plainly: headroom and consolidation trade directly against each other, and on this instance headroom consumes almost all of the consolidation.
 - **Lower utilization variance** (0.0383 vs 0.0537) — more evenly balanced nodes, directly analogous to better vessel stability. **No node exceeds 77% CPU**, against 96% under full packing, leaving the burst room Autopilot-style vertical autoscaling needs.
 - **The GA contributes 0.0014%** here (2,305,971.13 → 2,305,938.08), all of it utilization variance (0.0647 → 0.0383). Active nodes sit at 615 from generation 0 to generation 1,000. The reserve raises the per-node ceiling the FFD seed packs against, so the seed already spreads across nearly every node and there is no node left for the GA to empty.
+
+**On the fragmentation rows.** The solver's scorecard computes $f_{\text{frag}}$ over the node set the optimizer was given, which under `--headroom` is the reserved one. Reported that way the headroom run appears to waste *less* than full packing (2,299,752 against 1,567,313), which is an artifact of the smaller denominator and not a better packing. Measured against real capacity the same plan wastes 3,265,407.50, slightly more than twice the full-packing figure. That is the comparable number and the one an operator should read: the reserve is capacity deliberately left empty, and it shows up as waste under any honest accounting. Both rows are given above so the artifact is visible rather than merely avoided.
 
 ### 7.3. Mathematical Verification
 

@@ -239,7 +239,8 @@ because the seed leaves less slack.
 | Active nodes            | 539 / 620    | 615 / 620    |
 | Empty nodes             | 81           | 5            |
 | Avg CPU utilization     | 29.6%        | 25.0%        |
-| Fragmentation           | 1,567,313.50 | 2,299,752.00 |
+| Fragmentation (vs real) | 1,567,313.50 | 3,265,407.50 |
+| Fragmentation (as scored)| 1,567,313.50 | 2,299,752.00 |
 | Utilization variance    | 0.0537       | 0.0383       |
 | Capacity overflow       | 0            | 0            |
 | α (matched model)       | 1.5269       | 1.3946       |
@@ -250,6 +251,14 @@ Reserving 20% costs 76 nodes and buys a flatter cluster: variance falls, no node
 exceeds 77% CPU, and every dimension stays inside real capacity with a fifth of it
 untouched. The two α values are not comparable to each other — each is measured
 against the bound for the capacity its own run was given.
+
+The two fragmentation rows exist for the same reason. The solver scores `f_frag` over
+the node set the optimizer was given, so the headroom run's 2,299,752 is measured
+against reserved capacity and reads as *less* waste than full packing, which it is not.
+Recomputed against real capacity the same plan wastes 3,265,407.50. The replication
+matches the solver exactly on both runs under their own model (1,567,313.50 and
+2,299,752.00), which is what establishes that the difference is the denominator and not
+the arithmetic.
 
 ## Open, not fixed in this session
 
