@@ -12,7 +12,7 @@ use std::time::Instant;
 use clap::{Parser, Subcommand};
 
 use kuberina_solver::fitness::compute_fitness;
-use kuberina_solver::model::{FfdWeights, FitnessWeights, GaConfig};
+use kuberina_solver::model::{FfdWeights, FitnessWeights, GaConfig, Node, ResourceVector};
 use kuberina_solver::parser::{load_infra, load_workloads};
 use kuberina_solver::phase0::pre_deduct_daemonsets;
 use kuberina_solver::phase1_ffd::ffd_warmstart;
@@ -38,9 +38,9 @@ enum Commands {
         /// Workload manifests YAML
         #[arg(long)]
         workloads: String,
-        /// Pareto rule: scale node capacity by this percentage (e.g., 80)
+        /// Reserve this percentage of every node's capacity (e.g., 20 keeps 20% free)
         #[arg(long)]
-        pareto: Option<f64>,
+        headroom: Option<f64>,
     },
 }
 
@@ -51,12 +51,87 @@ fn main() {
         Commands::Plan {
             infra,
             workloads,
-            pareto,
-        } => run_plan(&infra, &workloads, pareto),
+            headroom,
+        } => run_plan(&infra, &workloads, validate_headroom(headroom)),
     }
 }
 
-fn run_plan(infra_path: &str, workloads_path: &str, pareto: Option<f64>) {
+/// Reject a headroom percentage outside `[0, 100)`.
+///
+/// A reserve of 100% or more leaves no capacity to place into, and a negative one
+/// would inflate nodes past their real size.
+///
+/// ```ignore
+/// let pct = validate_headroom(Some(20.0)); // Some(20.0); Some(120.0) exits
+/// ```
+fn validate_headroom(headroom: Option<f64>) -> Option<f64> {
+    let pct = headroom?;
+    if !(0.0..100.0).contains(&pct) {
+        eprintln!("Error: --headroom must be a percentage in [0, 100), got {pct}");
+        std::process::exit(1);
+    }
+    Some(pct)
+}
+
+/// Scale one capacity dimension, leaving unconstrained dimensions untouched.
+///
+/// WHY: only scale constrained dimensions — f64::MAX * 0.8 is still MAX-ish
+/// but could drift. Skip unconstrained dims entirely.
+///
+/// ```ignore
+/// let mut cpu = 64.0;
+/// scale_if_constrained(&mut cpu, 0.8); // 51.2
+/// ```
+fn scale_if_constrained(dimension: &mut f64, factor: f64) {
+    if *dimension < f64::MAX {
+        *dimension *= factor;
+    }
+}
+
+/// Scale every capacity dimension of one node by `factor`.
+///
+/// ```ignore
+/// scale_allocatable(&mut node.allocatable, 0.8);
+/// ```
+fn scale_allocatable(allocatable: &mut ResourceVector, factor: f64) {
+    scale_if_constrained(&mut allocatable.cpu, factor);
+    scale_if_constrained(&mut allocatable.ram, factor);
+    scale_if_constrained(&mut allocatable.gpu, factor);
+    scale_if_constrained(&mut allocatable.storage, factor);
+    scale_if_constrained(&mut allocatable.disk_read, factor);
+    scale_if_constrained(&mut allocatable.disk_write, factor);
+    scale_if_constrained(&mut allocatable.net_in, factor);
+    scale_if_constrained(&mut allocatable.net_out, factor);
+}
+
+/// Build a copy of `nodes` with `headroom_pct` of every capacity withheld.
+///
+/// The optimizer never sees the withheld fraction, which is what makes the reserve
+/// structural rather than a target: no placement it produces can allocate into it.
+///
+/// ```ignore
+/// let reserved = reserve_headroom(&net_nodes, 20.0); // every node keeps 20% free
+/// ```
+fn reserve_headroom(nodes: &[Node], headroom_pct: f64) -> Vec<Node> {
+    let factor = 1.0 - headroom_pct / 100.0;
+    let mut reserved = nodes.to_vec();
+    for node in &mut reserved {
+        scale_allocatable(&mut node.allocatable, factor);
+    }
+    reserved
+}
+
+/// Optimize placement and print the resulting blueprint.
+///
+/// Under `--headroom h`, the FFD warm-start, the fitness function and the GA all
+/// operate on capacities reduced by `h`, while the printed blueprint and every
+/// reported utilization figure use the real post-DaemonSet capacities. Every node in
+/// the output therefore carries at least `h%` of its real capacity unallocated.
+///
+/// ```ignore
+/// run_plan("testdata/homelab_infra.yaml", "testdata/homelab_workloads.yaml", None);
+/// ```
+fn run_plan(infra_path: &str, workloads_path: &str, headroom: Option<f64>) {
     let start = Instant::now();
 
     let (raw_nodes, daemon_sets) = load_infra(infra_path).unwrap_or_else(|e| {
@@ -80,42 +155,23 @@ fn run_plan(infra_path: &str, workloads_path: &str, pareto: Option<f64>) {
     let net_nodes = pre_deduct_daemonsets(&raw_nodes, &daemon_sets);
     print_phase0_summary(&raw_nodes, &net_nodes);
 
-    let mut pareto_nodes = net_nodes.clone();
-    if let Some(p) = pareto {
-        let factor = p / 100.0;
-        eprintln!(
-            "\n[Pareto Mode] Capping node capacities to {:.1}% for placement optimization.",
-            p
-        );
-        for node in &mut pareto_nodes {
-            node.allocatable.cpu *= factor;
-            node.allocatable.ram *= factor;
-            node.allocatable.gpu *= factor;
-            // WHY: only scale constrained dimensions — f64::MAX * 0.8 is still MAX-ish
-            // but could drift. Skip unconstrained dims entirely.
-            if node.allocatable.storage < f64::MAX {
-                node.allocatable.storage *= factor;
-            }
-            if node.allocatable.disk_read < f64::MAX {
-                node.allocatable.disk_read *= factor;
-            }
-            if node.allocatable.disk_write < f64::MAX {
-                node.allocatable.disk_write *= factor;
-            }
-            if node.allocatable.net_in < f64::MAX {
-                node.allocatable.net_in *= factor;
-            }
-            if node.allocatable.net_out < f64::MAX {
-                node.allocatable.net_out *= factor;
-            }
+    let planning_nodes = match headroom {
+        Some(pct) => {
+            eprintln!(
+                "\n[Headroom Mode] Reserving {:.1}% of every node — the optimizer sees {:.1}% of real capacity.",
+                pct,
+                100.0 - pct,
+            );
+            reserve_headroom(&net_nodes, pct)
         }
-    }
+        None => net_nodes.clone(),
+    };
 
     // Phase 1: FFD warm-start (stow heaviest containers first)
     let ffd_weights = FfdWeights::default();
-    let mut seed = ffd_warmstart(&pods, &pareto_nodes, &ffd_weights);
+    let mut seed = ffd_warmstart(&pods, &planning_nodes, &ffd_weights);
     let fitness_weights = FitnessWeights::default();
-    let (fitness, sc) = compute_fitness(&seed, &pods, &pareto_nodes, &groups, &fitness_weights);
+    let (fitness, sc) = compute_fitness(&seed, &pods, &planning_nodes, &groups, &fitness_weights);
     seed.fitness = fitness;
     seed.scorecard = sc.clone();
     eprintln!("Phase 1 (FFD): seed fitness = {:.4}", seed.fitness);
@@ -126,14 +182,15 @@ fn run_plan(infra_path: &str, workloads_path: &str, pareto: Option<f64>) {
     let best = run_ga(
         &seed,
         &pods,
-        &pareto_nodes,
+        &planning_nodes,
         &groups,
         &ga_config,
         &fitness_weights,
     );
 
     let elapsed = start.elapsed().as_secs_f64();
-    // Print the blueprint using the actual net capacities (not pareto-capped)
+    // Print the blueprint against real capacity — the reserve is withheld from the
+    // optimizer, not from the operator reading the result.
     print_blueprint(&best, &pods, &net_nodes, elapsed);
 }
 
@@ -396,4 +453,76 @@ fn print_summary_mode(
         );
     }
     println!();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn node_with(allocatable: ResourceVector) -> Node {
+        Node {
+            name: "n-000".to_string(),
+            allocatable,
+            labels: HashMap::new(),
+            taints: Vec::new(),
+            zone: "us-east-1a".to_string(),
+            rack: "rack-0".to_string(),
+        }
+    }
+
+    #[test]
+    fn validate_headroom_passes_in_range_values() {
+        assert_eq!(validate_headroom(None), None);
+        assert_eq!(validate_headroom(Some(0.0)), Some(0.0));
+        assert_eq!(validate_headroom(Some(20.0)), Some(20.0));
+        assert_eq!(validate_headroom(Some(99.9)), Some(99.9));
+    }
+
+    #[test]
+    fn scale_if_constrained_leaves_unconstrained_dimension_at_max() {
+        let mut unconstrained = f64::MAX;
+        scale_if_constrained(&mut unconstrained, 0.8);
+        assert_eq!(unconstrained, f64::MAX);
+
+        let mut cpu = 64.0;
+        scale_if_constrained(&mut cpu, 0.8);
+        assert!((cpu - 51.2).abs() < 1e-9);
+    }
+
+    #[test]
+    fn scale_allocatable_touches_every_dimension() {
+        let mut v = ResourceVector::new_8d(64.0, 256.0, 8.0, 1000.0, 500.0, 200.0, 1000.0, 1000.0);
+        scale_allocatable(&mut v, 0.5);
+        assert!((v.cpu - 32.0).abs() < 1e-9);
+        assert!((v.ram - 128.0).abs() < 1e-9);
+        assert!((v.gpu - 4.0).abs() < 1e-9);
+        assert!((v.storage - 500.0).abs() < 1e-9);
+        assert!((v.disk_read - 250.0).abs() < 1e-9);
+        assert!((v.disk_write - 100.0).abs() < 1e-9);
+        assert!((v.net_in - 500.0).abs() < 1e-9);
+        assert!((v.net_out - 500.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn reserve_headroom_withholds_the_requested_fraction() {
+        let nodes = vec![node_with(ResourceVector::new_8d(
+            64.0, 256.0, 8.0, 1000.0, 500.0, 200.0, 1000.0, 1000.0,
+        ))];
+        let reserved = reserve_headroom(&nodes, 20.0);
+        assert!((reserved[0].allocatable.cpu - 51.2).abs() < 1e-9);
+        assert!((reserved[0].allocatable.ram - 204.8).abs() < 1e-9);
+        // The source stays untouched: the blueprint is printed against real capacity.
+        assert!((nodes[0].allocatable.cpu - 64.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn reserve_headroom_of_zero_is_the_identity() {
+        let nodes = vec![node_with(ResourceVector::new_8d(
+            64.0, 256.0, 8.0, 1000.0, 500.0, 200.0, 1000.0, 1000.0,
+        ))];
+        let reserved = reserve_headroom(&nodes, 0.0);
+        assert!((reserved[0].allocatable.cpu - 64.0).abs() < 1e-9);
+        assert!((reserved[0].allocatable.net_out - 1000.0).abs() < 1e-9);
+    }
 }

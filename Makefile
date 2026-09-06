@@ -33,11 +33,11 @@ solver-irina:
 	--infra testdata/irina_infra.yaml \
 	--workloads testdata/irina_workloads.yaml
 
-solver-irina-pareto-80:
+solver-irina-headroom-20:
 	cd solver && cargo run --release -- plan \
 	--infra testdata/irina_infra.yaml \
 	--workloads testdata/irina_workloads.yaml \
-	--pareto 80
+	--headroom 20
 
 # --- Inspector (independent validator) -------------------------------------
 
@@ -80,7 +80,7 @@ full-pipeline: ## Generate testdata -> solve -> inspect -> prove
 	cd solver && cargo run --release -- plan \
 		--infra ../research/testdata/irina_infra.yaml \
 		--workloads ../research/testdata/irina_workloads.yaml \
-		--pareto 80
+		--headroom 20
 	@echo "=> Running inspector heatmap & validation..."
 	uv run --with pyyaml python inspector/inspector.py \
 		--infra research/testdata/irina_infra.yaml \
@@ -91,6 +91,6 @@ full-pipeline: ## Generate testdata -> solve -> inspect -> prove
 	@echo "=> Pipeline complete."
 
 .PHONY: solver-build solver-test solver-clippy solver-lint solver-fmt \
-	solver-homelab solver-irina solver-irina-pareto-80 \
+	solver-homelab solver-irina solver-irina-headroom-20 \
 	inspector-run bench-generate-testdata bench-proof \
 	research-homelab research-irina research-generate-testdata full-pipeline
