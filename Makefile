@@ -1,10 +1,37 @@
 # Kuberina — component targets.
 #
 # Four components, four target prefixes:
+#   forge-*      Go frontend and linker, manifests <-> IR (forge/)
 #   solver-*     Rust optimization engine (solver/)
 #   inspector-*  Independent constraint validator + heatmap (inspector/)
 #   bench-*      Testdata generation and formal proofs (bench/)
 #   research-*   Python reference implementation of the 3-phase pipeline (research/)
+
+# --- Forge (Go) ------------------------------------------------------------
+
+# The only component that speaks Kubernetes. A CLI, never a controller: ADR-0001.
+forge-build:
+	go build -o bin/kuberina-forge ./forge/cmd/kuberina-forge
+
+forge-test:
+	go test ./forge/...
+
+forge-lint:
+	gofmt -l forge && go vet ./forge/...
+
+# End-to-end: manifests -> IR -> blueprint -> pinned manifests.
+forge-demo: forge-build solver-build
+	./bin/kuberina-forge in \
+		--out-infra /tmp/kuberina-demo-infra.yaml \
+		--out-workloads /tmp/kuberina-demo-workloads.yaml \
+		forge/testdata/manifests
+	cd solver && cargo run --release -- plan \
+		--infra /tmp/kuberina-demo-infra.yaml \
+		--workloads /tmp/kuberina-demo-workloads.yaml
+	./bin/kuberina-forge out \
+		--blueprint solver/kuberina_solution.yaml \
+		--out /tmp/kuberina-demo-planned \
+		forge/testdata/manifests
 
 # --- Solver (Rust) ---------------------------------------------------------
 
@@ -95,7 +122,8 @@ full-pipeline: ## Generate testdata -> solve -> inspect -> prove
 	uv run --with pyyaml python bench/mathematical_proof.py
 	@echo "=> Pipeline complete."
 
-.PHONY: solver-build solver-test solver-clippy solver-lint solver-fmt \
+.PHONY: forge-build forge-test forge-lint forge-demo \
+	solver-build solver-test solver-clippy solver-lint solver-fmt \
 	solver-homelab solver-irina solver-irina-headroom-20 \
 	inspector-run bench-generate-testdata bench-proof bench-proof-headroom-20 \
 	research-homelab research-irina research-generate-testdata full-pipeline

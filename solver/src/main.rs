@@ -16,7 +16,7 @@ use kuberina_solver::fitness::compute_fitness;
 use kuberina_solver::model::{
     Blueprint, FfdWeights, FitnessWeights, GaConfig, Node, Pod, ResourceVector,
 };
-use kuberina_solver::parser::{load_infra, load_workloads};
+use kuberina_solver::parser::{IR_API_VERSION, KIND_BLUEPRINT, load_infra, load_workloads};
 use kuberina_solver::phase0::pre_deduct_daemonsets;
 use kuberina_solver::phase1_ffd::ffd_warmstart;
 use kuberina_solver::phase2_ga::{GaOutcome, run_ga};
@@ -486,6 +486,15 @@ fn print_blueprint(best: &Blueprint, pods: &[Pod], nodes: &[Node], elapsed: f64,
             "# INFEASIBLE — this assignment exceeds real node capacity.\n             # Written for inspection only. Do not apply. See the solver output.\n",
         );
     }
+    // WHY the header (ADR-0002): `kuberina-forge out` links this file against the
+    // manifests it came from. A bare map of names cannot say what it is, which
+    // version it speaks, or whether it was safe to apply.
+    yaml_out.push_str(&format!(
+        "apiVersion: {IR_API_VERSION}\nkind: {KIND_BLUEPRINT}\nmetadata:\n  feasible: {}\n  pods: {}\n  activeNodes: {}\n",
+        !infeasible,
+        pods.len(),
+        best.scorecard.active_nodes as usize,
+    ));
     yaml_out.push_str("solution:\n");
     for (pod_idx, &node_idx) in best.assignment.iter().enumerate() {
         yaml_out.push_str(&format!(
@@ -743,6 +752,7 @@ mod verdict_tests {
             anti_affinity_targets: Vec::new(),
             group_name: String::new(),
             topology_spread: None,
+            observed: None,
         }
     }
 

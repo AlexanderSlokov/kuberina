@@ -19,35 +19,12 @@ twice. The Borg paper followed Borg by a decade for the same reason.
 
 ---
 
-## Solver (`solver/`)
-
-### S-2 — Make gang IR fields reachable from a workload file
-
-**Issue:** [#9](https://github.com/AlexanderSlokov/kuberina/issues/9) ·
-**ROADMAP:** Phase 1 (v0.3.0)
-
-`PodGroup` carries `min_members` and `colocate` (`solver/src/model.rs:226,228`), the
-CSP layer branches on `colocate` (`csp.rs:98`) and the fitness function penalizes
-`placed < min_members` (`fitness.rs:321`). Neither field can be set from YAML.
-`auto_group_gangs` hardcodes both — `min_members = indices.len()` (`parser.rs:391`) and
-`colocate: false` (`parser.rs:397`) — so partial gang admission and forced co-location
-are unreachable outside unit tests.
-
-This is a stronger statement than issue #9 makes. The machinery is not merely
-unexercised by the benchmark; there is no input that would exercise it.
-
-**Done when:** the IR accepts an explicit `groups:` block carrying `name`, `members`,
-`min_members` and `colocate`, the inline `gang:` shorthand continues to auto-group with
-today's defaults, and parser tests cover `min_members < |G|` and `colocate: true`.
-
----
-
 ## Benchmark and testdata (`bench/`)
 
 ### B-2 — Populate the benchmark with pod groups
 
 **Issue:** [#9](https://github.com/AlexanderSlokov/kuberina/issues/9) ·
-**Depends on:** S-2 · **ROADMAP:** Phase 1 (v0.3.0)
+**ROADMAP:** Phase 1 (v0.3.0)
 
 `bench/gen_irina_testdata.py` contains no gang generation logic, and the MSC Irina
 workload carries zero pod groups. Every published result therefore runs with `|G| = 0`,
