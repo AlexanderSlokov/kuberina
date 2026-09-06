@@ -1,6 +1,6 @@
 import re
 
-with open("research/mathematical_proof.py", "r") as f:
+with open("bench/mathematical_proof.py", "r") as f:
     content = f.read()
 
 # 1. pre_deduct_daemonsets
@@ -138,5 +138,5 @@ content = re.sub(
     flags=re.DOTALL
 )
 
-with open("research/mathematical_proof.py", "w") as f:
+with open("bench/mathematical_proof.py", "w") as f:
     f.write(content)

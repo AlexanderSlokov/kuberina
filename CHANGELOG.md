@@ -5,6 +5,41 @@ All notable changes to the Kuberina project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Component naming disambiguation.** Three distinct artifacts were all named
+  `kuberina`, so which one a bare `kuberina plan` invoked depended on `PATH`
+  ordering. The Rust binary is now `kuberina-solver` (`solver/Cargo.toml`) and the
+  Python reference implementation's console script is now `kuberina-poc`
+  (`research/pyproject.toml`). The importable Python module remains `kuberina`, so
+  `python -m kuberina` and all existing imports are unaffected. The bare name
+  `kuberina` is reserved for `kuberina-forge`, the user-facing CLI planned in v0.3.0.
+- **Repository restructured into four named components.** `research/` was carrying
+  three unrelated responsibilities under a name that implied disposable scratch work.
+  It now holds only the Python reference implementation.
+  - `inspector/` — the independent constraint validator and heatmap dashboard,
+    promoted to a first-class component. It is cited in PAPER.md §6.5 as the external
+    validator behind every published result, and the Kalena interface contract
+    (Appendix C.1) depends on it to detect Phase 0 divergence between the two systems.
+  - `bench/` — MSC Irina testdata generation and the formal feasibility, quality, and
+    significance proofs.
+- **Makefile targets realigned to component prefixes:** `solver-*`, `inspector-*`,
+  `bench-*`, `research-*`. `research-inspect` is now `inspector-run`, and
+  `research-full-pipeline` is now `full-pipeline`. `research-generate-testdata`
+  now writes into `research/testdata/` for the reference implementation; the target
+  that writes into `solver/testdata/` is now `bench-generate-testdata`.
+
+### Fixed
+- `README.md` documented `make solver-inspect`, a target that never existed; the
+  validator target is now correctly referenced as `make inspector-run`.
+- `README.md` linked to `./DESIGN.md`; the file lives at `docs/DESIGN.md`.
+- `docs/DESIGN.md` §1 still described the main engine as Go. The optimization engine
+  has been Rust since v0.1.0; the section now states the actual three-language split
+  and marks the Go forge as planned rather than present.
+- `docs/references/PAPER.md` §6.1 and §6.5 referenced the testdata generator and
+  verification scripts at their pre-move `research/` paths.
+
 ## [0.2.0] - 2026-08-02
 
 ### Added

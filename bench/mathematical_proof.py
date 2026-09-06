@@ -7,7 +7,7 @@ Proves three things:
   3. SIGNIFICANCE — P(random achieves same) ≈ 0 (Monte Carlo).
 
 Usage:
-    uv run --with pyyaml python research/mathematical_proof.py
+    uv run --with pyyaml python bench/mathematical_proof.py
 """
 
 from __future__ import annotations

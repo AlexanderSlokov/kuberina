@@ -1,7 +1,16 @@
-# Kuberina Research — Python MVP (v0.0.0)
+# Kuberina Research — Python reference implementation (v0.0.0)
 
 Proof-of-concept implementation of the Kuberina 3-phase scheduling pipeline,
-validating the mathematical model from the whitepaper.
+validating the mathematical model from the whitepaper before it was ported to the
+Rust solver.
+
+This directory holds **only** the reference implementation. Two things that used to
+live here now have their own components:
+
+| Moved to | What |
+|---|---|
+| `inspector/` | The independent constraint validator and heatmap dashboard |
+| `bench/` | MSC Irina testdata generation and the formal mathematical proofs |
 
 ## Quick Start
 
@@ -12,6 +21,9 @@ uv run python -m kuberina plan \
     --infra testdata/homelab_infra.yaml \
     --workloads testdata/homelab_workloads.yaml
 ```
+
+The console script is installed as `kuberina-poc`, deliberately distinct from the
+Rust engine's `kuberina-solver`, so that having both on `PATH` is unambiguous.
 
 ## Run Tests
 

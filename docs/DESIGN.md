@@ -2,9 +2,16 @@
 
 ## 1. Language & Technology Stack
 
-- POC code for formulas and algorithms in small simulations: Python
-- Main engine and CLI tool implementations: Golang
-- All 2 language will be chosen as latest version available. 
+- **Solver engine (`solver/`): Rust.** The optimization core — FFD, GA, CSP — has been
+  Rust since v0.1.0. The original design intent of writing the engine in Go was
+  reversed during the RIIR effort; see `docs/plans/core/RIIR/`.
+- **Frontend / linker (`kuberina-forge`): Go.** Manifest, Helm, Kustomize, and cloud
+  API ingestion, plus blueprint rendering. Chosen for `client-go` and the Kubernetes
+  ecosystem SDKs. Planned for v0.3.0, not yet implemented.
+- **Verification and research (`inspector/`, `bench/`, `research/`): Python.** The
+  independent validator, the benchmark harness, and the reference implementation of
+  the formulas.
+- All three languages track their latest stable release.
 
 <!-- [Q-Claude] Câu hỏi về tech stack:
   1. Go version target? Go 1.21+ (có slices, slog) hay cần backward compatible?

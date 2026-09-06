@@ -102,7 +102,7 @@ make solver-build
 make solver-irina
 
 # Run the independent validator & heatmap dashboard
-make solver-inspect
+make inspector-run
 ```
 
 Kuberina runs millions of "stowage" scenarios in memory using an evolutionary algorithm (GA). It outputs a stowage plan to the console and generates `kuberina_solution.yaml`. 
@@ -121,8 +121,18 @@ You can then open `kuberina_dashboard.html` in your browser to interactively vie
 | Document | Audience | Description |
 |---|---|---|
 | [PAPER.md](docs/references/PAPER.md) | Researchers, reviewers | Full research paper: mathematical foundation, problem formulation, experimental results |
-| [DESIGN.md](./DESIGN.md) | Contributors, maintainers | Software design document: architecture, data model, CLI design, testing strategy |
-| `research/` | Algorithm developers | Python POC code for formulas and algorithms in small simulations |
+| [DESIGN.md](docs/DESIGN.md) | Contributors, maintainers | Software design document: architecture, data model, CLI design, testing strategy |
+| [ROADMAP.md](ROADMAP.md) | Everyone | Planned milestones: `kuberina-forge`, hexagonal refactor, distributed solving |
+
+## 🧭 Repository layout
+
+| Path | Component | Language | Description |
+|---|---|---|---|
+| `solver/` | `kuberina-solver` | Rust | The optimization engine. FFD warm-start → genetic algorithm → CSP repair, over an 8-dimensional MDBP model |
+| `inspector/` | Inspector | Python | Independent constraint validator and heatmap dashboard. Shares no code with the solver, which is what makes its verdict meaningful |
+| `bench/` | Benchmarks | Python | MSC Irina testdata generation and the formal feasibility / quality / significance proofs |
+| `research/` | Reference implementation | Python | Proof-of-concept of the 3-phase pipeline, used to validate the mathematical model before porting to Rust |
+| `main.go` | `kuberina-forge` | Go | *Placeholder stub.* The forge — manifest and cloud-state ingestion into Kuberina IR, plus rendering the blueprint back out — is scheduled for v0.3.0 and not yet implemented |
 
 
 

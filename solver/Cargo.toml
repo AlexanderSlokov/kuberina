@@ -6,7 +6,7 @@ description = "Maritime stowage-inspired K8s scheduling optimizer — Rust solve
 authors = ["Aleksandr Slokov <thanhzeus2016@gmail.com>"]
 
 [[bin]]
-name = "kuberina"
+name = "kuberina-solver"
 path = "src/main.rs"
 
 [dependencies]
