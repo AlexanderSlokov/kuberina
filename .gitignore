@@ -27,3 +27,6 @@ go.work.sum
 *.html
 solver/kuberina_solution.yaml
 /.idea
+
+# Compiled Go binaries (make forge-build)
+/bin

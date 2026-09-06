@@ -182,6 +182,7 @@ pub struct Node {
 /// assert_eq!(ts.max_skew, 1);
 /// ```
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TopologySpread {
     #[serde(default = "default_max_skew", rename = "maxSkew")]
     pub max_skew: usize,
@@ -191,6 +192,31 @@ pub struct TopologySpread {
 
 fn default_max_skew() -> usize {
     1
+}
+
+/// Steady-state usage a pod was observed to consume, as opposed to what it requests.
+///
+/// Optional throughout (IR v1, issue #13). Absent, the solver behaves exactly as it
+/// did before the block existed — nothing in the packing model reads it yet. It is
+/// carried so that a producer of telemetry can record it on the same terms as every
+/// other input: a file the operator reviews, not a metrics endpoint the planner polls.
+///
+/// Every percentile uses the same 8-dimensional shape as `requests`, and parses
+/// through the same quantity handling, so `ram: "512Mi"` means what it always means.
+#[derive(Debug, Clone, Default)]
+pub struct ObservedUsage {
+    /// Retention period the statistics summarize, verbatim, e.g. `720h`.
+    pub window: String,
+    pub p50: Option<ResourceVector>,
+    pub p95: Option<ResourceVector>,
+    pub p99: Option<ResourceVector>,
+    pub peak: Option<ResourceVector>,
+    /// Fraction of the window the pod spent above its own request, in [0, 1].
+    ///
+    /// WHY it is not derivable from the percentiles: a workload whose p99 sits well
+    /// below its request but which occasionally exceeds it entirely is mis-sized
+    /// rather than over-provisioned, and the two want different responses.
+    pub exceeded_request_fraction: f64,
 }
 
 /// A Kubernetes pod to be scheduled.
@@ -211,6 +237,9 @@ pub struct Pod {
     pub group_name: String,
     /// Topology spread constraint (soft penalty in v0.2.0).
     pub topology_spread: Option<TopologySpread>,
+    /// Steady-state usage, when a producer supplied it. Not read by the packing
+    /// model; see `ObservedUsage` and issue #13.
+    pub observed: Option<ObservedUsage>,
 }
 
 /// Gang-scheduled pod group — all-or-nothing placement.

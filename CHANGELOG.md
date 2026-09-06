@@ -8,6 +8,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`kuberina-forge`, the Go frontend and linker, is real.** The repository root no
+  longer holds a seven-line stub; `forge/` holds a working CLI with two commands.
+  `kuberina-forge in` reads Kubernetes manifests — files, directories, or stdin — and
+  emits Kuberina IR: Nodes and DaemonSets become the infrastructure document,
+  Deployments, StatefulSets, ReplicaSets, Jobs and bare Pods become workload
+  declarations. Container requests are summed the way the kubelet sums them, Kubernetes
+  quantities are converted to IR units (`2Ti` → 2048 GiB, `16000m` → 16 cores),
+  `nvidia.com/gpu` and friends map onto the GPU dimension, and `podAffinity`
+  `matchLabels` selectors are resolved into the `namespace/name` identities the solver
+  works in. A selector it cannot express — `matchExpressions` — is reported rather than
+  dropped. Reading stdin is what puts Helm and Kustomize in reach without linking
+  either: `helm template ./chart | kuberina-forge in -`.
+  `kuberina-forge out` links a blueprint back onto the manifests it was planned from,
+  writing them out unchanged except for a required `nodeAffinity` restricting each
+  workload to the nodes its replicas were planned onto. It refuses a blueprint the
+  solver marked infeasible, one whose entries do not match the given manifests, and one
+  whose own metadata disagrees with its body. Your manifests survive intact — images,
+  env, probes, and any field Kuberina does not model are preserved, because the linker
+  edits the document tree rather than re-serializing a lossy view of it. (#7)
+- **Kuberina IR v1 is declared, with a normative specification.**
+  `docs/references/ir-v1.md` states every field of every document kind, its type, unit,
+  default, and whether it is required; where an implementation disagrees with it, the
+  implementation has the bug. Documents now identify themselves with
+  `apiVersion: kuberina.io/v1` and a `kind` — optional on input for older files, always
+  written on output — and an `apiVersion` the binary does not implement is a parse
+  error rather than a guess. `deny_unknown_fields` extends from the resource block to
+  every IR structure, so a typo or a stale field name fails at parse time with the
+  offending key named. Blueprints gain the same header plus a `metadata` block
+  recording feasibility, pod count and active nodes, which is what lets the forge check
+  a plan before acting on it. The stability contract — additive-only evolution inside
+  v1, breaking changes to v2 — is [ADR-0002](docs/explanation/adr/0002-kuberina-ir-v1-stability-contract.md).
+- **Explicit pod groups in the IR.** A `groups:` block declares a gang directly,
+  carrying `name`, `members`, `min_members`, `colocate` and `nodeSelector`. Members name
+  declarations as `namespace/name` and every replica joins. `min_members` and
+  `colocate` were branched on by the CSP layer and the fitness function but no input
+  file could set either, so partial gang admission and forced co-location were
+  unreachable outside unit tests. The inline `gang:` shorthand keeps working with its
+  existing defaults, an explicit declaration wins over it, and a pod claimed by two
+  groups is an error. (#9)
+- **Optional `observed` usage block in the IR.** A per-pod record of steady-state
+  consumption — `window`, `p50`/`p95`/`p99`/`peak` in the same eight-dimensional shape
+  as `requests`, and `exceeded_request_fraction` — parsed and carried but not yet packed
+  against. Absent, behavior is byte-identical to before. It exists so any producer of
+  telemetry can record usage on the same terms as every other input: a file the
+  operator reviews, not an endpoint the planner polls. (#13)
+- **Architecture decision records**, under `docs/explanation/adr/`.
+  [ADR-0001](docs/explanation/adr/0001-go-component-is-a-cli.md) settles a
+  contradiction the repository had carried in writing: `preplan.md` described an
+  in-cluster controller while ROADMAP Phase 3 forbids a planner that re-plans itself.
+  The Go component is a CLI with no control loop, no cluster writes, and no
+  self-triggered re-planning; the operator concern moves to the Kuberina Integration
+  Platform, a separate closed-source repository that talks to this one through the IR
+  like any other producer.
 - **Explicit feasibility verdict and exit codes for the solver.** A plan that does not
   fit is no longer printed under the heading "Final Blueprint" with exit code 0. The
   solver now classifies its result against real capacity first and the reserve second,

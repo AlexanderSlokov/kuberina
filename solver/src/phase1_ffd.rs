@@ -74,6 +74,7 @@ fn capacity_share(demand: f64, max_capacity: f64) -> f64 {
 ///     anti_affinity_targets: vec![],
 ///     group_name: String::new(),
 ///     topology_spread: None,
+///     observed: None,
 /// };
 /// // Against a cluster whose biggest node is 64 CPU / 256 RAM / 8 GPU:
 /// let scale = ResourceVector::new(64.0, 256.0, 8.0);
@@ -124,6 +125,7 @@ pub fn compute_node_loads(
 ///     anti_affinity_targets: vec![],
 ///     group_name: String::new(),
 ///     topology_spread: None,
+///     observed: None,
 /// }];
 /// let nodes = vec![Node {
 ///     name: "n1".into(), allocatable: ResourceVector::new(4.0, 16.0, 0.0),
@@ -206,6 +208,7 @@ mod tests {
             anti_affinity_targets: vec![],
             group_name: String::new(),
             topology_spread: None,
+            observed: None,
         }
     }
 

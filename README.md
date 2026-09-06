@@ -56,19 +56,31 @@ Today, `kube-scheduler` makes placement decisions inside a black box. No one rev
 
 Kuberina changes this by producing a **reviewable blueprint** — a concrete YAML artifact that your team can open, inspect, challenge, and iterate on:
 
+```bash
+# 1. Compile your manifests down to Kuberina IR.
+#    Helm and Kustomize users pipe their rendered output in:
+#      helm template ./chart | kuberina-forge in --out-workloads workloads.yaml -
+kubectl get nodes -o yaml > nodes.yaml
+kuberina-forge in ./k8s nodes.yaml \
+    --out-infra infra.yaml --out-workloads workloads.yaml
+
+# 2. Plan. The blueprint is a file, not a mutation.
+kuberina-solver plan --infra infra.yaml --workloads workloads.yaml
+#    → kuberina_solution.yaml
+
+# 3. Team review:
+#      "Move Loki to Node 4, it's stressing frontend disk I/O."
+#      "Rejected — Node 4 has Redis, kernel tuning conflict. Add a rule instead."
+#    Edit the IR, re-plan, repeat until consensus.
+
+# 4. Link the agreed blueprint back onto your manifests, then apply.
+kuberina-forge out --blueprint kuberina_solution.yaml --out ./planned ./k8s
+kubectl apply -f ./planned      # Peer-reviewed. Mathematically grounded.
 ```
-# A typical Kuberina workflow:
-kuberina plan → blueprint.yaml          # 10 seconds
 
-# Team review:
-"Move Loki to Node 4, it's stressing frontend disk I/O."
-"Rejected — Node 4 has Redis, kernel tuning conflict. Add a rule instead."
-
-kuberina plan → blueprint-v2.yaml       # 10 seconds
-# Repeat until consensus.
-
-kubectl apply -f blueprint-final.yaml   # Peer-reviewed. Mathematically grounded.
-```
+Step 4 writes your own manifests back out untouched except for a required
+`nodeAffinity` pinning each workload to the nodes it was planned onto. Nothing in this
+pipeline talks to your cluster: every step reads files and writes files.
 
 This is the same paradigm shift that **Git** brought to code (reviewable diffs instead of FTP uploads) and **Terraform** brought to infrastructure (`terraform plan` instead of clicking in the AWS console). Kuberina brings it to **Kubernetes scheduling**: every pod placement is computed by combinatorial optimization, written down, and open to debate.
 
@@ -132,7 +144,7 @@ You can then open `kuberina_dashboard.html` in your browser to interactively vie
 | `inspector/` | Inspector | Python | Independent constraint validator and heatmap dashboard. Shares no code with the solver, which is what makes its verdict meaningful |
 | `bench/` | Benchmarks | Python | MSC Irina testdata generation and the formal feasibility / quality / significance proofs |
 | `research/` | Reference implementation | Python | Proof-of-concept of the 3-phase pipeline, used to validate the mathematical model before porting to Rust |
-| `main.go` | `kuberina-forge` | Go | *Placeholder stub.* The forge — manifest and cloud-state ingestion into Kuberina IR, plus rendering the blueprint back out — is scheduled for v0.3.0 and not yet implemented |
+| `forge/` | `kuberina-forge` | Go | The frontend and linker. `forge in` converts Kubernetes manifests to Kuberina IR; `forge out` applies a blueprint back onto them as node affinity. A CLI, never a controller — see [ADR-0001](docs/explanation/adr/0001-go-component-is-a-cli.md) |
 
 
 
