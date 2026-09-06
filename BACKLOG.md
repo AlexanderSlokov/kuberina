@@ -44,7 +44,8 @@ today's defaults, and parser tests cover `min_members < |G|` and `colocate: true
 
 ### S-3 — Give early stopping an improvement threshold
 
-**Issue:** none yet — file one · **ROADMAP:** Phase 1 (v0.3.0)
+**Issue:** [#20](https://github.com/AlexanderSlokov/kuberina/issues/20) ·
+**ROADMAP:** Phase 1 (v0.3.0)
 
 `stale_count` resets whenever the best fitness improves at all, including by ~0.0003 in
 absolute terms. On the MSC Irina benchmark neither configuration ever triggers the
