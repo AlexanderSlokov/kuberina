@@ -206,17 +206,3 @@ reference or write the appendix — but the appendix can only be written once th
 contract exists, which is Phase 3 work.
 
 **Done when:** the citation either points at a section that exists or is removed.
-
----
-
-## White paper (`docs/references/PAPER.md`)
-
-**Empty.** W-1 through W-4 shipped on 2026-09-06: §6 and §7 were regenerated from the
-run at commit `1ab1ad7`, the approximation ratio is now reported against a matching
-capacity model, the feasibility proof and LP bounds cover all eight dimensions, and the
-dual-capacity model behind `--headroom` is documented in §6.2. See `CHANGELOG.md` under
-`[Unreleased]`, and `docs/references/sessions/2026-09-06-solver-audit.md` for the
-measurements.
-
-The ordering rule stated above stands for the next round: the paper reports on the
-repository and is worked last.
