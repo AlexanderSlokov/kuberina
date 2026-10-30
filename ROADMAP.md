@@ -1,19 +1,30 @@
 # Kuberina Roadmap
 
-This document outlines the strategic development path for Kuberina. The roadmap is structured around major architectural milestones aimed at evolving the project into a comprehensive, distributed Kubernetes scheduling orchestrator.
+This document outlines the development path for Kuberina. It is structured around major architectural milestones.
 
 ## Phase 1: Kuberina Forge & Hexagonal Architecture (v0.3.0)
 
 **Goal:** Evolve Kuberina into a complete compiler pipeline (analogous to `rustc` emitting LLVM IR) and isolate the core solver domain.
 
-- **`kuberina-forge` (Go CLI):** The frontend "Forge" component. Scope is fixed by [ADR-0001](docs/explanation/adr/0001-go-component-is-a-cli.md): a command, never a controller. The in-cluster operator belongs to the Kuberina Integration Platform (KIP), a separate closed-source repository.
-  - *Forge-in (Frontend):* Ingest Kubernetes manifests from files, directories or stdin and emit standardized Kuberina IR. Helm and Kustomize are served by the pipe — `helm template | kuberina-forge in -` — rather than by linking them. **Shipped.**
-  - *Forge-out (Backend/Linker):* Consume the solver's blueprint and render the original manifests back out, pinned to their planned nodes with a required `nodeAffinity`. **Shipped.**
-  - *Native Helm and Kustomize rendering:* an optional convenience over the pipe, deferred until operators ask for it. Cloud API state (AWS, GCP) ingestion likewise.
-- **Hexagonal Architecture Refactor:** Restructure the `kuberina-solver` (Rust) codebase utilizing Ports and Adapters. This will fully decouple the Domain Core (FFD, GA, CSP) from edge I/O concerns (Parsers, File Writers).
-- **CLI and IR Surface Stabilization.** Breaking changes to the interfaces operators write against belong at a release boundary, and v0.3.0 is the last one before `kuberina-forge` fixes them in place. The surface is now written down normatively in [`docs/references/ir-v1.md`](docs/references/ir-v1.md) and governed by [ADR-0002](docs/explanation/adr/0002-kuberina-ir-v1-stability-contract.md).
-  - *Rename `--pareto p` to `--headroom h`:* the flag reserves capacity headroom; it names neither a Pareto front nor an 80/20 distributional claim, and `--pareto 80` reserving 20% reads backwards. The direction of the number inverts with the name. **Shipped.**
-  - *Explicit pod groups in the IR:* a `groups:` block makes `min_members` and `colocate` reachable from a workload file, so partial gang admission and forced co-location are expressible. **Shipped.**
+### 1. `kuberina-forge` (Go CLI) 
+
+The frontend "Forge" component. Scope is fixed by [ADR-0001](docs/explanation/adr/0001-go-component-is-a-cli.md). The in-cluster operator belongs to the Kuberina Integration Platform (KIP), a separate closed-source repository.
+
+[x] *Forge-in (Frontend):* Ingest Kubernetes manifests from files, directories or stdin and emit standardized Kuberina IR. Helm and Kustomize are served by the pipe — `helm template | kuberina-forge in -`
+
+[x] *Forge-out (Backend/Linker):* Consume the solver's blueprint and render the original manifests back out, pinned to their planned nodes with a required `nodeAffinity`.
+
+[x] Rename `--pareto p` to `--headroom h`.
+
+[x] *Explicit pod groups in the IR:* a `groups:` block makes `min_members` and `colocate` reachable from a workload file, so partial gang admission and forced co-location are expressible.
+
+
+[ ] *Hexagonal Architecture Refactor:* Restructure the `kuberina-solver` (Rust) codebase utilizing Ports and Adapters. This will fully decouple the Domain Core (FFD, GA, CSP) from edge I/O concerns (Parsers, File Writers).
+
+[ ] *CLI and IR Surface Stabilization.* Breaking changes to the interfaces operators write against belong at a release boundary, and v0.3.0 is the last one before `kuberina-forge` fixes them in place. The surface is now written down normatively in [`docs/references/ir-v1.md`](docs/references/ir-v1.md) and governed by [ADR-0002](docs/explanation/adr/0002-kuberina-ir-v1-stability-contract.md).
+
+[ ] *Native Helm and Kustomize rendering:* an optional convenience over the pipe, deferred until operators ask for it. Cloud API state (AWS, GCP) ingestion likewise.
+
   - *Optional `observed` usage block:* an additive per-pod record of steady-state consumption (percentiles, peak, and the fraction of the window spent above request), in the existing 8-dimensional vector shape. Absent, behavior is unchanged. **Schema shipped**; packing against it (`--pack-against p95`) remains a separate decision, to be made once real data exists.
 
 - **Search Quality and Termination.** The optimizer's own search behavior, as distinct from the interfaces around it.
@@ -32,15 +43,20 @@ This document outlines the strategic development path for Kuberina. The roadmap 
   - Transmit IR via gRPC to localized/on-premise `kuberina-solver` instances where heavy Genetic Algorithm computations run at zero cloud cost.
   - Stream the final optimal `blueprint` back to the cloud for execution, maximizing operational security and minimizing compute expenditure.
 
+[ ] **External Validation on Production Traces** ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24)). Benchmark Kuberina against published schedulers on a real production trace.
+  - Plan: `docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`.
+  - *Alibaba `cluster-trace-gpu-v2023`:* compare with FGD and its baselines in the FGD authors' simulator, after reproducing FGD's published result.
+  - *Per-device GPU model:* a fractional GPU request must fit on a single device.
+  - *Admission:* the solver can leave pods unplaced when demand exceeds capacity.
+  - *Later traces:* `cluster-trace-gpu-v2026`, then `cluster-trace-v2018`.
+
 ## Phase 3: Kalena Interoperability (v0.5.0)
 
-**Goal:** Close the loop between static planning and runtime reclamation. Kuberina and Kalena are a decoupled pair — each runs and ships on its own, neither requires the other to be present — but where their responsibilities meet, they are obliged to interoperate on a stated contract rather than on assumptions about each other's internals.
+**Goal:** Kuberina plans where work goes, and Kalena reclaims unused capacity at runtime. Each ships independently and exchanges data with the other through a documented contract.
 
-Kuberina decides *where work should go* before anything is deployed. Kalena reclaims *what work is not using* while it runs. The two answer different questions over the same cluster, and each is more useful when it can see the other's output.
+- **Shared Phase 0 capacity contract:** both systems compute allocatable capacity after DaemonSet overhead with the same rules, and `inspector/` checks both.
+- **Runtime telemetry as `observed`:** Kuberina reads Kalena's usage statistics from a file.
+- **Drift-triggered re-planning:** operators set a threshold on request-versus-observed divergence that triggers a new plan (PAPER §8.1).
+- **Divergence in the dashboard:** the inspector shows per-node divergence alongside the utilization heatmap.
 
-- **Shared Phase 0 Capacity Contract.** Both systems compute allocatable capacity after DaemonSet overhead, and a divergence between them is a silent correctness failure: Kuberina would plan against capacity Kalena does not believe exists. `inspector/` is the arbiter — it already re-derives Phase 0 from scratch without sharing code with the solver, which is exactly the property a cross-system check needs. Specify the contract, then have the inspector verify both sides against it.
-- **Runtime Telemetry as `observed`.** Kalena produces steady-state usage statistics as a byproduct of reclamation. Kuberina consumes them through the Phase 1 `observed` block — as a file, on the same terms as every other input. Kuberina must not poll a metrics endpoint or re-plan itself: the blueprint's value rests on being a reviewed artifact, and a planner that silently regenerates from live metrics gives that up.
-- **Drift-Triggered Re-planning.** With `observed` present, the divergence between what pods reserve and what they use is computable directly from the IR — per pod, and as a cluster-wide mean. That makes the event-driven re-planning trigger described in PAPER §8.1 a threshold an operator can actually set, rather than an aspiration requiring a separate telemetry pipeline to define.
-- **Divergence Reporting in the Dashboard.** The inspector reports request-versus-observed divergence per node alongside the existing utilization heatmap, so blueprint staleness is visible in the tool operators already open.
-
-**Non-goal:** a merged product. Neither system gains a hard dependency on the other. A Kuberina user who never runs Kalena sees no change in behavior, and vice versa.
+**Non-goal:** merging the two products. Each keeps working on its own.

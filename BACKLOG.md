@@ -78,6 +78,22 @@ and that decision waits for real data.
 
 ---
 
+## External validation on the Alibaba GPU trace
+
+**Issue:** [#24](https://github.com/AlexanderSlokov/kuberina/issues/24) ·
+**ROADMAP:** Phase 2 (v0.4.0) · **Plan:** `docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`
+
+| ID | Task | Touches | Depends on | Done when |
+|---|---|---|---|---|
+| X-1 | Calibrate the FGD simulator | `docs/references/sessions/` | — | Seed-42 FGD at 130% within ±0.5 pt of published |
+| X-2 | Trace adapter | `bench/alibaba/` | X-1 | Emitted GPU demand equals the simulator's logged arrivals |
+| X-3 | Per-device GPU model | `ir-v1.md`, `solver/src/`, `inspector/`, `forge/internal/ir/` | — | 0.5-GPU pod rejected on 8×60%-used devices by solver and inspector; Irina FFD fitness unchanged |
+| X-4 | Admission (unplaced pods) | `ir-v1.md` §4, `solver/src/`, `inspector/`, `forge/internal/forgeout/` | X-3 | 130% fixture gives a feasible blueprint with `unplaced:` |
+| X-5 | Scale check | `docs/references/sessions/` | X-2, X-4 | Measured wall clock and memory for one full solve |
+| X-6 | Experiments E1–E5 | `bench/alibaba/`, `docs/references/sessions/` | X-5 | One session record per experiment, seeds 42–51 |
+
+---
+
 ## Documentation (`README.md`, `docs/DESIGN.md`, component READMEs)
 
 ### D-1 — Declare the `uv` prerequisite
