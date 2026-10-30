@@ -1,0 +1,6 @@
+2138.10 s wall, 2423960 KB maxrss
+exit=0 :: xperiments/2023_0511/openb_pod_list_default/05-BestFit/1.3/4
+2163.65 s wall, 2813508 KB maxrss
+exit=0 :: xperiments/2023_0511/openb_pod_list_default/06-FGD/1.3/42" &
+2294.25 s wall, 3224012 KB maxrss
+exit=0 :: xperiments/2023_0511/openb_pod_list_default/01-Random/1.3/42

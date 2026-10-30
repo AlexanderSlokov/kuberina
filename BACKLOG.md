@@ -47,6 +47,48 @@ Blocked by S-2: there is no IR syntax to express any of this yet.
 
 ## Intermediate representation and Kalena interoperability
 
+### K-2 — Honor Kubernetes topology keys in topology spread
+
+**Found:** 2026-10-31, while writing the first tutorial, at commit `c15a04c`.
+
+The `kuberina-forge in` tool copies `topologyKey` verbatim, so a Deployment that
+spreads by zone arrives in the IR as `topologyKey: topology.kubernetes.io/zone`. The
+`compute_topology_spread_penalty` function (`solver/src/fitness.rs`) recognizes only
+`zone` and `rack`, and scores every other key as zero. On `forge/testdata/manifests`,
+the solver places both `trainer` replicas on `gpu-b` in zone `az-2`, leaves the eligible
+`gpu-a` in zone `az-1` empty, and reports a topology spread penalty of 0.00. The
+declared `maxSkew` is 1 and the actual skew is 2. `docs/references/ir-v1.md` does not
+state which keys are valid, and `inspector/inspector.py` does not check spread.
+
+**Touches:** `docs/references/ir-v1.md` §3, `forge/internal/forgein/convert.go` or
+`solver/src/fitness.rs`, `inspector/inspector.py`.
+**Done when:** the IR specification lists the accepted keys, a spread on
+`topology.kubernetes.io/zone` from a manifest is scored against node zones, a regression
+test covers the `forge/testdata` case, and the inspector reports skew per spread group.
+
+### K-3 — Make the MSC Irina testdata and the inspector read IR v1
+
+**Found:** 2026-10-31, at commit `c15a04c`.
+
+`solver/testdata/irina_workloads.yaml` carries a top-level `pods:` list (line 719) next
+to `namespaces:`. The generator writes it for the inspector. IR v1 rejects unknown keys,
+so `make solver-irina` fails before planning:
+
+```console
+Error loading workloads: YAML parse error in testdata/irina_workloads.yaml: unknown field `pods`, expected one of `apiVersion`, `kind`, `namespaces`, `groups` at line 719 column 1
+```
+
+The inspector reads only `pods:`, so it fails on every workloads file that
+`kuberina-forge in` writes (`KeyError: 'pods'`). The benchmark and the validator are both
+unusable at this commit, and no test caught the break.
+
+**Touches:** `bench/gen_irina_testdata.py`, `solver/testdata/irina_workloads.yaml`,
+`research/testdata/irina_workloads.yaml`, `inspector/inspector.py`, `solver/tests/`.
+**Done when:** the generator writes IR v1 with no `pods:` key; the inspector unrolls
+`namespaces:` replicas by the rules in `ir-v1.md` §3.1; `make solver-irina` and
+`make inspector-run` both succeed; a test parses every committed testdata file; and the
+inspector validates the blueprint from `forge/testdata/manifests`.
+
 ### K-1 — Optional `observed` usage block in the workload IR
 
 **Issue:** [#13](https://github.com/AlexanderSlokov/kuberina/issues/13) ·
@@ -85,8 +127,7 @@ and that decision waits for real data.
 
 | ID | Task | Touches | Depends on | Done when |
 |---|---|---|---|---|
-| X-1 | Calibrate the FGD simulator | `docs/references/sessions/` | — | Seed-42 FGD at 130% within ±0.5 pt of published |
-| X-2 | Trace adapter | `bench/alibaba/` | X-1 | Emitted GPU demand equals the simulator's logged arrivals |
+| X-2 | Trace adapter | `bench/alibaba/` | — | Emitted GPU demand equals the simulator's logged arrivals |
 | X-3 | Per-device GPU model | `ir-v1.md`, `solver/src/`, `inspector/`, `forge/internal/ir/` | — | 0.5-GPU pod rejected on 8×60%-used devices by solver and inspector; Irina FFD fitness unchanged |
 | X-4 | Admission (unplaced pods) | `ir-v1.md` §4, `solver/src/`, `inspector/`, `forge/internal/forgeout/` | X-3 | 130% fixture gives a feasible blueprint with `unplaced:` |
 | X-5 | Scale check | `docs/references/sessions/` | X-2, X-4 | Measured wall clock and memory for one full solve |
@@ -95,21 +136,6 @@ and that decision waits for real data.
 ---
 
 ## Documentation (`README.md`, `docs/DESIGN.md`, component READMEs)
-
-### D-1 — Declare the `uv` prerequisite
-
-**Issue:** [#6](https://github.com/AlexanderSlokov/kuberina/issues/6)
-
-The README walkthrough runs three commands. The first two need Rust; `make
-inspector-run` needs `uv`, and nothing says so. It is the step that produces
-`kuberina_dashboard.html`, which the next line tells the reader to open, so a reader
-without `uv` fails at the payoff.
-
-**Done when:** a Prerequisites block precedes the walkthrough (Rust for `solver-*`;
-`uv` for `inspector-*`, `bench-*`, `research-*`; both for `full-pipeline`), each
-command is annotated with what it needs, and the README states that `inspector-*` and
-`bench-*` provision dependencies ad hoc via `uv run --with pyyaml` while `research-*`
-runs against the locked environment in `research/pyproject.toml`.
 
 ### D-2 — Close the requests-versus-limits question
 
@@ -136,35 +162,6 @@ role.
 to pack against them but to report per-node burst exposure — `Σ(limit − request)` over
 the pods placed on each node — which tells an operator which nodes are most exposed to
 runtime overcommit without changing the packing model.
-
-### D-3 — Restate Core Features as what exists, and add Non-Goals
-
-**Issues:** [#14](https://github.com/AlexanderSlokov/kuberina/issues/14),
-[#7](https://github.com/AlexanderSlokov/kuberina/issues/7)
-
-Two claims in the README describe `kuberina-forge`, which is scheduled for v0.3.0 and
-does not exist:
-
-- "Auto-Inject Constraints" (`README.md:82`) promises `NodeSelector`, `PodAffinity`,
-  `PodAntiAffinity` and `Tolerations` written into an output YAML. The solver emits a
-  flat `namespace/pod: node` map. Affinity and toleration data flows *into* the solver
-  (`parser.rs:93-125`) and is consumed by the CSP and fitness layers; nothing is
-  written back out.
-- The workflow example (`README.md:61-70`) runs `kuberina plan → blueprint.yaml` and
-  ends in `kubectl apply -f blueprint-final.yaml`. `main.go` prints one line, and the
-  solver writes `kuberina_solution.yaml`, not `blueprint.yaml`. The current output
-  would be rejected as an unrecognized resource.
-
-The repository-layout table already labels `main.go` as a placeholder stub, so the two
-halves of the README disagree with each other.
-
-**Done when:** the feature is restated as constraint-aware placement over a
-pod-to-node assignment map with manifest rendering named as forge work; the workflow
-snippet is kept but labeled as the target UX with a pointer to what runs today; the
-artifact name is reconciled in both directions; and a Non-Goals section states that
-Kuberina is not a runtime scheduler, does not replace `kube-scheduler`, does not handle
-autoscaling, and does not yet render manifests. The `[Q-Claude]` note at `README.md:86`
-already proposes exactly this section.
 
 ### D-4 — Resolve the dangling `Appendix C.1` citation
 

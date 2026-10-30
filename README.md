@@ -2,13 +2,203 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21582492.svg)](https://doi.org/10.5281/zenodo.21582492)
 
-Kuberina is a CLI tool that uses maritime stowage optimization mathematics to generate pre-deployment scheduling blueprint for heterogeneous Kubernetes clusters.
+Kuberina is a command-line tool that plans where Pods run in a heterogeneous Kubernetes
+cluster before you deploy them. It reads your node inventory and workload manifests,
+searches for a placement that fits the Pods onto as few nodes as possible while it
+respects their constraints, and writes the result to a file that your team can review.
 
-Inspired by how supercomputers solve the stowage planning problem for *MSC Irina*, Kuberina applies combinatorial optimization mathematics to pack Pods tightly into a non-standard K8s infrastructure (CPU, RAM, GPU mixed) before you actually run them.
+To try it on a three-node sample cluster, follow
+[Plan your first cluster](docs/tutorials/plan-your-first-cluster.md).
 
----
+The method comes from maritime stowage planning: the problem of loading cargo onto a
+container ship such as the *MSC Irina*. Kuberina treats nodes as holds and Pods as
+cargo, and solves placement as a constrained, multi-dimensional bin packing problem.
 
-# Licensing Roadmap
+## Why you need Kuberina
+
+The default Kubernetes scheduler, `kube-scheduler`, places each Pod when it arrives,
+within milliseconds, and without knowledge of the Pods that arrive after it. On a cluster that mixes CPU, memory, and GPU
+nodes, these one-at-a-time decisions fragment capacity: free resources end up spread
+across many nodes in amounts too small for the next workload to use.
+
+These decisions also leave no record. For example, if one node runs at 98% CPU and
+another at 15%, no document explains how the cluster reached that state.
+
+Kuberina plans the placement of all Pods together, ahead of deployment, and writes the
+plan to a file. You can read the plan, discuss it, change the inputs, and plan again
+before anything reaches the cluster.
+
+## What Kuberina provides
+
+- **Placement across eight resource dimensions.** Kuberina packs Pods against CPU,
+  memory, GPU, storage, disk read and write throughput, and network ingress and egress.
+- **Constraint handling.** A _hard constraint_ is a rule that a plan must satisfy, and
+  a _soft constraint_ is a preference that Kuberina scores. Node selectors and taints
+  are hard constraints. Pod affinity, anti-affinity, and topology spread are soft
+  constraints. Pod groups carry a minimum member count, and Kuberina penalizes any plan that
+  places fewer members than that minimum.
+- **DaemonSet overhead.** Kuberina subtracts DaemonSet requests from the allocatable
+  capacity of every node before it plans.
+- **Capacity headroom.** The `--headroom` flag reserves a percentage of each node's
+  capacity.
+- **A reviewable blueprint.** A _blueprint_ is the YAML file that maps each Pod to a
+  node.
+- **Manifest output.** `kuberina-forge out` writes your manifests back out with a
+  required `nodeAffinity` that pins each workload to its planned nodes.
+- **Independent validation.** The inspector checks the constraints in a blueprint with
+  its own code and renders a heatmap of node utilization. The inspector reads the
+  MSC Irina benchmark files only; support for IR v1 files is tracked as K-3 in
+  [BACKLOG.md](BACKLOG.md).
+
+## How Kuberina works
+
+Kuberina runs as three steps. Each step reads files and writes files, and none of them
+connects to your cluster.
+
+1. The `kuberina-forge in` command converts Kubernetes manifests and node definitions
+   into _Kuberina IR_ (intermediate representation): two YAML files, one that describes
+   the nodes and one that describes the workloads. The format is specified in
+   [Kuberina IR v1](docs/references/ir-v1.md).
+1. The `kuberina-solver plan` command computes the placement in three phases. Phase 0
+   subtracts DaemonSet overhead. Phase 1 builds a first placement with first-fit
+   decreasing (FFD), which places the largest Pods first. Phase 2 improves that
+   placement with a _genetic algorithm_: it keeps a population of candidate plans,
+   combines and mutates the best ones, and repairs any plan that breaks a hard
+   constraint. The solver writes the blueprint to `kuberina_solution.yaml` in the
+   current directory.
+1. The `kuberina-forge out` command applies the blueprint to your original manifests.
+
+## Before you begin
+
+Install the tools for the components you use:
+
+| Tool | Needed for |
+|---|---|
+| Rust toolchain | `solver-*` targets |
+| Go 1.26 or later | `forge-*` targets |
+| [uv](https://docs.astral.sh/uv/) | `inspector-*`, `bench-*`, and `research-*` targets |
+
+The `inspector-*` and `bench-*` targets install PyYAML when they run, through
+`uv run --with pyyaml`. The `research-*` targets use the locked environment in
+`research/pyproject.toml`. The `full-pipeline` target needs both Rust and uv.
+
+Build the two binaries:
+
+```shell
+make forge-build     # needs Go; writes bin/kuberina-forge
+make solver-build    # needs Rust; writes solver/target/debug/kuberina-solver
+```
+
+## Plan a deployment
+
+1. Export your nodes and convert them, together with your manifests, into Kuberina IR:
+
+    ```shell
+    kubectl get nodes -o yaml > nodes.yaml
+    kuberina-forge in --out-infra infra.yaml --out-workloads workloads.yaml \
+        ./k8s nodes.yaml
+    ```
+
+    Place flags before the sources. `kuberina-forge` stops reading flags at the first
+    source argument.
+
+    If you render manifests with Helm or Kustomize, pipe the rendered output to
+    `kuberina-forge in` and pass `-` as the source:
+
+    ```shell
+    helm template ./chart | kuberina-forge in --out-workloads workloads.yaml -
+    ```
+
+1. Compute a plan:
+
+    ```shell
+    kuberina-solver plan --infra infra.yaml --workloads workloads.yaml
+    ```
+
+    The output ends with lines similar to this:
+
+    ```console
+      (Full stowage plan exported to kuberina_solution.yaml)
+      ✅ FEASIBLE — every hard constraint holds.
+    ```
+
+    The solver reports one of three verdicts. FEASIBLE means the plan satisfies every
+    hard constraint. RESERVE NOT MET means the plan fits but uses some of the capacity
+    that `--headroom` asked it to keep free. INFEASIBLE — DO NOT APPLY means the cluster
+    cannot hold the workloads as declared, and the lines that follow list each resource
+    that overflows.
+
+1. Review `kuberina_solution.yaml` with your team. To change the plan, edit
+   `infra.yaml` or `workloads.yaml` and run the solver again.
+
+1. Apply the agreed blueprint to your manifests, and deploy the result:
+
+    ```shell
+    kuberina-forge out --blueprint kuberina_solution.yaml --out ./planned ./k8s
+    kubectl apply -f ./planned
+    ```
+
+    The output manifests match your input manifests, with one addition: a required
+    `nodeAffinity` on each workload. `kuberina-forge out` refuses a blueprint that the
+    solver marked infeasible.
+
+## Run the benchmark
+
+The repository includes *MSC Irina*, a generated cluster of 620 nodes and 2,714 Pods.
+
+> [!CAUTION]
+> At commit `c15a04c`, `make solver-irina` fails with ``unknown field `pods` ``. The
+> benchmark files predate the stricter IR v1 parser. The fix is tracked as K-3 in
+> [BACKLOG.md](BACKLOG.md). Until it lands, run the benchmark at commit `24ffc52`.
+
+To plan the benchmark and view the result:
+
+```shell
+make solver-irina     # needs Rust
+make inspector-run    # needs uv
+```
+
+`make inspector-run` writes `kuberina_dashboard.html`. Open it in a browser to see the
+utilization heatmap.
+
+At commit `24ffc52`, one plan of this cluster took 185 seconds and used 540 of the 620
+nodes. The session record
+[2026-09-06-ga-early-stop-threshold](docs/references/sessions/2026-09-06-ga-early-stop-threshold.md)
+lists the commands and the full results.
+
+## What Kuberina is not
+
+Kuberina:
+
+- Does not replace `kube-scheduler`. The cluster scheduler still binds every Pod, within
+  the `nodeAffinity` that Kuberina adds.
+- Does not connect to, watch, or modify a running cluster.
+- Does not scale workloads.
+- Does not re-plan by itself when usage changes. To update a plan, you run the solver
+  again.
+
+## Documentation
+
+| Document | Audience | Contents |
+|---|---|---|
+| [PAPER.md](docs/references/PAPER.md) | Researchers, reviewers | Mathematical foundation, problem formulation, and experimental results |
+| [DESIGN.md](docs/DESIGN.md) | Contributors, maintainers | Architecture, data model, CLI design, and testing strategy |
+| [Kuberina IR v1](docs/references/ir-v1.md) | Tool authors, operators | Normative specification of the input and output documents |
+| [Architecture decisions](docs/explanation/adr/README.md) | Contributors | Recorded design decisions and their reasons |
+| [ROADMAP.md](ROADMAP.md) | Everyone | Planned milestones |
+| [CHANGELOG.md](CHANGELOG.md) | Operators | Changes in each release |
+
+## Repository layout
+
+| Path | Component | Language | Description |
+|---|---|---|---|
+| `forge/` | `kuberina-forge` | Go | Converts manifests to Kuberina IR (`in`) and applies a blueprint to manifests as node affinity (`out`). Runs as a CLI; see [ADR-0001](docs/explanation/adr/0001-go-component-is-a-cli.md). |
+| `solver/` | `kuberina-solver` | Rust | The optimization engine: FFD warm start, genetic algorithm, and constraint repair over an 8-dimensional model. |
+| `inspector/` | Inspector | Python | Constraint validator and heatmap dashboard. It shares no code with the solver, so its result is an independent check. |
+| `bench/` | Benchmarks | Python | Generates the MSC Irina test data and runs the feasibility, quality, and significance proofs. |
+| `research/` | Reference implementation | Python | The first implementation of the three-phase pipeline, used to validate the model before the Rust port. |
+
+## Licensing roadmap
 
 Kuberina employs a 3-phase licensing strategy to ensure sustainable development, protect intellectual property and deliver a fully permissive open-source project to the community. 
 
@@ -39,116 +229,3 @@ The project is committed to an eventual transition to a fully permissive model. 
 *(To guarantee Kuberina's permanent availability to the open-source community regardless of versioning speed, any given release of Kuberina will automatically transition to the Apache License 2.0 exactly 48 months after its initial release date).*
 
 **LTS Roadmap:** Upon the release of `12.0.0`, the project will establish a dedicated Long-Term Support branch (`12.0.0-lts`). It is the explicit intent and roadmap of the project's governing entity to provide a minimum **5-year window of maintenance and security patching** for this specific LTS release under the Apache 2.0 license.
-
-
-## 💡 Why Kuberina?
-
-The default scheduler of K8s (`kube-scheduler`) is designed to make dynamic decisions in milliseconds. It works by "seeing an empty spot and putting things in it," leading to severe resource fragmentation on expensive heterogeneous clusters.
-
-**Kuberina takes a different approach:**
-Instead of racing against time, Kuberina is a **static planning** tool. It computes in seconds to solve the Constraint Satisfaction Problem (CSP) and Multi-dimensional Bin Packing, thereby generating an optimal blueprint.
-
-## 🔁 Kuberina as an Infrastructure Decision Protocol
-
-**The real problem isn't optimization — it's that scheduling decisions are invisible.**
-
-Today, `kube-scheduler` makes placement decisions inside a black box. No one reviews them. No one debates them. When Node 7 hits 98% CPU while Node 12 sits at 15%, nobody can explain why — because the decision was never written down.
-
-Kuberina changes this by producing a **reviewable blueprint** — a concrete YAML artifact that your team can open, inspect, challenge, and iterate on:
-
-```bash
-# 1. Compile your manifests down to Kuberina IR.
-#    Helm and Kustomize users pipe their rendered output in:
-#      helm template ./chart | kuberina-forge in --out-workloads workloads.yaml -
-kubectl get nodes -o yaml > nodes.yaml
-kuberina-forge in ./k8s nodes.yaml \
-    --out-infra infra.yaml --out-workloads workloads.yaml
-
-# 2. Plan. The blueprint is a file, not a mutation.
-kuberina-solver plan --infra infra.yaml --workloads workloads.yaml
-#    → kuberina_solution.yaml
-
-# 3. Team review:
-#      "Move Loki to Node 4, it's stressing frontend disk I/O."
-#      "Rejected — Node 4 has Redis, kernel tuning conflict. Add a rule instead."
-#    Edit the IR, re-plan, repeat until consensus.
-
-# 4. Link the agreed blueprint back onto your manifests, then apply.
-kuberina-forge out --blueprint kuberina_solution.yaml --out ./planned ./k8s
-kubectl apply -f ./planned      # Peer-reviewed. Mathematically grounded.
-```
-
-Step 4 writes your own manifests back out untouched except for a required
-`nodeAffinity` pinning each workload to the nodes it was planned onto. Nothing in this
-pipeline talks to your cluster: every step reads files and writes files.
-
-This is the same paradigm shift that **Git** brought to code (reviewable diffs instead of FTP uploads) and **Terraform** brought to infrastructure (`terraform plan` instead of clicking in the AWS console). Kuberina brings it to **Kubernetes scheduling**: every pod placement is computed by combinatorial optimization, written down, and open to debate.
-
-A blueprint backed by 2,000 generations of evolutionary optimization across millions of stowage scenarios is infinitely more defensible than a whiteboard drawing from an architect whose reasoning is "10 years of experience" and "trust me."
-
-## 🚀 Core Features
-
-* **Maritime-Inspired CSP Engine:** Apply the stowage planning model to cloud computing. Minimize fragmentation and resource waste.
-* **Heterogeneous-First:** Understand the differences between regular Nodes, GPU Nodes (Nvidia A100, T4), and memory-optimized Nodes. "Cold cargo" (AI Compute) will always be placed in the correct "socket".
-* **Zero-Touch K8s Interference:** Kuberina runs completely independently (Offline/CLI). Does not interfere with the running cluster, does not slow down `kube-apiserver`.
-* **Auto-Inject Constraints:** receives pure configuration as input, automatically injects `NodeSelector`, `PodAffinity`, `PodAntiAffinity`, and `Tolerations` rules into the output YAML file.
-
-<!-- [Q-Claude] Gợi ý bổ sung cho Core Features:
-  1. Có nên thêm feature "Blueprint Report" (visualize kết quả trước khi apply) không?
-  2. "Auto-Inject Constraints" — có support Helm chart output hay chỉ raw YAML?
-  3. Nên thêm một section "Non-Goals" (những gì Kuberina KHÔNG làm) để đặt kỳ vọng đúng cho user. Ví dụ: Kuberina không phải runtime scheduler, không replace kube-scheduler, không handle autoscaling.
--->
-
-## ⚙️ How it works
-
-Kuberina receives two inputs:
-
-1. **Infrastructure Map:** Physical/virtual topology of the K8s cluster (Node capacity, Taints, Labels).
-2. **Workload Manifests:** List of deployments, AI jobs, services (Resource requirements).
-
-```bash
-# Build the Rust solver engine
-make solver-build
-
-# Run the stowage simulation (MSC Irina scale datacenter)
-make solver-irina
-
-# Run the independent validator & heatmap dashboard
-make inspector-run
-```
-
-Kuberina runs millions of "stowage" scenarios in memory using an evolutionary algorithm (GA). It outputs a stowage plan to the console and generates `kuberina_solution.yaml`. 
-You can then open `kuberina_dashboard.html` in your browser to interactively view the cluster heatmap!
-
-<!-- [Q-Claude] Gợi ý bổ sung cho README:
-  1. Thêm section "Quick Start" với một ví dụ end-to-end hoàn chỉnh (sample input -> command -> sample output)?
-  2. Thêm section "Installation" chi tiết hơn (prerequisites: Go version, OS support)?
-  3. "github.com/yourusername/kuberina" — update thành Go module path thật?
-  4. Thêm ví dụ output: trước/sau khi Kuberina inject constraints vào YAML?
-  5. Badge row (CI status, Go version, license) ở đầu README?
--->
-
-## 📚 Documentation
-
-| Document | Audience | Description |
-|---|---|---|
-| [PAPER.md](docs/references/PAPER.md) | Researchers, reviewers | Full research paper: mathematical foundation, problem formulation, experimental results |
-| [DESIGN.md](docs/DESIGN.md) | Contributors, maintainers | Software design document: architecture, data model, CLI design, testing strategy |
-| [ROADMAP.md](ROADMAP.md) | Everyone | Planned milestones: `kuberina-forge`, hexagonal refactor, distributed solving |
-
-## 🧭 Repository layout
-
-| Path | Component | Language | Description |
-|---|---|---|---|
-| `solver/` | `kuberina-solver` | Rust | The optimization engine. FFD warm-start → genetic algorithm → CSP repair, over an 8-dimensional MDBP model |
-| `inspector/` | Inspector | Python | Independent constraint validator and heatmap dashboard. Shares no code with the solver, which is what makes its verdict meaningful |
-| `bench/` | Benchmarks | Python | MSC Irina testdata generation and the formal feasibility / quality / significance proofs |
-| `research/` | Reference implementation | Python | Proof-of-concept of the 3-phase pipeline, used to validate the mathematical model before porting to Rust |
-| `forge/` | `kuberina-forge` | Go | The frontend and linker. `forge in` converts Kubernetes manifests to Kuberina IR; `forge out` applies a blueprint back onto them as node affinity. A CLI, never a controller — see [ADR-0001](docs/explanation/adr/0001-go-component-is-a-cli.md) |
-
-
-
-<!-- [Q-Claude] Chọn license nào? MIT, Apache 2.0, hay GPL? 
-  Nếu muốn cộng đồng thoải mái contribute: MIT hoặc Apache 2.0.
-  Nếu muốn enforce open-source derivatives: GPL.
--->

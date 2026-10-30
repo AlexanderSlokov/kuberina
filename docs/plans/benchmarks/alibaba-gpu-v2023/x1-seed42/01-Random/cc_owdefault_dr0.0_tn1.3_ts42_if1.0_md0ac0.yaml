@@ -1,0 +1,28 @@
+apiVersion: simon/v1alpha1
+kind: Config
+metadata:
+  name: simon-openb-config
+spec:
+  appList: null
+  cluster:
+    customConfig: data/openb_pod_list_default
+  customConfig:
+    descheduleConfig:
+      ratio: 0.0
+    exportConfig:
+      nodeSnapshotCSVFilePrefix: experiments/2023_0511/openb_pod_list_default/01-Random/1.3/42/snapshot/ds01
+      podSnapshotYamlFilePrefix: null
+    newWorkloadConfig: null
+    shufflePod: true
+    typicalPodsConfig:
+      gpuResWeight: 0
+      isInvolvedCpuPods: true
+      podIncreaseStep: 1
+      podPopularityThreshold: 95
+    workloadInflationConfig:
+      ratio: 1
+      seed: 233
+    workloadTuningConfig:
+      ratio: 1.3
+      seed: 42
+  newNode: example/newnode/gpushare

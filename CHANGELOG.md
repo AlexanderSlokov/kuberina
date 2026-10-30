@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The FGD scheduler simulator reproduces its published results on this workstation**
+  ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24), X-1). On the Alibaba
+  `openb_pod_list_default` trace with seed 42, FGD reaches 95.29% GPU allocation at
+  130% arrived demand and Best-Fit reaches 93.13%, both identical to the published
+  figures. The comparison of Kuberina against these schedulers rests on this check. The
+  record is `docs/references/sessions/2026-10-31-fgd-simulator-calibration.md`.
+- **A first tutorial, [Plan your first cluster](docs/tutorials/plan-your-first-cluster.md).**
+  It takes a reader with no Kuberina experience from the sample manifests in
+  `forge/testdata/manifests` to a blueprint and pinned manifests, without a running
+  cluster. Every command was run at commit `c15a04c`, and each step shows the output the
+  reader should see. Writing it surfaced two defects, now tracked as K-2 (topology
+  spread ignores the standard Kubernetes zone key) and K-3 (the MSC Irina testdata and
+  the inspector predate IR v1) in `BACKLOG.md`. The tutorial and the README state both
+  limits where a reader meets them.
+- **A documentation style guide for this repository,** in `AGENTS.md` under *Writing
+  documentation*. It adapts the Kubernetes documentation style guide and page content
+  types to GitHub-rendered Markdown, and `CLAUDE.md` loads it for Claude Code.
 - **`kuberina-forge`, the Go frontend and linker, is real.** The repository root no
   longer holds a seven-line stub; `forge/` holds a working CLI with two commands.
   `kuberina-forge in` reads Kubernetes manifests — files, directories, or stdin — and
@@ -136,6 +153,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dimension is disk write throughput, not CPU, and the paper now says so. (#15, #8, #11)
 
 ### Fixed
+- **The README describes what Kuberina does today, and its commands run.**
+  ([#6](https://github.com/AlexanderSlokov/kuberina/issues/6),
+  [#14](https://github.com/AlexanderSlokov/kuberina/issues/14))
+  The `kuberina-forge in` example placed its flags after the source paths. The Go flag
+  parser stops at the first source, so the command exited with "nothing to do" and wrote
+  no IR. The example now puts flags first, and the README says why. The feature list no
+  longer claims that Kuberina injects `nodeSelector`, affinity, and toleration rules into
+  manifests: `kuberina-forge out` adds one required `nodeAffinity` per workload, and that
+  is what the README now states. A *Before you begin* section lists the tools each
+  `make` target needs, including `uv` for the inspector, benchmark, and research targets,
+  which the README had not mentioned. A *What Kuberina is not* section states that
+  Kuberina does not replace `kube-scheduler`, connect to a cluster, scale workloads, or
+  re-plan by itself. The README follows the Kubernetes documentation style guide:
+  second person, present tense, sentence-case headings, and no unmeasured performance
+  claims. The one runtime figure it quotes, 185 seconds for MSC Irina, cites its session
+  record. The licensing text is unchanged.
 - **GA early stopping never fired, so every run cost its full generation budget.** The
   convergence check reset its stale counter on any improvement at all, including gains of
   0.0003 on a fitness of 1.58 million, so a run making arbitrarily small progress ran to
