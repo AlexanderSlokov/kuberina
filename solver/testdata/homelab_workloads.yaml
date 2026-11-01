@@ -15,8 +15,6 @@ namespaces:
         network:
           in: "10M"
           out: "10M"
-      antiAffinity:
-        - adguard   # don't put two DNS resolvers on same node
 
   smart-home:
     - name: home-assistant
@@ -33,7 +31,7 @@ namespaces:
       nodeSelector:
         usb-dongle: "true"   # needs Zigbee USB stick
       affinity:
-        - zigbee2mqtt         # must be close to its Zigbee bridge
+        - smart-home/zigbee2mqtt         # must be close to its Zigbee bridge
 
     - name: zigbee2mqtt
       replicas: 1
@@ -49,7 +47,7 @@ namespaces:
       nodeSelector:
         usb-dongle: "true"   # also needs the USB dongle
       affinity:
-        - home-assistant
+        - smart-home/home-assistant
 
     - name: mosquitto
       replicas: 1
@@ -73,7 +71,7 @@ namespaces:
           in: "5M"
           out: "50M"      # streaming out to clients
       antiAffinity:
-        - postgres        # heavy I/O — keep away from DB
+        - database/postgres        # heavy I/O — keep away from DB
 
   cloud:
     - name: nextcloud
@@ -88,7 +86,7 @@ namespaces:
           in: "20M"
           out: "20M"
       affinity:
-        - postgres        # low-latency DB access
+        - database/postgres        # low-latency DB access
 
   database:
     - name: postgres
@@ -103,9 +101,9 @@ namespaces:
           in: "10M"
           out: "10M"
       affinity:
-        - nextcloud
+        - cloud/nextcloud
       antiAffinity:
-        - jellyfin
+        - media/jellyfin
 
   monitoring:
     - name: grafana
@@ -120,7 +118,7 @@ namespaces:
           in: "5M"
           out: "10M"
       affinity:
-        - prometheus      # monitoring stack together
+        - monitoring/prometheus      # monitoring stack together
 
     - name: prometheus
       replicas: 1
@@ -134,7 +132,7 @@ namespaces:
           in: "20M"
           out: "5M"
       affinity:
-        - grafana
+        - monitoring/grafana
 
   security:
     - name: vaultwarden

@@ -18,6 +18,7 @@ use serde::Deserialize;
 
 use crate::model::{DaemonSet, Node, ObservedUsage, Pod, PodGroup, ResourceVector, TopologySpread};
 use crate::quantity::{QuantityContext, parse_quantity};
+use crate::target_resolution::resolve_affinity_targets;
 
 /// The IR version this binary implements. See ADR-0002.
 pub const IR_API_VERSION: &str = "kuberina.io/v1";
@@ -437,6 +438,8 @@ pub fn load_workloads(path: impl AsRef<Path>) -> Result<(Vec<Pod>, Vec<PodGroup>
     )?;
 
     let (mut pods, declarations) = flatten_namespaces(&raw)?;
+    resolve_affinity_targets(&mut pods, &declarations)
+        .map_err(|e| format!("{}: {e}", path.as_ref().display()))?;
     let declared = resolve_declared_groups(&raw.groups, &declarations, &mut pods)?;
     let groups = merge_groups(declared, &pods);
     Ok((pods, groups))
@@ -665,6 +668,14 @@ mod tests {
         // Pods are sorted by namespace, then by order in YAML
         // First pod should be from "cloud" namespace (alphabetical)
         assert_eq!(pods[0].namespace, "cloud");
+    }
+
+    #[test]
+    fn loading_resolves_affinity_targets_to_identities() {
+        // Regression for #26: targets reached fitness as written, so none matched a pod.
+        let (pods, _) = load_workloads("testdata/homelab_workloads.yaml").unwrap();
+        let nextcloud = pods.iter().find(|p| p.name == "nextcloud-0").unwrap();
+        assert_eq!(nextcloud.affinity_targets, vec!["database/postgres-0"]);
     }
 
     #[test]

@@ -14,6 +14,9 @@ except ImportError:
     print("Error: PyYAML is not installed. Run: uv pip install pyyaml")
     sys.exit(1)
 
+from affinity_check import count_affinity_violations
+from ir_workloads import flatten_resources, resolve_targets, unroll_workloads
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Kuberina Inspector")
@@ -32,46 +35,8 @@ def load_yaml(path: str):
         return yaml.safe_load(f)
 
 
-def _as_float(value, dimension):
-    """Coerce one IR quantity to a float, naming it if the shape is wrong."""
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        raise ValueError(
-            f"resource dimension {dimension!r} must be a number, got {value!r}. "
-            "Kubernetes suffix notation (e.g. '256Mi') is understood by the solver "
-            "but not by this validator."
-        ) from None
-
-
-def flatten_resources(block):
-    """Project a Kuberina IR resource block onto the flat 8-dimension vector.
-
-    IR v0.2.0 nests throughput under `disk: {read, write}` and
-    `network: {in, out}`. Absent dimensions stay absent so that
-    pre_deduct_daemonsets can tell "declared zero" from "not declared".
-
-    Example:
-        >>> flatten_resources({"cpu": 4.0, "network": {"in": 500.0}})
-        {'cpu': 4.0, 'net_in': 500.0}
-    """
-    disk = block.get("disk") or {}
-    network = block.get("network") or {}
-    sources = (
-        ("cpu", block.get("cpu")),
-        ("ram", block.get("ram")),
-        ("gpu", block.get("gpu")),
-        ("storage", block.get("storage")),
-        ("disk_read", disk.get("read")),
-        ("disk_write", disk.get("write")),
-        ("net_in", network.get("in")),
-        ("net_out", network.get("out")),
-    )
-    return {r: _as_float(v, r) for r, v in sources if v is not None}
-
-
-def normalize_ir(infra, workloads):
-    """Rewrite every resource block in place into flat 8-dimension form.
+def normalize_ir(infra):
+    """Rewrite every infrastructure resource block in place into flat 8-dimension form.
 
     WHY: the solver reads the nested IR shape. A validator reading flat keys
     would disagree with it about I/O capacity and demand without saying so,
@@ -81,8 +46,6 @@ def normalize_ir(infra, workloads):
         node["allocatable"] = flatten_resources(node.get("allocatable", {}))
     for ds in infra.get("daemonsets", []):
         ds["resources"] = flatten_resources(ds.get("resources", {}))
-    for pod in workloads.get("pods", []):
-        pod["requests"] = flatten_resources(pod.get("requests", {}))
 
 
 def pre_deduct_daemonsets(nodes, daemonsets):
@@ -111,15 +74,14 @@ def pre_deduct_daemonsets(nodes, daemonsets):
 
 def validate_solution(nodes, pods, solution):
     node_map = {n["name"]: n for n in nodes}
-    pod_map = {p["name"]: p for p in pods}
+    pod_map = {p["identity"]: p for p in pods}
     
     node_loads = {n["name"]: {"cpu": 0.0, "ram": 0.0, "gpu": 0.0, "storage": 0.0, "disk_read": 0.0, "disk_write": 0.0, "net_in": 0.0, "net_out": 0.0, "pods": []} for n in nodes}
     
     selector_violations = 0
     unassigned_pods = 0
     
-    for pod_name_raw, node_name in solution.items():
-        pod_name = pod_name_raw.split('/')[-1] if '/' in pod_name_raw else pod_name_raw
+    for pod_name, node_name in solution.items():
         if pod_name not in pod_map:
             continue
         pod = pod_map[pod_name]
@@ -427,11 +389,11 @@ def main():
     solution_data = load_yaml(args.solution)
     solution_map = solution_data.get("solution", {})
     
-    normalize_ir(infra_data, workloads_data)
+    normalize_ir(infra_data)
 
     # Pre-deduct daemonsets
     nodes = pre_deduct_daemonsets(infra_data["nodes"], infra_data.get("daemonsets", []))
-    pods = workloads_data["pods"]
+    pods = resolve_targets(unroll_workloads(workloads_data))
     
     # Validate
     validation = validate_solution(nodes, pods, solution_map)
@@ -447,6 +409,7 @@ def main():
     print(f"Capacity Overflow (Net In): {validation['capacity_overflow']['net_in']:.2f}")
     print(f"Capacity Overflow (Net Out): {validation['capacity_overflow']['net_out']:.2f}")
     print(f"Unassigned Pods: {validation['unassigned_pods']}")
+    print(f"Affinity Violations: {count_affinity_violations(pods, solution_map)}")
     print("--------------------------\n")
     
     # Render

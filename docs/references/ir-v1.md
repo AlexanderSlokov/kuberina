@@ -167,7 +167,23 @@ A declaration with `replicas: n` becomes `n` independent pods. Names are
 identity used everywhere else — blueprint keys, affinity targets, inspector output — is
 `namespace/podname` after unrolling.
 
-Affinity and anti-affinity targets are matched against these unrolled identities.
+### 3.1.1 Affinity targets
+
+Each entry in `affinity` or `antiAffinity` names other pods, in one of two forms:
+
+| Form | Example | Names |
+|---|---|---|
+| Declaration | `ai/trainer` | every replica of the declaration `trainer` in namespace `ai` |
+| Unrolled identity | `ai/trainer-0003` | the one pod with that identity |
+
+A target is resolved as a declaration first, then as an unrolled identity. A target that
+matches neither, including a name without a namespace such as `trainer`, is an error
+that names the offending value and both accepted forms. A pod is never its own target:
+an anti-affinity rule that names the pod's own declaration applies between its
+replicas.
+
+Earlier releases matched targets against bare pod names, so no target in either form
+matched, and affinity and anti-affinity had no effect on any plan (issue #26).
 
 ### 3.2 Gangs
 

@@ -5,10 +5,33 @@
 **Written at:** commit `7e5609f`, 2026-10-30 ·
 **Survey this plan rests on:** `docs/references/sessions/2026-10-30-alibaba-gpu-trace-profile.md`
 
-This plan describes how to produce numbers for `PAPER.md` that compare Kuberina with
-published GPU schedulers on a production cluster that Kuberina's authors did not design.
-It describes work to be done. Every figure that reaches the paper must first appear in a session record 
-under `docs/references/sessions/`, together with the commit and command that produced it.
+This plan describes how to run Kuberina on Alibaba's production-scale cluster data and
+how to report what its results mean next to the published results of the Alibaba team.
+Every figure that reaches `PAPER.md` first appears in a session record under
+`docs/references/sessions/`, together with the commit and command that produced it.
+
+## Purpose and stance
+
+Every Kuberina result so far comes from MSC Irina, a cluster that Kuberina's own
+generator built. The Alibaba trace supplies a problem that nobody here designed: the
+node inventory, the Pods and their requests, and the constraints of a production GPU
+cluster. The purpose of this plan is to run Kuberina on that problem and to state what
+its result means beside the figures that FGD and its baselines reached on the same data.
+
+The comparison is an observation. Its rules:
+
+- **Kuberina's results are reported as they come.** A result below FGD's is reported in
+  the same form and with the same prominence as a result above it.
+- **Capabilities the data requires are in scope.** The trace contains fractional GPU
+  requests and more demand than capacity, so Kuberina gains a per-device GPU model
+  (Stage 3) and admission (Stage 4). Without them, Kuberina cannot represent the
+  problem.
+- **Tuning against the comparison is out of scope.** Fitness weights and GA settings
+  come from measurements of the problem itself, such as the ranges of the objective
+  terms, and are recorded with their derivation. They are fixed before Kuberina's
+  first run on the trace, and the protocol in §4 is fixed with them.
+- **The meaning of each figure is stated with the figure.** Kuberina plans offline and
+  FGD schedules online, so each comparison in §4 names the advantage each side has.
 
 ---
 

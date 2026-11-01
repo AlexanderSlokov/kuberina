@@ -66,28 +66,34 @@ state which keys are valid, and `inspector/inspector.py` does not check spread.
 `topology.kubernetes.io/zone` from a manifest is scored against node zones, a regression
 test covers the `forge/testdata` case, and the inspector reports skew per spread group.
 
-### K-3 — Make the MSC Irina testdata and the inspector read IR v1
+### K-3 — Make affinity work end to end, and read the MSC Irina testdata as IR v1
 
-**Found:** 2026-10-31, at commit `c15a04c`.
+**Issue:** [#26](https://github.com/AlexanderSlokov/kuberina/issues/26), a sub-issue of
+[#24](https://github.com/AlexanderSlokov/kuberina/issues/24) ·
+**Evidence:** `docs/references/sessions/2026-11-01-affinity-constraints-unread.md`
 
-`solver/testdata/irina_workloads.yaml` carries a top-level `pods:` list (line 719) next
-to `namespaces:`. The generator writes it for the inspector. IR v1 rejects unknown keys,
-so `make solver-irina` fails before planning:
+Three defects share one fix:
 
-```console
-Error loading workloads: YAML parse error in testdata/irina_workloads.yaml: unknown field `pods`, expected one of `apiVersion`, `kind`, `namespaces`, `groups` at line 719 column 1
-```
+- `solver/testdata/irina_workloads.yaml` keeps its 14,258 affinity and anti-affinity
+  targets in a top-level `pods:` list. The solver at `24ffc52` ignored that list, and the
+  IR v1 parser rejects it, so `make solver-irina` fails with ``unknown field `pods` ``.
+- Affinity targets written by `kuberina-forge in`, such as `ai/trainer`, match no Pod,
+  because the solver looks targets up by bare Pod name.
+- The inspector reads only `pods:`, fails on every file that `kuberina-forge in` writes,
+  and checks no affinity rule.
 
-The inspector reads only `pods:`, so it fails on every workloads file that
-`kuberina-forge in` writes (`KeyError: 'pods'`). The benchmark and the validator are both
-unusable at this commit, and no test caught the break.
+The agreed target semantics: `ns/name` names a declaration and covers all of its
+replicas; `ns/name-0003` names one unrolled replica.
 
-**Touches:** `bench/gen_irina_testdata.py`, `solver/testdata/irina_workloads.yaml`,
-`research/testdata/irina_workloads.yaml`, `inspector/inspector.py`, `solver/tests/`.
-**Done when:** the generator writes IR v1 with no `pods:` key; the inspector unrolls
-`namespaces:` replicas by the rules in `ir-v1.md` §3.1; `make solver-irina` and
-`make inspector-run` both succeed; a test parses every committed testdata file; and the
-inspector validates the blueprint from `forge/testdata/manifests`.
+**Touches:** `docs/references/ir-v1.md` §3.1 (first), `solver/src/parser.rs`,
+`solver/src/fitness.rs`, `bench/gen_irina_testdata.py`, `solver/testdata/`,
+`research/testdata/`, `inspector/inspector.py`, `solver/tests/`.
+**Done when:** the solver resolves both target forms, with a regression test for each;
+the generator writes every constraint under `namespaces:` and no `pods:` key; the
+inspector unrolls `namespaces:` by `ir-v1.md` §3.1 and reports affinity violations with
+its own code; `make solver-irina` and `make inspector-run` both succeed; a test parses
+every committed testdata file; and a session record reports the re-run of MSC Irina with
+its constraints in force.
 
 ### K-1 — Optional `observed` usage block in the workload IR
 

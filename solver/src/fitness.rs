@@ -6,7 +6,7 @@
 //!
 //! Lower is better. Φ(s) = large scalar if any hard constraint violated.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::csp::{compute_capacity_overflow, compute_selector_violations};
 use crate::model::{Blueprint, FitnessWeights, Node, Pod, PodGroup, ResourceVector, Scorecard};
@@ -103,33 +103,48 @@ pub fn compute_fragmentation(node_load: &[ResourceVector], nodes: &[Node]) -> f6
 ///
 /// Affinity: pods that WANT to be on the same node but aren't.
 /// Anti-affinity: pods that DON'T want to be on the same node but are.
+///
+/// Targets are resolved identities (`namespace/podname`, IR v1 §3.1.1). A rule
+/// counts once per pair, whichever pod declared it, and a pair declared from both
+/// sides counts once (#26).
+///
+/// ```ignore
+/// let violations = compute_affinity_violations(&blueprint.assignment, &pods);
+/// ```
 pub fn compute_affinity_violations(assignment: &[usize], pods: &[Pod]) -> usize {
-    let name_to_idx: HashMap<&str, usize> = pods
+    affinity_rule_pairs(pods)
+        .into_iter()
+        .filter(|&(a, b, wants_together)| (assignment[a] == assignment[b]) != wants_together)
+        .count()
+}
+
+/// Every distinct (pod, pod, wants-together) rule, with the lower index first.
+fn affinity_rule_pairs(pods: &[Pod]) -> HashSet<(usize, usize, bool)> {
+    let index_of: HashMap<(&str, &str), usize> = pods
         .iter()
         .enumerate()
-        .map(|(i, p)| (p.name.as_str(), i))
+        .map(|(i, p)| ((p.namespace.as_str(), p.name.as_str()), i))
         .collect();
-
-    let mut violations = 0_usize;
+    let mut pairs = HashSet::new();
     for (i, pod) in pods.iter().enumerate() {
-        for target_name in &pod.affinity_targets {
-            if let Some(&target_idx) = name_to_idx.get(target_name.as_str()) {
-                // WHY: only count once per pair — check i < target_idx
-                if i < target_idx && assignment[i] != assignment[target_idx] {
-                    violations += 1;
-                }
-            }
-        }
-        for target_name in &pod.anti_affinity_targets {
-            if let Some(&target_idx) = name_to_idx.get(target_name.as_str())
-                && i < target_idx
-                && assignment[i] == assignment[target_idx]
-            {
-                violations += 1;
+        let together = pod.affinity_targets.iter().map(|t| (t, true));
+        let apart = pod.anti_affinity_targets.iter().map(|t| (t, false));
+        for (target, wants_together) in together.chain(apart) {
+            let Some(j) = lookup_identity(&index_of, target) else {
+                continue;
+            };
+            if i != j {
+                pairs.insert((i.min(j), i.max(j), wants_together));
             }
         }
     }
-    violations
+    pairs
+}
+
+/// Find the pod whose `namespace/podname` identity equals `target`.
+fn lookup_identity(index_of: &HashMap<(&str, &str), usize>, target: &str) -> Option<usize> {
+    let (namespace, name) = target.split_once('/')?;
+    index_of.get(&(namespace, name)).copied()
 }
 
 /// f_var: variance of CPU utilization across active nodes.
@@ -380,10 +395,53 @@ mod tests {
     }
 
     #[test]
+    fn affinity_target_is_matched_by_namespaced_identity() {
+        // Regression for #26: targets were looked up by bare pod name, so a
+        // resolved identity such as "ns/b" never matched and no rule counted.
+        let pods = vec![
+            Pod {
+                affinity_targets: vec!["ns/b".into()],
+                ..pod("a")
+            },
+            pod("b"),
+        ];
+        assert_eq!(compute_affinity_violations(&[0, 1], &pods), 1);
+    }
+
+    #[test]
+    fn rule_declared_by_the_later_pod_is_counted() {
+        // Regression for #26: the pair was counted only from the pod with the lower
+        // index, so a rule that only the later pod declared was never scored.
+        let pods = vec![
+            pod("a"),
+            Pod {
+                anti_affinity_targets: vec!["ns/a".into()],
+                ..pod("b")
+            },
+        ];
+        assert_eq!(compute_affinity_violations(&[0, 0], &pods), 1);
+    }
+
+    #[test]
+    fn symmetric_rule_is_counted_once() {
+        let pods = vec![
+            Pod {
+                affinity_targets: vec!["ns/b".into()],
+                ..pod("a")
+            },
+            Pod {
+                affinity_targets: vec!["ns/a".into()],
+                ..pod("b")
+            },
+        ];
+        assert_eq!(compute_affinity_violations(&[0, 1], &pods), 1);
+    }
+
+    #[test]
     fn affinity_violation_detected() {
         let pods = vec![
             Pod {
-                affinity_targets: vec!["b".into()],
+                affinity_targets: vec!["ns/b".into()],
                 ..pod("a")
             },
             pod("b"),
@@ -395,7 +453,7 @@ mod tests {
     fn affinity_satisfied_no_violation() {
         let pods = vec![
             Pod {
-                affinity_targets: vec!["b".into()],
+                affinity_targets: vec!["ns/b".into()],
                 ..pod("a")
             },
             pod("b"),
@@ -407,7 +465,7 @@ mod tests {
     fn anti_affinity_violation() {
         let pods = vec![
             Pod {
-                anti_affinity_targets: vec!["b".into()],
+                anti_affinity_targets: vec!["ns/b".into()],
                 ..pod("a")
             },
             pod("b"),

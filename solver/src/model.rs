@@ -242,6 +242,20 @@ pub struct Pod {
     pub observed: Option<ObservedUsage>,
 }
 
+impl Pod {
+    /// The pod's unrolled identity, `namespace/podname` (IR v1 §3.1).
+    ///
+    /// Affinity targets resolve to identities, so this is the key that fitness
+    /// looks them up by.
+    ///
+    /// ```ignore
+    /// assert_eq!(trainer_replica.identity(), "ai/trainer-0000");
+    /// ```
+    pub fn identity(&self) -> String {
+        format!("{}/{}", self.namespace, self.name)
+    }
+}
+
 /// Gang-scheduled pod group — all-or-nothing placement.
 ///
 /// Maps to G_q ∈ G from PAPER.md §3.2.

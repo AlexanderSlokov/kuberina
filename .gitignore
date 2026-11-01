@@ -30,3 +30,7 @@ solver/kuberina_solution.yaml
 
 # Compiled Go binaries (make forge-build)
 /bin
+
+# Python stuffs
+.pytest_cache/
+__pycache__/

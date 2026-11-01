@@ -43,7 +43,7 @@ The frontend "Forge" component. Scope is fixed by [ADR-0001](docs/explanation/ad
   - Transmit IR via gRPC to localized/on-premise `kuberina-solver` instances where heavy Genetic Algorithm computations run at zero cloud cost.
   - Stream the final optimal `blueprint` back to the cloud for execution, maximizing operational security and minimizing compute expenditure.
 
-[ ] **External Validation on Production Traces** ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24)). Benchmark Kuberina against published schedulers on a real production trace.
+[ ] **External Validation on Production Traces** ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24)). Run Kuberina on Alibaba's production-scale cluster data, and report what its results mean next to the Alibaba team's published results.
   - Plan: `docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`.
   - *Alibaba `cluster-trace-gpu-v2023`:* compare with FGD and its baselines in the FGD authors' simulator, after reproducing FGD's published result.
   - *Per-device GPU model:* a fractional GPU request must fit on a single device.
