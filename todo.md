@@ -7,7 +7,7 @@ work below is uncommitted. Delete this file once its items are done or moved int
 ## State at hand-off
 
 Updated 2026-11-01, evening. Branch `24-challenge-alibaba`, committed and pushed
-through `e6acca3` and its follow-up.
+through `cfee303` and its follow-up.
 
 - X-1 is done. The FGD simulator reproduces the published seed-42 figures exactly. See
   `docs/references/sessions/2026-10-31-fgd-simulator-calibration.md`.
@@ -22,12 +22,10 @@ through `e6acca3` and its follow-up.
 - X-3 is done at `e6acca3`: `gpuDevices` and `gpuMilli` in `ir-v1.md` §2 and §3.4, the
   solver, the inspector, the forge IR types, and the adapter. See
   `docs/references/sessions/2026-11-01-per-device-gpu.md`.
-- X-4 is done, uncommitted: `arrival`, `unplaced:`, and the in-order rule in
-  `ir-v1.md` §3.5 and §4.1; `--admission in-order | free` in the solver
-  (`admission.rs`, `packing.rs`, `unplaced_term.rs`, `blueprint_yaml.rs`); the
-  inspector's `admission_check.py`; the forge refusal; and `arrival` in the adapter.
-  See `docs/references/sessions/2026-11-01-admission.md`. After committing, replace
-  "with this session's uncommitted X-4 changes" in that record with the commit SHA.
+- X-4 is done at `cfee303`: `arrival`, `unplaced:`, and the in-order rule in `ir-v1.md`
+  §3.5 and §4.1; `--admission in-order | free` in the solver; the inspector's
+  `admission_check.py`; the forge refusal; and `arrival` in the adapter. See
+  `docs/references/sessions/2026-11-01-admission.md`.
 - Uncommitted on purpose: the temporary timing example
   `solver/examples/fitness_timing.rs`, kept for S-1.
 
