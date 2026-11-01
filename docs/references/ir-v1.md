@@ -182,6 +182,17 @@ that names the offending value and both accepted forms. A pod is never its own t
 an anti-affinity rule that names the pod's own declaration applies between its
 replicas.
 
+Both rules are soft and follow the Kubernetes `podAffinity` and `podAntiAffinity`
+semantics, with the node as the topology domain:
+
+| Rule | Satisfied when | One violation is |
+|---|---|---|
+| `affinity` entry | the pod shares a node with at least one pod the entry names | one entry with no named pod on the pod's node |
+| `antiAffinity` entry | the pod shares a node with none of the pods the entry names | one pair of pods on the same node; a pair named from both sides counts once |
+
+For example, `affinity: ["ai/trainer"]` on a parameter server is satisfied by one
+trainer replica on its node. It does not require every replica there.
+
 Earlier releases matched targets against bare pod names, so no target in either form
 matched, and affinity and anti-affinity had no effect on any plan (issue #26).
 

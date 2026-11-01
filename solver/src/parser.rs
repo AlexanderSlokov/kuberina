@@ -481,7 +481,7 @@ fn flatten_namespaces(raw: &RawWorkloadFile) -> Result<(Vec<Pod>, DeclarationInd
                     requests: resources,
                     tolerations: tolerations.clone(),
                     node_selector: rp.node_selector.clone(),
-                    affinity_targets: rp.affinity.clone(),
+                    affinity_targets: rp.affinity.iter().map(|t| vec![t.clone()]).collect(),
                     anti_affinity_targets: rp.anti_affinity.clone(),
                     group_name: rp.gang.clone().unwrap_or_default(),
                     topology_spread: rp.topology_spread.clone(),
@@ -675,7 +675,10 @@ mod tests {
         // Regression for #26: targets reached fitness as written, so none matched a pod.
         let (pods, _) = load_workloads("testdata/homelab_workloads.yaml").unwrap();
         let nextcloud = pods.iter().find(|p| p.name == "nextcloud-0").unwrap();
-        assert_eq!(nextcloud.affinity_targets, vec!["database/postgres-0"]);
+        assert_eq!(
+            nextcloud.affinity_targets,
+            vec![vec!["database/postgres-0"]]
+        );
     }
 
     #[test]

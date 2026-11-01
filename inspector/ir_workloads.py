@@ -83,6 +83,8 @@ def _replicas_of(namespace, declaration):
             "nodeSelector": declaration.get("nodeSelector") or {},
             "affinity": list(declaration.get("affinity") or []),
             "antiAffinity": list(declaration.get("antiAffinity") or []),
+            **({"topologySpread": declaration["topologySpread"]}
+               if declaration.get("topologySpread") else {}),
         }
         for i in range(total)
     ]
@@ -92,7 +94,9 @@ def resolve_targets(pods):
     """Replace each target with the identities it names (ir-v1.md §3.1.1).
 
     A target names a declaration (every replica) or one unrolled identity. The pod
-    itself is never its own target. Raises ValueError for a target that names nothing.
+    itself is never its own target. Each `affinity` entry becomes its own group of
+    identities, since one of them on the node satisfies it; `antiAffinity` becomes one
+    flat list. Raises ValueError for a target that names nothing.
 
     Example:
         >>> pods = unroll_workloads({"namespaces": {"ai": [
@@ -105,10 +109,16 @@ def resolve_targets(pods):
         replicas_of.setdefault(pod["declaration"], []).append(pod["identity"])
     identities = {pod["identity"] for pod in pods}
     for pod in pods:
-        for field in ("affinity", "antiAffinity"):
-            named = [_named_by(t, pod, replicas_of, identities) for t in pod[field]]
-            pod[field] = [i for group in named for i in group if i != pod["identity"]]
+        tables = (replicas_of, identities)
+        pod["affinity"] = [_others(t, pod, *tables) for t in pod["affinity"]]
+        pod["antiAffinity"] = [i for t in pod["antiAffinity"] for i in _others(t, pod, *tables)]
     return pods
+
+
+def _others(target, pod, replicas_of, identities):
+    """Identities a target names, leaving out the pod that declares it."""
+    named = _named_by(target, pod, replicas_of, identities)
+    return [i for i in named if i != pod["identity"]]
 
 
 def _named_by(target, pod, replicas_of, identities):

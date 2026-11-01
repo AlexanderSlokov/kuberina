@@ -11,6 +11,9 @@ use crate::model::Pod;
 
 /// Rewrite every pod's targets into the identities of the pods they name.
 ///
+/// Each `affinity` entry keeps its own group of identities, because Kubernetes
+/// satisfies it with any one of them; `antiAffinity` targets become one flat list.
+///
 /// `declarations` maps `namespace/name` to the indices of that declaration's
 /// replicas in `pods`. Returns an error naming the first target that resolves to
 /// nothing.
@@ -34,7 +37,11 @@ pub fn resolve_affinity_targets(
         declarations,
     };
     for (owner, pod) in pods.iter_mut().enumerate() {
-        pod.affinity_targets = resolver.resolve_list(owner, &pod.affinity_targets)?;
+        pod.affinity_targets = pod
+            .affinity_targets
+            .iter()
+            .map(|entry| resolver.resolve_list(owner, entry))
+            .collect::<Result<_, _>>()?;
         pod.anti_affinity_targets = resolver.resolve_list(owner, &pod.anti_affinity_targets)?;
     }
     Ok(())
@@ -112,11 +119,11 @@ mod tests {
     #[test]
     fn declaration_target_expands_to_every_replica() {
         let (mut pods, declarations) = training_job();
-        pods[2].affinity_targets = vec!["ai/trainer".into()];
+        pods[2].affinity_targets = vec![vec!["ai/trainer".into()]];
         resolve_affinity_targets(&mut pods, &declarations).unwrap();
         assert_eq!(
             pods[2].affinity_targets,
-            vec!["ai/trainer-0000", "ai/trainer-0001"]
+            vec![vec!["ai/trainer-0000", "ai/trainer-0001"]]
         );
     }
 
@@ -131,7 +138,7 @@ mod tests {
     #[test]
     fn target_without_namespace_is_an_error_naming_the_value() {
         let (mut pods, declarations) = training_job();
-        pods[2].affinity_targets = vec!["trainer".into()];
+        pods[2].affinity_targets = vec![vec!["trainer".into()]];
         let err = resolve_affinity_targets(&mut pods, &declarations).unwrap_err();
         assert!(err.contains("\"trainer\""), "{err}");
         assert!(err.contains("ai/parameter-server-0"), "{err}");

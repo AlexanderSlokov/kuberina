@@ -101,44 +101,69 @@ pub fn compute_fragmentation(node_load: &[ResourceVector], nodes: &[Node]) -> f6
 
 /// f_affinity: count soft affinity/anti-affinity violations.
 ///
-/// Affinity: pods that WANT to be on the same node but aren't.
-/// Anti-affinity: pods that DON'T want to be on the same node but are.
-///
-/// Targets are resolved identities (`namespace/podname`, IR v1 §3.1.1). A rule
-/// counts once per pair, whichever pod declared it, and a pair declared from both
-/// sides counts once (#26).
+/// Follows Kubernetes semantics with the node as the topology domain (IR v1
+/// §3.1.1, #26). An affinity entry is violated when none of the pods it names
+/// shares the pod's node. An anti-affinity violation is one pair of pods on the
+/// same node, counted once whichever pod declared it.
 ///
 /// ```ignore
 /// let violations = compute_affinity_violations(&blueprint.assignment, &pods);
 /// ```
 pub fn compute_affinity_violations(assignment: &[usize], pods: &[Pod]) -> usize {
-    affinity_rule_pairs(pods)
-        .into_iter()
-        .filter(|&(a, b, wants_together)| (assignment[a] == assignment[b]) != wants_together)
-        .count()
+    let index_of = identity_index(pods);
+    unmet_affinity_entries(assignment, pods, &index_of)
+        + colocated_anti_affinity_pairs(assignment, pods, &index_of)
 }
 
-/// Every distinct (pod, pod, wants-together) rule, with the lower index first.
-fn affinity_rule_pairs(pods: &[Pod]) -> HashSet<(usize, usize, bool)> {
-    let index_of: HashMap<(&str, &str), usize> = pods
-        .iter()
+/// Map each pod's `(namespace, name)` to its index, without allocating.
+fn identity_index(pods: &[Pod]) -> HashMap<(&str, &str), usize> {
+    pods.iter()
         .enumerate()
         .map(|(i, p)| ((p.namespace.as_str(), p.name.as_str()), i))
-        .collect();
-    let mut pairs = HashSet::new();
+        .collect()
+}
+
+/// Affinity entries with no named pod on the declaring pod's node.
+fn unmet_affinity_entries(
+    assignment: &[usize],
+    pods: &[Pod],
+    index_of: &HashMap<(&str, &str), usize>,
+) -> usize {
+    let mut unmet = 0;
     for (i, pod) in pods.iter().enumerate() {
-        let together = pod.affinity_targets.iter().map(|t| (t, true));
-        let apart = pod.anti_affinity_targets.iter().map(|t| (t, false));
-        for (target, wants_together) in together.chain(apart) {
-            let Some(j) = lookup_identity(&index_of, target) else {
-                continue;
-            };
-            if i != j {
-                pairs.insert((i.min(j), i.max(j), wants_together));
+        for entry in &pod.affinity_targets {
+            let named: Vec<usize> = entry
+                .iter()
+                .filter_map(|t| lookup_identity(index_of, t))
+                .collect();
+            // WHY skip an empty entry: it names no other pod (for example, a
+            // single-replica declaration naming itself), so there is nothing to be near.
+            if !named.is_empty() && named.iter().all(|&j| assignment[j] != assignment[i]) {
+                unmet += 1;
             }
         }
     }
-    pairs
+    unmet
+}
+
+/// Distinct anti-affinity pairs that share a node.
+fn colocated_anti_affinity_pairs(
+    assignment: &[usize],
+    pods: &[Pod],
+    index_of: &HashMap<(&str, &str), usize>,
+) -> usize {
+    let mut pairs = HashSet::new();
+    for (i, pod) in pods.iter().enumerate() {
+        for target in &pod.anti_affinity_targets {
+            let Some(j) = lookup_identity(index_of, target) else {
+                continue;
+            };
+            if i != j && assignment[i] == assignment[j] {
+                pairs.insert((i.min(j), i.max(j)));
+            }
+        }
+    }
+    pairs.len()
 }
 
 /// Find the pod whose `namespace/podname` identity equals `target`.
@@ -400,7 +425,7 @@ mod tests {
         // resolved identity such as "ns/b" never matched and no rule counted.
         let pods = vec![
             Pod {
-                affinity_targets: vec!["ns/b".into()],
+                affinity_targets: vec![vec!["ns/b".into()]],
                 ..pod("a")
             },
             pod("b"),
@@ -423,25 +448,52 @@ mod tests {
     }
 
     #[test]
-    fn symmetric_rule_is_counted_once() {
+    fn symmetric_anti_affinity_pair_is_counted_once() {
         let pods = vec![
             Pod {
-                affinity_targets: vec!["ns/b".into()],
+                anti_affinity_targets: vec!["ns/b".into()],
                 ..pod("a")
             },
             Pod {
-                affinity_targets: vec!["ns/a".into()],
+                anti_affinity_targets: vec!["ns/a".into()],
                 ..pod("b")
             },
         ];
-        assert_eq!(compute_affinity_violations(&[0, 1], &pods), 1);
+        assert_eq!(compute_affinity_violations(&[0, 0], &pods), 1);
+    }
+
+    #[test]
+    fn affinity_entry_is_satisfied_by_one_of_its_pods() {
+        // Kubernetes podAffinity semantics (#26): one named pod on the node suffices.
+        let pods = vec![
+            Pod {
+                affinity_targets: vec![vec!["ns/b".into(), "ns/c".into()]],
+                ..pod("a")
+            },
+            pod("b"),
+            pod("c"),
+        ];
+        assert_eq!(compute_affinity_violations(&[0, 0, 1], &pods), 0);
+    }
+
+    #[test]
+    fn affinity_entry_with_no_named_pod_nearby_is_one_violation() {
+        let pods = vec![
+            Pod {
+                affinity_targets: vec![vec!["ns/b".into(), "ns/c".into()]],
+                ..pod("a")
+            },
+            pod("b"),
+            pod("c"),
+        ];
+        assert_eq!(compute_affinity_violations(&[0, 1, 2], &pods), 1);
     }
 
     #[test]
     fn affinity_violation_detected() {
         let pods = vec![
             Pod {
-                affinity_targets: vec!["ns/b".into()],
+                affinity_targets: vec![vec!["ns/b".into()]],
                 ..pod("a")
             },
             pod("b"),
@@ -453,7 +505,7 @@ mod tests {
     fn affinity_satisfied_no_violation() {
         let pods = vec![
             Pod {
-                affinity_targets: vec!["ns/b".into()],
+                affinity_targets: vec![vec!["ns/b".into()]],
                 ..pod("a")
             },
             pod("b"),

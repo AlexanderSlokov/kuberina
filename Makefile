@@ -70,6 +70,9 @@ solver-irina-headroom-20:
 
 # Re-reads infra/workloads/solution from scratch and re-checks every constraint.
 # Shares no code with the solver — that independence is the point.
+inspector-test:
+	cd inspector && uv run --with pyyaml --with pytest pytest -q --doctest-modules ir_workloads.py affinity_check.py tests
+
 inspector-run:
 	uv run --with pyyaml python inspector/inspector.py \
 		--infra solver/testdata/irina_infra.yaml \
@@ -82,6 +85,9 @@ inspector-run:
 # Writes into solver/testdata (cwd-relative output inside the generator).
 bench-generate-testdata:
 	cd solver && uv run --with pyyaml python ../bench/gen_irina_testdata.py
+
+bench-test:
+	cd bench && uv run --with pyyaml --with pytest pytest -q --doctest-modules gen_irina_testdata.py tests
 
 bench-proof:
 	uv run --with pyyaml python bench/mathematical_proof.py
@@ -105,6 +111,9 @@ research-generate-testdata:
 
 # --- Pipelines -------------------------------------------------------------
 
+# Every test suite in the repository, one command (AGENTS.md, Tests).
+test: forge-test solver-test inspector-test bench-test
+
 full-pipeline: ## Generate testdata -> solve -> inspect -> prove
 	@echo "=> Generating 8D testdata..."
 	cd research && uv run python ../bench/gen_irina_testdata.py
@@ -125,5 +134,5 @@ full-pipeline: ## Generate testdata -> solve -> inspect -> prove
 .PHONY: forge-build forge-test forge-lint forge-demo \
 	solver-build solver-test solver-clippy solver-lint solver-fmt \
 	solver-homelab solver-irina solver-irina-headroom-20 \
-	inspector-run bench-generate-testdata bench-proof bench-proof-headroom-20 \
-	research-homelab research-irina research-generate-testdata full-pipeline
+	inspector-test inspector-run bench-test bench-generate-testdata bench-proof bench-proof-headroom-20 \
+	research-homelab research-irina research-generate-testdata full-pipeline test

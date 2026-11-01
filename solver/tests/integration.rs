@@ -123,3 +123,22 @@ fn ga_reduces_affinity_violations() {
     // GA should have same or fewer violations
     assert!(ga_violations <= ffd_violations);
 }
+
+/// Every committed testdata pair must load under the IR v1 parser.
+///
+/// Regression for #26: `irina_workloads.yaml` carried a top-level `pods:` list that
+/// the stricter IR v1 parser rejects, and no test loaded it, so `make solver-irina`
+/// broke without a failing test.
+#[test]
+fn every_committed_testdata_file_loads() {
+    for (infra, workloads) in [
+        (
+            "testdata/homelab_infra.yaml",
+            "testdata/homelab_workloads.yaml",
+        ),
+        ("testdata/irina_infra.yaml", "testdata/irina_workloads.yaml"),
+    ] {
+        load_infra(infra).unwrap_or_else(|e| panic!("{infra}: {e}"));
+        load_workloads(workloads).unwrap_or_else(|e| panic!("{workloads}: {e}"));
+    }
+}

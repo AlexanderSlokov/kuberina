@@ -32,6 +32,11 @@ except ImportError:
     print("Error: PyYAML required. Run: uv pip install pyyaml")
     sys.exit(1)
 
+# WHY share the inspector's IR reader: both scripts check the solver from outside,
+# and two private copies of the IR rules had already drifted apart (#26).
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "inspector"))
+from ir_workloads import flatten_resources, unroll_workloads  # noqa: E402
+
 
 # The 8-dimensional resource vector of Kuberina IR v0.2.0. Order is fixed so that
 # printed proofs list dimensions the same way every run.
@@ -55,48 +60,8 @@ def load_yaml(path: str) -> dict:
         return yaml.safe_load(f)
 
 
-def _as_float(value: object, dimension: str) -> float:
-    """Coerce one IR quantity to a float, naming it if the shape is wrong."""
-    try:
-        return float(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        raise ValueError(
-            f"resource dimension {dimension!r} must be a number, got {value!r}. "
-            "Kubernetes suffix notation (e.g. '256Mi') is understood by the solver "
-            "but not by this verifier."
-        ) from None
-
-
-def flatten_resources(block: dict) -> dict[str, float]:
-    """Project a Kuberina IR resource block onto the flat 8-dimension vector.
-
-    IR v0.2.0 nests throughput under `disk: {read, write}` and
-    `network: {in, out}`; the rest of this script indexes dimensions by their
-    flat names. Absent dimensions stay absent, because the callers distinguish
-    "declared as zero" from "not declared" — pre_deduct_daemonsets turns the
-    latter into an unconstrained node dimension.
-
-    Example:
-        >>> flatten_resources({"cpu": 4.0, "disk": {"read": 50.0}})
-        {'cpu': 4.0, 'disk_read': 50.0}
-    """
-    disk = block.get("disk") or {}
-    network = block.get("network") or {}
-    sources = (
-        ("cpu", block.get("cpu")),
-        ("ram", block.get("ram")),
-        ("gpu", block.get("gpu")),
-        ("storage", block.get("storage")),
-        ("disk_read", disk.get("read")),
-        ("disk_write", disk.get("write")),
-        ("net_in", network.get("in")),
-        ("net_out", network.get("out")),
-    )
-    return {r: _as_float(v, r) for r, v in sources if v is not None}
-
-
-def normalize_ir(infra: dict, workloads: dict) -> None:
-    """Rewrite every resource block in place into flat 8-dimension form.
+def normalize_ir(infra: dict) -> None:
+    """Rewrite every infrastructure resource block in place into flat 8-dimension form.
 
     WHY: the solver reads the nested IR shape. A verifier that reads flat keys
     would silently disagree with it about I/O capacity and demand, which is the
@@ -106,8 +71,16 @@ def normalize_ir(infra: dict, workloads: dict) -> None:
         node["allocatable"] = flatten_resources(node.get("allocatable", {}))
     for ds in infra.get("daemonsets", []):
         ds["resources"] = flatten_resources(ds.get("resources", {}))
-    for pod in workloads.get("pods", []):
-        pod["requests"] = flatten_resources(pod.get("requests", {}))
+
+
+def load_pods(workloads: dict) -> list[dict]:
+    """Unroll an IR v1 workloads document into one dict per pod, keyed by identity.
+
+    Example:
+        >>> load_pods({"namespaces": {"ai": [{"name": "web"}]}})[0]["identity"]
+        'ai/web-0'
+    """
+    return unroll_workloads(workloads)
 
 
 def pre_deduct_daemonsets(
@@ -169,7 +142,7 @@ def verify_capacity_constraint(
     Returns (all_satisfied, overflow_by_resource).
     """
     node_map = {n["name"]: n for n in nodes}
-    pod_map = {p["name"]: p for p in pods}
+    pod_map = {p["identity"]: p for p in pods}
 
     loads: dict[str, dict[str, float]] = {
         n["name"]: {r: 0.0 for r in DIMENSIONS}
@@ -177,7 +150,7 @@ def verify_capacity_constraint(
     }
 
     for pod_name_raw, node_name in solution.items():
-        pod_name = pod_name_raw.split('/')[-1] if '/' in pod_name_raw else pod_name_raw
+        pod_name = pod_name_raw
         if pod_name not in pod_map or node_name not in node_map:
             continue
         req = pod_map[pod_name]["requests"]
@@ -204,8 +177,7 @@ def verify_assignment_constraint(
 
     Returns (all_assigned, count_missing).
     """
-    assigned_pods = set(k.split('/')[-1] if '/' in k else k for k in solution.keys())
-    missing = sum(1 for p in pods if p["name"] not in assigned_pods)
+    missing = sum(1 for p in pods if p["identity"] not in solution)
     return missing == 0, missing
 
 
@@ -219,11 +191,11 @@ def verify_selector_constraint(
     Returns (all_satisfied, violation_count).
     """
     node_map = {n["name"]: n for n in nodes}
-    pod_map = {p["name"]: p for p in pods}
+    pod_map = {p["identity"]: p for p in pods}
     violations = 0
 
     for pod_name_raw, node_name in solution.items():
-        pod_name = pod_name_raw.split('/')[-1] if '/' in pod_name_raw else pod_name_raw
+        pod_name = pod_name_raw
         if pod_name not in pod_map or node_name not in node_map:
             continue
         selector = pod_map[pod_name].get("nodeSelector", {})
@@ -242,7 +214,7 @@ def verify_topology_spread(
 ) -> float:
     """Compute topology spread penalty (total skew across all domains)."""
     node_map = {n["name"]: n for n in nodes}
-    pod_map = {p["name"]: p for p in pods}
+    pod_map = {p["identity"]: p for p in pods}
     
     all_domains = {"zone": set(), "rack": set()}
     for n in nodes:
@@ -250,9 +222,8 @@ def verify_topology_spread(
         all_domains["rack"].add(n.get("rack", ""))
     
     groups = {}
-    import re
     for pod_name_raw, n_name in solution.items():
-        pod_name = pod_name_raw.split('/')[-1] if '/' in pod_name_raw else pod_name_raw
+        pod_name = pod_name_raw
         if pod_name not in pod_map or n_name not in node_map: continue
         pod = pod_map[pod_name]
         if "topologySpread" not in pod: continue
@@ -261,15 +232,13 @@ def verify_topology_spread(
         top_key = ts.get("topologyKey")
         if top_key not in all_domains: continue
         
-        ns = pod.get("namespace", "default")
-        base_name = re.sub(r'-\d{1,4}$', '', pod_name)
-        
-        group_key = (ns, base_name, top_key)
+        # WHY the declaration: replicas of one declaration form one spread group.
+        group_key = (pod["declaration"], top_key)
         groups.setdefault(group_key, []).append(n_name)
     
     total_penalty = 0.0
     for group_key, assigned_nodes in groups.items():
-        ns, base_name, top_key = group_key
+        _, top_key = group_key
         counts = {domain: 0 for domain in all_domains[top_key]}
         for n_name in assigned_nodes:
             domain_val = node_map[n_name].get(top_key, "")
@@ -593,10 +562,10 @@ def main() -> None:
     infra = load_yaml(infra_path)
     workloads = load_yaml(work_path)
     solution = load_yaml(soln_path).get("solution", {})
-    normalize_ir(infra, workloads)
+    normalize_ir(infra)
 
     nodes = pre_deduct_daemonsets(infra["nodes"], infra.get("daemonsets", []))
-    pods = workloads["pods"]
+    pods = load_pods(workloads)
 
     print("=" * 70)
     print("  KUBERINA MATHEMATICAL VERIFICATION")

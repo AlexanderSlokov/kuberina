@@ -230,9 +230,13 @@ pub struct Pod {
     pub requests: ResourceVector,
     pub tolerations: Vec<String>,
     pub node_selector: HashMap<String, String>,
-    /// WHY list of pod names: affinity is a soft constraint evaluated in fitness,
-    /// not a hard constraint. We track desired co-location partners by name.
-    pub affinity_targets: Vec<String>,
+    /// One entry per `affinity` rule, holding the identities that rule names.
+    ///
+    /// WHY grouped: Kubernetes podAffinity is satisfied by any one named pod on the
+    /// node, so the pods an entry names must stay together to be judged (#26).
+    /// Before resolution, each entry holds the target as written.
+    pub affinity_targets: Vec<Vec<String>>,
+    /// Identities this pod must not share a node with, judged pair by pair.
     pub anti_affinity_targets: Vec<String>,
     pub group_name: String,
     /// Topology spread constraint (soft penalty in v0.2.0).

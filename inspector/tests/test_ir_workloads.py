@@ -35,7 +35,7 @@ def test_unrolling_yields_one_pod_per_replica_keyed_by_identity():
 
 def test_declaration_target_resolves_to_every_replica():
     pods = resolve_targets(unroll_workloads(TRAINING_JOB))
-    assert pods[2]["affinity"] == ["ai/trainer-0000", "ai/trainer-0001"]
+    assert pods[2]["affinity"] == [["ai/trainer-0000", "ai/trainer-0001"]]
 
 
 def test_own_declaration_excludes_the_pod_itself():
