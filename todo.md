@@ -7,7 +7,7 @@ work below is uncommitted. Delete this file once its items are done or moved int
 ## State at hand-off
 
 Updated 2026-11-01, evening. Branch `24-challenge-alibaba`, committed and pushed
-through `cd51b8a`.
+through `e6acca3` and its follow-up.
 
 - X-1 is done. The FGD simulator reproduces the published seed-42 figures exactly. See
   `docs/references/sessions/2026-10-31-fgd-simulator-calibration.md`.
@@ -19,11 +19,9 @@ through `cd51b8a`.
   `docs/references/sessions/2026-11-01-alibaba-trace-adapter.md`. The seed-42 IR has
   1,213 nodes and 10,866 Pods, and its GPU demand equals the logged arrivals at every
   Pod.
-- X-3 is done, uncommitted: `gpuDevices` and `gpuMilli` in `ir-v1.md` §2 and §3.4,
-  the solver (`gpu_devices.rs`, `gpu_ir.rs`), the inspector (`gpu_device_check.py`),
-  the forge IR types, the adapter, and
-  `docs/references/sessions/2026-11-01-per-device-gpu.md`. After committing, replace
-  "with this session's uncommitted X-3 changes" in that record with the commit SHA.
+- X-3 is done at `e6acca3`: `gpuDevices` and `gpuMilli` in `ir-v1.md` §2 and §3.4, the
+  solver, the inspector, the forge IR types, and the adapter. See
+  `docs/references/sessions/2026-11-01-per-device-gpu.md`.
 - Uncommitted on purpose: the temporary timing example
   `solver/examples/fitness_timing.rs`, kept for S-1.
 

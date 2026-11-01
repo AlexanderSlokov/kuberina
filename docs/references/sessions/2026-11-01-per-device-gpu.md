@@ -2,7 +2,8 @@
 
 **Backlog item:** X-3 · **Issue:** [#24](https://github.com/AlexanderSlokov/kuberina/issues/24)
 **Plan:** `docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`, Stage 3
-**Kuberina commit:** `cd51b8a`, with this session's uncommitted X-3 changes.
+**Kuberina commit:** `e6acca3`, which adds the X-3 changes. The measurements ran on its
+working tree before the commit; the code is identical.
 **Compared against:** `096177e`, recorded in `2026-11-01-irina-with-affinity.md`.
 **Host:** Linux 7.0.0-38-generic x86_64, 8 vCPU, 13 GiB RAM.
 
