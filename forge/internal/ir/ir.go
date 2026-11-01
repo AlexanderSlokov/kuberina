@@ -138,12 +138,18 @@ type Blueprint struct {
 	Kind       string            `yaml:"kind"`
 	Metadata   BlueprintMetadata `yaml:"metadata"`
 	Solution   map[string]string `yaml:"solution"`
+	// Unplaced lists the Pods the planner declined (ir-v1.md §4.1). The forge refuses
+	// a blueprint that has any.
+	Unplaced []string `yaml:"unplaced,omitempty"`
 }
 
 type BlueprintMetadata struct {
 	Feasible    bool `yaml:"feasible"`
 	Pods        int  `yaml:"pods"`
 	ActiveNodes int  `yaml:"activeNodes"`
+	// Admission is "in-order" or "free" when Pods could be declined; Unplaced counts them.
+	Admission string `yaml:"admission,omitempty"`
+	Unplaced  int    `yaml:"unplaced,omitempty"`
 }
 
 // NewInfrastructure returns an Infrastructure with its header already set.

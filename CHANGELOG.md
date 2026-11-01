@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The solver can leave Pods unplaced when demand exceeds capacity**
+  ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24), X-4). With
+  `--admission in-order`, the solver decides Pod by Pod in the order of the new
+  `arrival` field: a Pod is admitted when it fits beside the Pods admitted before it,
+  after moving at most one of them, and a rejected Pod stays rejected while later Pods
+  are still tried. With `--admission free`, the solver may choose any set of Pods. Both
+  write a blueprint that is `feasible: true` when no capacity is breached, with an
+  `unplaced:` list and `metadata.admission`, and print the GPU allocation. On a fixture
+  that asks for 134% of its GPUs, in-order admission placed 96.88% of the GPUs and free
+  admission 100%, and the inspector, which checks the in-order rule with its own code,
+  agreed. `kuberina-forge out` refuses a blueprint with unplaced Pods, because a
+  partial plan serves benchmarks and is not applied to a cluster. Runs without
+  `--admission` plan exactly as before: the MSC Irina seed fitness is unchanged to the
+  digit. The objective weight for unplaced Pods is provisional until S-2. The fields are
+  specified in `docs/references/ir-v1.md` §3.5 and §4.1, and the record is
+  `docs/references/sessions/2026-11-01-admission.md`.
 - **GPUs can be checked device by device**
   ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24), X-3). A node may
   declare `gpuDevices`, and a declaration may state `gpuMilli`, the share of each device
@@ -178,6 +194,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dimension is disk write throughput, not CPU, and the paper now says so. (#15, #8, #11)
 
 ### Fixed
+- **The banner of an infeasible blueprint is aligned.** Its second line, "# Written for
+  inspection only", carried 13 spaces of source indentation into the file. The writer
+  now lives in `solver/src/blueprint_yaml.rs`, with tests for the banner and for the
+  document shape.
 - **Affinity and anti-affinity rules now affect plans.**
   ([#26](https://github.com/AlexanderSlokov/kuberina/issues/26)) Before this change, no
   rule reached the solver: the fitness function looked targets up by bare Pod name, so

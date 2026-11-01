@@ -161,6 +161,7 @@ namespaces:
     - name: inference
       requests: { cpu: 4, gpu: 1 }
       gpuMilli: 500                          # optional, see §3.4
+      arrival: 17                            # optional, see §3.5
 
 groups:                                      # optional, see §3.2
   - name: training-job
@@ -307,6 +308,25 @@ A Pod with a fractional `requests.gpu` and no `gpuMilli` cannot be checked per d
 Such a Pod is an error, naming the Pod and the value, when any node declares
 `gpuDevices`.
 
+### 3.5 Arrival order
+
+A benchmark that replays a scheduler trace offers Pods one at a time, in a fixed order.
+The `arrival` field states that order, so that a planner can admit Pods in the same
+order (§4.1).
+
+| Field | Type | Required | Default |
+|---|---|---|---|
+| `arrival` | integer ≥ 0 | no | absent |
+
+Pods arrive in increasing `arrival`. The replicas of one declaration arrive one after
+another, in replica order. For example, a declaration with `replicas: 3` and
+`arrival: 5` offers `<name>-0000`, `<name>-0001`, and `<name>-0002` in that order, all
+before a declaration with `arrival: 6`. Two declarations with the same `arrival` are an
+error that names both.
+
+`arrival` changes nothing unless the planner admits Pods in order. A planner that does
+treats a declaration without `arrival` as an error that names the declaration.
+
 ---
 
 ## 4. Blueprint document
@@ -331,10 +351,43 @@ solution:
 | `metadata.feasible` | boolean | false when the plan breaches real capacity; such a file is written for inspection and must not be applied |
 | `metadata.pods` | integer | number of entries in `solution`, for a cheap integrity check |
 | `metadata.activeNodes` | integer | distinct nodes used |
-| `solution` | map[string]string | `namespace/podname` → node name, one entry per unrolled pod |
+| `metadata.admission` | string, optional | `in-order` or `free` when the planner was allowed to leave Pods unplaced (§4.1); absent otherwise |
+| `metadata.unplaced` | integer, optional | number of entries in `unplaced`; present with `metadata.admission` |
+| `solution` | map[string]string | `namespace/podname` → node name, one entry per placed pod |
+| `unplaced` | list[string], optional | identities of the Pods the planner declined; present with `metadata.admission` |
+
+Every unrolled Pod appears exactly once, either in `solution` or in `unplaced`. Without
+`metadata.admission`, `unplaced` is absent and `solution` holds every Pod.
 
 An infeasible blueprint additionally carries a comment banner at the top of the file.
 Consumers must treat `metadata.feasible: false` as refusal to apply, not as a warning.
+A blueprint that declines Pods and breaches no capacity is `feasible: true`.
+
+### 4.1 Admission
+
+When demand exceeds capacity, a planner may be allowed to leave Pods unplaced. There
+are two modes:
+
+| Mode | The planner may | Used for |
+|---|---|---|
+| `free` | choose any set of Pods to place | an upper bound on what an offline planner can place |
+| `in-order` | decide Pod by Pod in `arrival` order (§3.5); a rejected Pod stays rejected, and the next Pod is tried | comparison with an online scheduler that sees the same order |
+
+**In-order rule.** Pod *i* is admitted if, and only if, the Pods admitted before it,
+together with *i*, can be placed. The planner may move Pods it admitted earlier. Because
+deciding whether a set of Pods can be placed is itself a packing problem, a planner may
+reject a Pod that a better re-packing could admit. The rule is checked in this form: no
+unplaced Pod *i* can take the place of a placed Pod *j* that arrived after it. Taking
+the place means removing *j* from its node and adding *i* there without breaking a
+capacity, device (§3.4), selector, or taint constraint.
+
+For example, a node with 8 GPUs holds Pods A (5 GPUs, arrival 1) and C (1 GPU,
+arrival 3), and Pod B (4 GPUs, arrival 2) is unplaced. The rule holds: removing C leaves
+3 GPUs free, too few for B. If A needed 4 GPUs and C needed 2, removing C would leave 4
+GPUs free. B could then take the place of C, so that blueprint breaks the rule.
+
+`kuberina-forge out` refuses a blueprint with unplaced Pods: admission serves
+benchmarks, and a partial plan is not applied to a cluster.
 
 ---
 

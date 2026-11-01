@@ -9,7 +9,7 @@
 
 use crate::csp::can_place_pod_on_node;
 use crate::gpu_devices::DeviceLedger;
-use crate::model::{Blueprint, FfdWeights, Node, Pod, ResourceVector};
+use crate::model::{Blueprint, FfdWeights, Node, Pod, ResourceVector, placements};
 
 /// Largest capacity present in the cluster, per dimension.
 ///
@@ -77,6 +77,7 @@ fn capacity_share(demand: f64, max_capacity: f64) -> f64 {
 ///     topology_spread: None,
 ///     observed: None,
 ///     gpu_share: None,
+///     arrival: None,
 /// };
 /// // Against a cluster whose biggest node is 64 CPU / 256 RAM / 8 GPU:
 /// let scale = ResourceVector::new(64.0, 256.0, 8.0);
@@ -103,10 +104,28 @@ pub fn compute_node_loads(
     num_nodes: usize,
 ) -> Vec<ResourceVector> {
     let mut loads = vec![ResourceVector::zero(); num_nodes];
-    for (pod_idx, &node_idx) in assignment.iter().enumerate() {
+    for (pod_idx, node_idx) in placements(assignment) {
         loads[node_idx] = loads[node_idx] + pods[pod_idx].requests;
     }
     loads
+}
+
+/// Pod indices by synthetic volume, heaviest first: the order FFD places Pods in.
+///
+/// Shared by `ffd_warmstart` and free admission (`admission::ffd_with_admission`).
+///
+/// ```ignore
+/// let order = ffd_order(&pods, &nodes, &FfdWeights::default());
+/// ```
+pub fn ffd_order(pods: &[Pod], nodes: &[Node], weights: &FfdWeights) -> Vec<usize> {
+    let scale = max_node_capacity(nodes);
+    let mut sorted_indices: Vec<usize> = (0..pods.len()).collect();
+    sorted_indices.sort_by(|&a, &b| {
+        synthetic_volume(&pods[b], weights, &scale)
+            .partial_cmp(&synthetic_volume(&pods[a], weights, &scale))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    sorted_indices
 }
 
 /// Generate a feasible initial blueprint using First-Fit Decreasing.
@@ -129,6 +148,7 @@ pub fn compute_node_loads(
 ///     topology_spread: None,
 ///     observed: None,
 ///     gpu_share: None,
+///     arrival: None,
 /// }];
 /// let nodes = vec![Node {
 ///     name: "n1".into(), allocatable: ResourceVector::new(4.0, 16.0, 0.0),
@@ -145,14 +165,7 @@ pub fn ffd_warmstart(pods: &[Pod], nodes: &[Node], weights: &FfdWeights) -> Blue
     let num_pods = pods.len();
     let num_nodes = nodes.len();
 
-    // Sort pod indices by synthetic volume descending (heaviest first)
-    let scale = max_node_capacity(nodes);
-    let mut sorted_indices: Vec<usize> = (0..num_pods).collect();
-    sorted_indices.sort_by(|&a, &b| {
-        synthetic_volume(&pods[b], weights, &scale)
-            .partial_cmp(&synthetic_volume(&pods[a], weights, &scale))
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    let sorted_indices = ffd_order(pods, nodes, weights);
 
     let mut assignment = vec![0_usize; num_pods];
     let mut residual: Vec<ResourceVector> = nodes.iter().map(|n| n.allocatable).collect();
@@ -220,6 +233,7 @@ mod tests {
             topology_spread: None,
             observed: None,
             gpu_share: None,
+            arrival: None,
         }
     }
 
@@ -326,7 +340,7 @@ mod tests {
 
     // ─── Per-device GPU (IR v1 §3.4, X-3) ───────────────────────────────
 
-    use crate::gpu_test_fixtures::{eight_gpu_node, sixty_percent_then_half};
+    use crate::test_fixtures::{eight_gpu_node, sixty_percent_then_half};
 
     #[test]
     fn ffd_moves_the_half_gpu_pod_off_the_node_whose_devices_are_full() {
@@ -335,5 +349,14 @@ mod tests {
         let bp = ffd_warmstart(&sixty_percent_then_half(), &nodes, &FfdWeights::default());
         assert_eq!(&bp.assignment[..8], &[0; 8]);
         assert_eq!(bp.assignment[8], 1);
+    }
+
+    // ─── Unplaced Pods (IR v1 §4.1, X-4) ────────────────────────────────
+
+    #[test]
+    fn unplaced_pod_adds_no_load() {
+        let pods = [pod("a", 1.0, 1.0), pod("b", 2.0, 2.0)];
+        let loads = compute_node_loads(&[0, crate::model::UNPLACED], &pods, 1);
+        assert_eq!(loads[0].cpu, 1.0);
     }
 }

@@ -104,3 +104,14 @@ def test_demand_mismatch_writes_nothing_and_names_the_arrival(tmp_path, capsys):
 def test_missing_input_file_is_reported_without_a_traceback(tmp_path, capsys):
     assert run_adapter(tmp_path / "out", pods=tmp_path / "absent.csv") == 1
     assert "absent.csv" in capsys.readouterr().err
+
+
+def test_every_arrival_equals_its_sequence_row(tmp_path):
+    run_adapter(tmp_path)
+    workloads = yaml.safe_load((tmp_path / "workloads.yaml").read_text())
+    with (tmp_path / "sequence.csv").open() as stream:
+        rows = list(csv.DictReader(stream))
+    declarations = workloads["namespaces"]["paib-gpu"]
+    assert [d["arrival"] for d in declarations] == [
+        int(r["arrival_index"]) for r in rows
+    ]

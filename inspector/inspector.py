@@ -14,6 +14,7 @@ except ImportError:
     print("Error: PyYAML is not installed. Run: uv pip install pyyaml")
     sys.exit(1)
 
+from admission_check import admission_report
 from affinity_check import count_affinity_violations
 from gpu_device_check import device_violations
 from ir_workloads import flatten_resources, resolve_targets, unroll_workloads
@@ -428,6 +429,8 @@ def main():
           + "".join(f"\n  {name}" for name in validation["gpu_device_violations"]))
     print(f"Unassigned Pods: {validation['unassigned_pods']}")
     print(f"Affinity Violations: {count_affinity_violations(pods, solution_map)}")
+    for line in admission_report(nodes, pods, solution_data):
+        print(line)
     print("--------------------------\n")
     
     # Render

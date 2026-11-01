@@ -22,6 +22,12 @@ through `e6acca3` and its follow-up.
 - X-3 is done at `e6acca3`: `gpuDevices` and `gpuMilli` in `ir-v1.md` §2 and §3.4, the
   solver, the inspector, the forge IR types, and the adapter. See
   `docs/references/sessions/2026-11-01-per-device-gpu.md`.
+- X-4 is done, uncommitted: `arrival`, `unplaced:`, and the in-order rule in
+  `ir-v1.md` §3.5 and §4.1; `--admission in-order | free` in the solver
+  (`admission.rs`, `packing.rs`, `unplaced_term.rs`, `blueprint_yaml.rs`); the
+  inspector's `admission_check.py`; the forge refusal; and `arrival` in the adapter.
+  See `docs/references/sessions/2026-11-01-admission.md`. After committing, replace
+  "with this session's uncommitted X-4 changes" in that record with the commit SHA.
 - Uncommitted on purpose: the temporary timing example
   `solver/examples/fitness_timing.rs`, kept for S-1.
 
@@ -30,15 +36,12 @@ through `e6acca3` and its follow-up.
 Decided 2026-11-01: finish #24 first. Performance work (S-1) waits for its own issue and
 session, because the Alibaba default trace has no affinity or spread rule.
 
-1. X-4: admission. Pods may stay unplaced, with an `unplaced:` list in the blueprint and
-   `--admission in-order | free`. IR v1 has no arrival field: the adapter writes
-   declarations in arrival order and `sequence.csv` states the order. Decide which one
-   the solver reads before writing the `in-order` mode. An unplaced Pod must take no
-   device: `gpu_devices::device_overflow_per_node` and `DeviceLedger` count every
-   assigned Pod.
 1. S-2: derive the objective weights on the Alibaba instance and fix them before the
-   first run. Decide whether fragmentation counts milli-GPU stranded on devices; X-3
-   left that term as a per-node sum.
+   first run. This covers the provisional unplaced-Pod term of X-4
+   (`unplaced_term.rs`), whether fragmentation counts milli-GPU stranded on devices,
+   and the free-admission operators, which cannot trade one large Pod for several
+   small ones (session record of X-4, *Findings*). Do not run Kuberina on the trace
+   before the weights are fixed.
 1. X-5: one full solve of the seed-42 tuned set; measure wall clock and memory.
 1. X-6: experiments E1–E5 over seeds 42–51.
 

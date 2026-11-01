@@ -16,6 +16,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
+use crate::admission_ir::{ArrivalRegistry, register_arrival};
 use crate::gpu_ir::{node_gpu_devices, pod_gpu_share};
 use crate::model::{DaemonSet, Node, ObservedUsage, Pod, PodGroup, ResourceVector, TopologySpread};
 use crate::quantity::{QuantityContext, parse_quantity};
@@ -205,6 +206,8 @@ struct RawPod {
     observed: Option<RawObservedUsage>,
     #[serde(default, rename = "gpuMilli")]
     gpu_milli: Option<u32>,
+    #[serde(default)]
+    arrival: Option<u64>,
 }
 
 fn default_replicas() -> usize {
@@ -465,6 +468,7 @@ type DeclarationIndex = HashMap<String, Vec<usize>>;
 fn flatten_namespaces(raw: &RawWorkloadFile) -> Result<(Vec<Pod>, DeclarationIndex), String> {
     let mut pods = Vec::new();
     let mut declarations: DeclarationIndex = HashMap::new();
+    let mut arrivals = ArrivalRegistry::new();
 
     // WHY: sort namespace keys for deterministic pod ordering across runs.
     let mut ns_keys: Vec<&String> = raw.namespaces.keys().collect();
@@ -476,6 +480,7 @@ fn flatten_namespaces(raw: &RawWorkloadFile) -> Result<(Vec<Pod>, DeclarationInd
             let mut resources = raw_to_pod_resources(&rp.requests)?;
             let declaration = format!("{ns_name}/{}", rp.name);
             let gpu_share = pod_gpu_share(&declaration, rp.gpu_milli, &mut resources)?;
+            register_arrival(&mut arrivals, &declaration, rp.arrival)?;
             let tolerations: Vec<String> = rp.tolerations.iter().map(flatten_toleration).collect();
 
             let observed = rp.observed.as_ref().map(raw_to_observed).transpose()?;
@@ -497,6 +502,7 @@ fn flatten_namespaces(raw: &RawWorkloadFile) -> Result<(Vec<Pod>, DeclarationInd
                     topology_spread: rp.topology_spread.clone(),
                     observed: observed.clone(),
                     gpu_share,
+                    arrival: rp.arrival,
                 });
             }
         }
@@ -1115,6 +1121,40 @@ namespaces:
             flatten_namespaces(&raw)
                 .unwrap_err()
                 .contains("ai/inference")
+        );
+    }
+
+    // ─── Arrival order (IR v1 §3.5, X-4) ────────────────────────────────
+
+    #[test]
+    fn arrival_reaches_every_replica() {
+        let yaml = r#"
+namespaces:
+  ai:
+    - name: inference
+      replicas: 2
+      arrival: 7
+"#;
+        let raw: RawWorkloadFile = serde_yaml::from_str(yaml).unwrap();
+        let (pods, _) = flatten_namespaces(&raw).unwrap();
+        assert!(pods.iter().all(|p| p.arrival == Some(7)));
+    }
+
+    #[test]
+    fn two_declarations_with_one_arrival_fail_the_load() {
+        let yaml = r#"
+namespaces:
+  ai:
+    - name: trainer
+      arrival: 7
+    - name: inference
+      arrival: 7
+"#;
+        let raw: RawWorkloadFile = serde_yaml::from_str(yaml).unwrap();
+        let err = flatten_namespaces(&raw).unwrap_err();
+        assert!(
+            err.contains("ai/trainer") && err.contains("ai/inference"),
+            "{err}"
         );
     }
 }

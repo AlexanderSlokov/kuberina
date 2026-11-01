@@ -100,6 +100,7 @@ mod tests {
             topology_spread: None,
             observed: None,
             gpu_share: None,
+            arrival: None,
         }
     }
 

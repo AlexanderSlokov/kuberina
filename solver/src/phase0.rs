@@ -151,7 +151,7 @@ mod tests {
     fn pre_deduction_keeps_the_gpu_device_count() {
         // Regression (X-3): Phase 0 rebuilt each node with `gpu_devices: None`, so the
         // per-device check never ran and the fixture's half-GPU Pod passed as feasible.
-        let nodes = [crate::gpu_test_fixtures::eight_gpu_node("gpu-node-01")];
+        let nodes = [crate::test_fixtures::eight_gpu_node("gpu-node-01")];
         assert_eq!(pre_deduct_daemonsets(&nodes, &[])[0].gpu_devices, Some(8));
     }
 }

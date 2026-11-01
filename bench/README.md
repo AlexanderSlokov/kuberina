@@ -39,7 +39,7 @@ writes three files:
 | File | Content |
 |---|---|
 | `infra.yaml` | One node per row of `openb_node_list_gpu_node.csv`, with the GPU model as the `gpu-model` label and one GPU device per GPU (`gpuDevices`) |
-| `workloads.yaml` | One declaration per Pod the simulator offered, in arrival order, in namespace `paib-gpu`. A Pod that needs part of a GPU states it with `gpuMilli` |
+| `workloads.yaml` | One declaration per Pod the simulator offered, in arrival order, in namespace `paib-gpu`, each with its arrival index as `arrival`. A Pod that needs part of a GPU states it with `gpuMilli` |
 | `sequence.csv` | One row per arrival: IR identity, trace row, requests, and the node each policy chose (empty when rejected) |
 
 To build the seed-42 instance from the committed simulator logs, run these commands from

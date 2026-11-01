@@ -80,3 +80,9 @@ def test_logged_pod_missing_from_the_trace_is_an_error_naming_it():
 def test_pod_identity_follows_ir_replica_unrolling():
     # ir-v1.md §3.1: a declaration with one replica unrolls to `<name>-0`.
     assert pod_identity(RECORDS[2]) == "paib-gpu/openb-pod-3888-tuned-0-0"
+
+
+def test_declaration_carries_its_arrival_index():
+    # ir-v1.md §3.5 (X-4): in-order admission reads the order from `arrival`.
+    declarations = build_workloads(RECORDS, PODS)["namespaces"]["paib-gpu"]
+    assert [d["arrival"] for d in declarations] == [0, 1, 2]

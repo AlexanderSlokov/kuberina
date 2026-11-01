@@ -38,6 +38,7 @@ class Declaration(TypedDict, total=False):
     name: str
     requests: Resources
     gpuMilli: int  # present when the pod needs part of each device
+    arrival: int  # the simulator's arrival index (ir-v1.md §3.5)
 
 
 class Infrastructure(TypedDict):
@@ -71,8 +72,9 @@ def build_workloads(
 ) -> Workloads:
     """One declaration per logged pod, in arrival order, grouped by namespace.
 
-    Each tuned clone takes the requests of its source row. IR v1 has no arrival field,
-    so the arrival order is the declaration order; `sequence.csv` states it per pod.
+    Each tuned clone takes the requests of its source row. Each declaration carries the
+    simulator's arrival index as `arrival` (ir-v1.md §3.5), so in-order admission sees
+    the order the simulator used.
 
     Example:
         workloads = build_workloads(read_simulator_log(log), read_trace_pods(pod_csv))
@@ -81,7 +83,7 @@ def build_workloads(
     for record in records:
         namespace, name = record.pod.split("/", 1)
         namespaces.setdefault(namespace, []).append(
-            _declaration(name, _trace_row(record.pod, pods))
+            _declaration(name, _trace_row(record.pod, pods), record.index)
         )
     return {"apiVersion": IR_API_VERSION, "kind": "Workloads", "namespaces": namespaces}
 
@@ -121,12 +123,12 @@ def _node_entry(node: TraceNode) -> NodeEntry:
     return entry
 
 
-def _declaration(name: str, pod: TracePod) -> Declaration:
+def _declaration(name: str, pod: TracePod, arrival: int) -> Declaration:
     requests: Resources = {
         "cpu": pod.cpu_milli / MILLI,
         "ram": pod.memory_mib / MIB_PER_GIB,
     }
-    declaration: Declaration = {"name": name, "requests": requests}
+    declaration: Declaration = {"name": name, "arrival": arrival, "requests": requests}
     if pod.num_gpu:
         requests["gpu"] = pod.num_gpu
     if pod.num_gpu and pod.gpu_milli < MILLI:

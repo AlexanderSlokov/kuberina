@@ -130,8 +130,7 @@ These items run last, by the rule at the top of this file.
 
 | ID | Task | Touches | Depends on | Done when |
 |---|---|---|---|---|
-| X-4 | Admission (unplaced pods); decide how the solver learns arrival order, which IR v1 cannot state | `ir-v1.md` §3–§4, `solver/src/`, `inspector/`, `forge/internal/forgeout/` | — | 130% fixture gives a feasible blueprint with `unplaced:` |
-| S-2 | Derive objective weights from measured term ranges on the Alibaba instance, including X-4's unplaced-GPU term, and decide whether fragmentation counts milli-GPU stranded on devices | `solver/src/model.rs`, `docs/references/` | X-4 | Each weight cites its derivation in a session record, fixed before Kuberina's first run on the trace (plan, *Purpose and stance*) |
+| S-2 | Derive objective weights from measured term ranges on the Alibaba instance, including X-4's provisional unplaced-Pod term; decide whether fragmentation counts milli-GPU stranded on devices; review the free-admission operators, which cannot trade one large Pod for several small ones | `solver/src/model.rs`, `unplaced_term.rs`, `phase2_ga.rs`, `docs/references/` | — | Each weight cites its derivation in a session record, fixed before Kuberina's first run on the trace (plan, *Purpose and stance*) |
 | X-5 | Scale check | `docs/references/sessions/` | S-2 | Measured wall clock and memory for one full solve |
 | X-6 | Experiments E1–E5 | `bench/alibaba/`, `docs/references/sessions/` | X-5 | One session record per experiment, seeds 42–51 |
 

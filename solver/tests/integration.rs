@@ -3,10 +3,14 @@
 //! Ported from `research/tests/test_integration.py`.
 //! Load testdata → Phase 0 → Phase 1 → Phase 2 → verify constraints.
 
+use kuberina_solver::admission::{admit_in_order, ffd_with_admission, in_order_violation};
+use kuberina_solver::admission_ir::arrival_order;
 use kuberina_solver::csp::{compute_capacity_overflow, compute_overflow_by_dimension};
 use kuberina_solver::fitness::{compute_affinity_violations, compute_fitness};
 use kuberina_solver::gpu_ir::check_device_inputs;
 use kuberina_solver::model::{FfdWeights, FitnessWeights, GaConfig};
+use kuberina_solver::model::{Node, Pod, UNPLACED};
+use kuberina_solver::packing::Packing;
 use kuberina_solver::parser::{load_infra, load_workloads};
 use kuberina_solver::phase0::pre_deduct_daemonsets;
 use kuberina_solver::phase1_ffd::ffd_warmstart;
@@ -16,6 +20,8 @@ const INFRA: &str = "testdata/homelab_infra.yaml";
 const WORKLOADS: &str = "testdata/homelab_workloads.yaml";
 const GPU_DEVICES_INFRA: &str = "testdata/gpu_devices_infra.yaml";
 const GPU_DEVICES_WORKLOADS: &str = "testdata/gpu_devices_workloads.yaml";
+const ADMISSION_INFRA: &str = "testdata/admission_infra.yaml";
+const ADMISSION_WORKLOADS: &str = "testdata/admission_workloads.yaml";
 
 /// Run the complete 3-phase pipeline on the homelab scenario.
 ///
@@ -141,6 +147,7 @@ fn every_committed_testdata_file_loads() {
         ),
         ("testdata/irina_infra.yaml", "testdata/irina_workloads.yaml"),
         (GPU_DEVICES_INFRA, GPU_DEVICES_WORKLOADS),
+        (ADMISSION_INFRA, ADMISSION_WORKLOADS),
     ] {
         load_infra(infra).unwrap_or_else(|e| panic!("{infra}: {e}"));
         load_workloads(workloads).unwrap_or_else(|e| panic!("{workloads}: {e}"));
@@ -163,4 +170,48 @@ fn half_gpu_pod_on_eight_sixty_percent_devices_is_gpu_overflow() {
 
     let over = compute_overflow_by_dimension(&seed.assignment, &pods, &nodes);
     assert!((over.gpu - 0.5).abs() < 1e-9, "GPU overflow {}", over.gpu);
+}
+
+/// The admission fixture through Phase 0, as the CLI loads it.
+fn admission_fixture() -> (Vec<Node>, Vec<Pod>) {
+    let (raw_nodes, daemon_sets) = load_infra(ADMISSION_INFRA).unwrap();
+    let (pods, _) = load_workloads(ADMISSION_WORKLOADS).unwrap();
+    check_device_inputs(&raw_nodes, &pods).unwrap();
+    (pre_deduct_daemonsets(&raw_nodes, &daemon_sets), pods)
+}
+
+/// X-4 done-when: at 134% demand, in-order admission declines Pods, overflows
+/// nothing, admits a Pod after an earlier one was rejected, and keeps the rule.
+#[test]
+fn in_order_admission_at_134_percent_is_feasible_and_keeps_the_rule() {
+    let (nodes, pods) = admission_fixture();
+    let order = arrival_order(&pods).unwrap();
+    let seed = admit_in_order(&pods, &nodes, &order);
+
+    assert_eq!(
+        compute_capacity_overflow(&seed.assignment, &pods, &nodes),
+        0.0
+    );
+    let first_rejected = order
+        .iter()
+        .position(|&p| seed.assignment[p] == UNPLACED)
+        .unwrap();
+    assert!(
+        order[first_rejected..]
+            .iter()
+            .any(|&p| seed.assignment[p] != UNPLACED)
+    );
+    let packing = Packing::from_assignment(&pods, &nodes, &seed.assignment);
+    assert_eq!(in_order_violation(&packing, &order), None);
+}
+
+#[test]
+fn free_admission_at_134_percent_is_feasible_and_declines_pods() {
+    let (nodes, pods) = admission_fixture();
+    let seed = ffd_with_admission(&pods, &nodes, &FfdWeights::default());
+    assert_eq!(
+        compute_capacity_overflow(&seed.assignment, &pods, &nodes),
+        0.0
+    );
+    assert!(seed.assignment.contains(&UNPLACED));
 }

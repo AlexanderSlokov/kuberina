@@ -11,16 +11,23 @@ use std::time::Instant;
 
 use clap::{Parser, Subcommand};
 
+use kuberina_solver::admission::{
+    Admission, admit_in_order, enforce_in_order_rule, ffd_with_admission, gpu_allocation,
+};
+use kuberina_solver::admission_ir::arrival_order;
+use kuberina_solver::blueprint_yaml::{BlueprintVerdict, render_blueprint_yaml};
 use kuberina_solver::csp::{compute_overflow_by_dimension, compute_selector_violations};
 use kuberina_solver::fitness::compute_fitness;
 use kuberina_solver::gpu_ir::check_device_inputs;
 use kuberina_solver::model::{
-    Blueprint, FfdWeights, FitnessWeights, GaConfig, Node, Pod, ResourceVector,
+    Blueprint, FfdWeights, FitnessWeights, GaConfig, Node, Pod, ResourceVector, UNPLACED,
+    placements,
 };
-use kuberina_solver::parser::{IR_API_VERSION, KIND_BLUEPRINT, load_infra, load_workloads};
+use kuberina_solver::parser::{load_infra, load_workloads};
 use kuberina_solver::phase0::pre_deduct_daemonsets;
 use kuberina_solver::phase1_ffd::ffd_warmstart;
 use kuberina_solver::phase2_ga::{GaOutcome, run_ga};
+use kuberina_solver::unplaced_term::provisional_unplaced_weights;
 
 #[derive(Parser)]
 #[command(
@@ -45,6 +52,9 @@ enum Commands {
         /// Reserve this percentage of every node's capacity (e.g., 20 keeps 20% free)
         #[arg(long)]
         headroom: Option<f64>,
+        /// Allow Pods to stay unplaced: `in-order` (by `arrival`) or `free` (IR v1 §4.1)
+        #[arg(long)]
+        admission: Option<Admission>,
     },
 }
 
@@ -56,7 +66,8 @@ fn main() {
             infra,
             workloads,
             headroom,
-        } => run_plan(&infra, &workloads, validate_headroom(headroom)),
+            admission,
+        } => run_plan(&infra, &workloads, validate_headroom(headroom), admission),
     }
 }
 
@@ -135,7 +146,12 @@ fn reserve_headroom(nodes: &[Node], headroom_pct: f64) -> Vec<Node> {
 /// ```ignore
 /// run_plan("testdata/homelab_infra.yaml", "testdata/homelab_workloads.yaml", None);
 /// ```
-fn run_plan(infra_path: &str, workloads_path: &str, headroom: Option<f64>) {
+fn run_plan(
+    infra_path: &str,
+    workloads_path: &str,
+    headroom: Option<f64>,
+    admission: Option<Admission>,
+) {
     let start = Instant::now();
 
     let (raw_nodes, daemon_sets) = load_infra(infra_path).unwrap_or_else(|e| {
@@ -149,6 +165,12 @@ fn run_plan(infra_path: &str, workloads_path: &str, headroom: Option<f64>) {
     check_device_inputs(&raw_nodes, &pods).unwrap_or_else(|e| {
         eprintln!("Error in GPU device inputs: {e}");
         std::process::exit(1);
+    });
+    let order = (admission == Some(Admission::InOrder)).then(|| {
+        arrival_order(&pods).unwrap_or_else(|e| {
+            eprintln!("Error in arrival order: {e}");
+            std::process::exit(1);
+        })
     });
 
     eprintln!(
@@ -176,17 +198,19 @@ fn run_plan(infra_path: &str, workloads_path: &str, headroom: Option<f64>) {
     };
 
     // Phase 1: FFD warm-start (stow heaviest containers first)
-    let ffd_weights = FfdWeights::default();
-    let mut seed = ffd_warmstart(&pods, &planning_nodes, &ffd_weights);
-    let fitness_weights = FitnessWeights::default();
-    let (fitness, sc) = compute_fitness(&seed, &pods, &planning_nodes, &groups, &fitness_weights);
-    seed.fitness = fitness;
-    seed.scorecard = sc.clone();
+    let mut fitness_weights = FitnessWeights::default();
+    if admission.is_some() {
+        fitness_weights.unplaced =
+            provisional_unplaced_weights(&pods, &planning_nodes, &fitness_weights);
+    }
+    let mut seed = seed_blueprint(admission, order.as_deref(), &pods, &planning_nodes);
+    score(&mut seed, &pods, &planning_nodes, &groups, &fitness_weights);
     eprintln!("Phase 1 (FFD): seed fitness = {:.4}", seed.fitness);
 
     // Phase 2: GA optimization (evolutionary stowage planning)
     // WHY: auto-scale GA params based on problem size (ga_estimation.md §3).
-    let ga_config = select_ga_config(pods.len());
+    let mut ga_config = select_ga_config(pods.len());
+    ga_config.free_admission = admission == Some(Admission::Free);
     let outcome = run_ga(
         &seed,
         &pods,
@@ -196,18 +220,60 @@ fn run_plan(infra_path: &str, workloads_path: &str, headroom: Option<f64>) {
         &fitness_weights,
     );
     report_ga_termination(&outcome, &ga_config);
-    let best = outcome.best;
+    let mut best = outcome.best;
+    if let Some(order) = &order {
+        // WHY: the GA moves Pods without knowing the in-order rule (IR v1 §4.1).
+        best = enforce_in_order_rule(&best.assignment, &pods, &planning_nodes, order);
+        score(&mut best, &pods, &planning_nodes, &groups, &fitness_weights);
+    }
 
     let elapsed = start.elapsed().as_secs_f64();
     // Print the blueprint against real capacity — the reserve is withheld from the
     // optimizer, not from the operator reading the result.
     let verdict = classify(&best, &pods, &net_nodes, &planning_nodes, headroom);
     let infeasible = matches!(verdict, Verdict::Infeasible { .. });
-    print_blueprint(&best, &pods, &net_nodes, elapsed, infeasible);
+    let written = BlueprintVerdict {
+        feasible: !infeasible,
+        admission,
+    };
+    print_blueprint(&best, &pods, &net_nodes, elapsed, written);
     report_verdict(&verdict);
     if verdict.exit_code() != 0 {
         std::process::exit(verdict.exit_code());
     }
+}
+
+/// The Phase 1 placement for the admission mode: FFD, in-order admission, or FFD that
+/// leaves Pods unplaced.
+///
+/// ```ignore
+/// let seed = seed_blueprint(Some(Admission::Free), None, &pods, &nodes);
+/// ```
+fn seed_blueprint(
+    admission: Option<Admission>,
+    order: Option<&[usize]>,
+    pods: &[Pod],
+    nodes: &[Node],
+) -> Blueprint {
+    let ffd_weights = FfdWeights::default();
+    match (admission, order) {
+        (Some(Admission::InOrder), Some(order)) => admit_in_order(pods, nodes, order),
+        (Some(Admission::Free), _) => ffd_with_admission(pods, nodes, &ffd_weights),
+        _ => ffd_warmstart(pods, nodes, &ffd_weights),
+    }
+}
+
+/// Set a blueprint's fitness and scorecard.
+fn score(
+    blueprint: &mut Blueprint,
+    pods: &[Pod],
+    nodes: &[Node],
+    groups: &[kuberina_solver::model::PodGroup],
+    weights: &FitnessWeights,
+) {
+    let (fitness, scorecard) = compute_fitness(blueprint, pods, nodes, groups, weights);
+    blueprint.fitness = fitness;
+    blueprint.scorecard = scorecard;
 }
 
 /// What the emitted blueprint is actually worth.
@@ -381,6 +447,7 @@ fn select_ga_config(num_pods: usize) -> GaConfig {
             early_stop_generations: 200,
             min_relative_improvement: 1e-4,
             random_seed: 42,
+            free_admission: false,
         }
     } else if num_pods > 100 {
         GaConfig {
@@ -436,8 +503,14 @@ fn print_phase0_summary(
     }
 }
 
-fn print_blueprint(best: &Blueprint, pods: &[Pod], nodes: &[Node], elapsed: f64, infeasible: bool) {
-    if infeasible {
+fn print_blueprint(
+    best: &Blueprint,
+    pods: &[Pod],
+    nodes: &[Node],
+    elapsed: f64,
+    written: BlueprintVerdict,
+) {
+    if !written.feasible {
         println!("\n═══ Rejected Assignment (NOT a blueprint) ═══");
     } else {
         println!("\n═══ Final Blueprint (Stowage Plan) ═══");
@@ -468,11 +541,14 @@ fn print_blueprint(best: &Blueprint, pods: &[Pod], nodes: &[Node], elapsed: f64,
         "    Topology Spread Penalty: {:.2}",
         best.scorecard.topology_spread_penalty
     );
+    if written.admission.is_some() {
+        print_admission_summary(best, pods, nodes);
+    }
     println!();
 
     let num_nodes = nodes.len();
     let mut node_pods: Vec<Vec<&str>> = vec![vec![]; num_nodes];
-    for (pod_idx, &node_idx) in best.assignment.iter().enumerate() {
+    for (pod_idx, node_idx) in placements(&best.assignment) {
         node_pods[node_idx].push(&pods[pod_idx].name);
     }
 
@@ -483,34 +559,28 @@ fn print_blueprint(best: &Blueprint, pods: &[Pod], nodes: &[Node], elapsed: f64,
     }
 
     // Export full solution to YAML
-    let mut yaml_out = String::new();
-    if infeasible {
-        // WHY: the file is written for inspection, not application. A reader who
-        // opens it without having seen the console output must still be told.
-        yaml_out.push_str(
-            "# INFEASIBLE — this assignment exceeds real node capacity.\n             # Written for inspection only. Do not apply. See the solver output.\n",
-        );
-    }
-    // WHY the header (ADR-0002): `kuberina-forge out` links this file against the
-    // manifests it came from. A bare map of names cannot say what it is, which
-    // version it speaks, or whether it was safe to apply.
-    yaml_out.push_str(&format!(
-        "apiVersion: {IR_API_VERSION}\nkind: {KIND_BLUEPRINT}\nmetadata:\n  feasible: {}\n  pods: {}\n  activeNodes: {}\n",
-        !infeasible,
-        pods.len(),
-        best.scorecard.active_nodes as usize,
-    ));
-    yaml_out.push_str("solution:\n");
-    for (pod_idx, &node_idx) in best.assignment.iter().enumerate() {
-        yaml_out.push_str(&format!(
-            "  {}/{}: {}\n",
-            pods[pod_idx].namespace, pods[pod_idx].name, nodes[node_idx].name,
-        ));
-    }
+    let yaml_out = render_blueprint_yaml(best, pods, nodes, written);
     if let Err(e) = std::fs::write("kuberina_solution.yaml", yaml_out) {
         eprintln!("Failed to export solution: {}", e);
     } else {
         println!("  (Full stowage plan exported to kuberina_solution.yaml)");
+    }
+}
+
+/// Pods declined and GPU allocation (placed GPU over cluster GPU), for admission runs.
+fn print_admission_summary(best: &Blueprint, pods: &[Pod], nodes: &[Node]) {
+    let declined = best.assignment.iter().filter(|&&n| n == UNPLACED).count();
+    let (placed_gpu, capacity_gpu) = gpu_allocation(&best.assignment, pods, nodes);
+    println!(
+        "    Unplaced Penalty: {:.0}",
+        best.scorecard.unplaced_penalty
+    );
+    println!("    Unplaced Pods: {declined} of {}", pods.len());
+    if capacity_gpu > 0.0 {
+        println!(
+            "    GPU Allocation: {placed_gpu:.2} of {capacity_gpu:.0} GPUs ({:.2}%)",
+            100.0 * placed_gpu / capacity_gpu
+        );
     }
 }
 
@@ -761,6 +831,7 @@ mod verdict_tests {
             topology_spread: None,
             observed: None,
             gpu_share: None,
+            arrival: None,
         }
     }
 

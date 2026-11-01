@@ -64,6 +64,11 @@ func (b *Blueprint) checkIntegrity(path string) error {
 			"%s: solver marked this plan infeasible; it was written for inspection and must not be applied",
 			path)
 	}
+	if len(b.Unplaced) > 0 {
+		return fmt.Errorf(
+			"%s: the planner left %d Pod(s) unplaced (metadata.admission: %s); a partial plan serves benchmarks and is not linked to manifests",
+			path, len(b.Unplaced), b.Metadata.Admission)
+	}
 	if b.Metadata.Pods != 0 && b.Metadata.Pods != len(b.Solution) {
 		return fmt.Errorf(
 			"%s: metadata.pods is %d but solution has %d entries; the file is truncated or edited",

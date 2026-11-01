@@ -112,3 +112,25 @@ func TestUnsetGpuDeviceFieldsAreOmitted(t *testing.T) {
 		t.Errorf("unset GPU fields must be omitted, got:\n%s", body)
 	}
 }
+
+// A blueprint that declines Pods serves a benchmark (ir-v1.md §4.1, X-4). The forge
+// must read it, so that the refusal names the reason, and must not link it.
+func TestLoadBlueprintRefusesAPlanWithUnplacedPods(t *testing.T) {
+	body := strings.Replace(feasible, "  activeNodes: 1\n",
+		"  activeNodes: 1\n  admission: in-order\n  unplaced: 1\n", 1) + "unplaced:\n  - ai/trainer-0002\n"
+	_, err := LoadBlueprint(writeBlueprint(t, body))
+	if err == nil {
+		t.Fatal("a plan with unplaced Pods must never be linked")
+	}
+	if !strings.Contains(err.Error(), "unplaced") || !strings.Contains(err.Error(), "1 Pod") {
+		t.Errorf("error must say why and how many, got %q", err)
+	}
+}
+
+func TestLoadBlueprintAcceptsAdmissionMetadataWithNothingUnplaced(t *testing.T) {
+	body := strings.Replace(feasible, "  activeNodes: 1\n",
+		"  activeNodes: 1\n  admission: free\n  unplaced: 0\n", 1) + "unplaced: []\n"
+	if _, err := LoadBlueprint(writeBlueprint(t, body)); err != nil {
+		t.Fatalf("a plan that declined nothing is a full plan: %v", err)
+	}
+}

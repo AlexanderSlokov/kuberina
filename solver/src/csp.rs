@@ -12,7 +12,7 @@
 //!   5. Gang:            All pods in group feasible, or none
 
 use crate::gpu_devices::{device_overflow_per_node, devices_fit_on_node};
-use crate::model::{Node, Pod, PodGroup, ResourceVector};
+use crate::model::{Node, Pod, PodGroup, ResourceVector, placements};
 
 /// Pod can only land on a tainted node if it has matching tolerations.
 ///
@@ -69,7 +69,7 @@ pub fn compute_overflow_by_dimension(
     nodes: &[Node],
 ) -> ResourceVector {
     let mut loads = vec![ResourceVector::zero(); nodes.len()];
-    for (pod_idx, &node_idx) in assignment.iter().enumerate() {
+    for (pod_idx, node_idx) in placements(assignment) {
         loads[node_idx] = loads[node_idx] + pods[pod_idx].requests;
     }
 
@@ -112,10 +112,8 @@ pub fn node_within_capacity(
 
 /// Count number of pods placed on nodes violating Taint or NodeSelector.
 pub fn compute_selector_violations(assignment: &[usize], pods: &[Pod], nodes: &[Node]) -> usize {
-    assignment
-        .iter()
-        .enumerate()
-        .filter(|&(pod_idx, &node_idx)| !can_place_pod_on_node(&pods[pod_idx], &nodes[node_idx]))
+    placements(assignment)
+        .filter(|&(pod_idx, node_idx)| !can_place_pod_on_node(&pods[pod_idx], &nodes[node_idx]))
         .count()
 }
 
@@ -211,6 +209,7 @@ mod tests {
             topology_spread: None,
             observed: None,
             gpu_share: None,
+            arrival: None,
         }
     }
 
@@ -356,7 +355,7 @@ mod tests {
 
     // ─── Per-device GPU (IR v1 §3.4, X-3) ───────────────────────────────
 
-    use crate::gpu_test_fixtures::{eight_gpu_node, sixty_percent_then_half};
+    use crate::test_fixtures::{eight_gpu_node, sixty_percent_then_half};
 
     #[test]
     fn stranded_device_gpu_counts_as_gpu_overflow_where_the_sum_fits() {
@@ -378,5 +377,20 @@ mod tests {
         assignment[8] = 1;
         let loads = crate::phase1_ffd::compute_node_loads(&assignment, &pods, 2);
         assert!(node_within_capacity(0, &assignment, &loads, &pods, &nodes));
+    }
+
+    // ─── Unplaced Pods (IR v1 §4.1, X-4) ────────────────────────────────
+
+    #[test]
+    fn unplaced_pod_neither_overflows_nor_breaks_a_selector() {
+        use crate::model::UNPLACED;
+        let pods = [Pod {
+            requests: ResourceVector::new(99.0, 0.0, 0.0),
+            node_selector: HashMap::from([("zone".into(), "nowhere".into())]),
+            ..pod("big")
+        }];
+        let nodes = [node("n", 4.0, 16.0)];
+        assert_eq!(compute_capacity_overflow(&[UNPLACED], &pods, &nodes), 0.0);
+        assert_eq!(compute_selector_violations(&[UNPLACED], &pods, &nodes), 0);
     }
 }

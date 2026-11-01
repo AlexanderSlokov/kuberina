@@ -1,0 +1,10 @@
+# Admission fixture (IR v1 §4.1, backlog X-4): two nodes, 16 GPU devices in total.
+apiVersion: kuberina.io/v1
+kind: Infrastructure
+nodes:
+  - name: gpu-node-01
+    allocatable: { cpu: 96, ram: 384 }
+    gpuDevices: 8
+  - name: gpu-node-02
+    allocatable: { cpu: 96, ram: 384 }
+    gpuDevices: 8

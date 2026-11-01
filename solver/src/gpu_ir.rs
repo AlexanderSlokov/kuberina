@@ -141,6 +141,7 @@ mod tests {
             topology_spread: None,
             observed: None,
             gpu_share,
+            arrival: None,
         }
     }
 

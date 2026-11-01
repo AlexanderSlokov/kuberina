@@ -11,7 +11,7 @@
 //! that fits; it never accepts one that does not, which is what IR v1 §3.4 requires.
 //! The inspector checks the same rule with an exhaustive search of its own.
 
-use crate::model::{GpuShare, Node, Pod};
+use crate::model::{GpuShare, Node, Pod, placements};
 
 /// Capacity of one GPU device in milli-GPU.
 pub const MILLI_PER_DEVICE: u32 = 1000;
@@ -89,7 +89,7 @@ pub fn device_overflow_per_node(assignment: &[usize], pods: &[Pod], nodes: &[Nod
         return over;
     }
     let mut ledger = DeviceLedger::new(nodes.len());
-    for (pod_idx, &node_idx) in assignment.iter().enumerate() {
+    for (pod_idx, node_idx) in placements(assignment) {
         ledger.record(node_idx, &pods[pod_idx]);
     }
     for (node_idx, node) in nodes.iter().enumerate() {
@@ -156,6 +156,38 @@ impl DeviceLedger {
         }
     }
 
+    /// Remove one of `pod`'s device demands from node `node_idx` (admission moves, X-4).
+    pub fn remove(&mut self, node_idx: usize, pod: &Pod) {
+        let Some(demand) = device_demand(pod) else {
+            return;
+        };
+        let on_node = &mut self.demands[node_idx];
+        if let Some(at) = on_node.iter().position(|&d| d == demand) {
+            on_node.swap_remove(at);
+        }
+    }
+
+    /// Whether `pod_in` fits the devices of `node` once `pod_out`, placed there, leaves.
+    pub fn admits_in_place_of(
+        &self,
+        node: &Node,
+        node_idx: usize,
+        pod_in: &Pod,
+        pod_out: &Pod,
+    ) -> bool {
+        let (Some(device_count), Some(demand)) = (node.gpu_devices, device_demand(pod_in)) else {
+            return true;
+        };
+        let mut trial = self.demands[node_idx].clone();
+        let leaving_at =
+            device_demand(pod_out).and_then(|leaving| trial.iter().position(|&d| d == leaving));
+        if let Some(at) = leaving_at {
+            trial.swap_remove(at);
+        }
+        trial.push(demand);
+        unplaced_device_milli(device_count, &trial) == 0
+    }
+
     /// Milli-GPU on node `node_idx` that the decode could not place; 0 without devices.
     fn unplaced_milli(&self, node: &Node, node_idx: usize) -> u64 {
         node.gpu_devices.map_or(0, |count| {
@@ -192,6 +224,7 @@ mod tests {
             topology_spread: None,
             observed: None,
             gpu_share,
+            arrival: None,
         }
     }
 
@@ -281,7 +314,7 @@ mod tests {
         }
     }
 
-    use crate::gpu_test_fixtures::sixty_percent_then_half;
+    use crate::test_fixtures::sixty_percent_then_half;
 
     #[test]
     fn overflow_reports_the_stranded_half_gpu_in_devices() {
@@ -339,5 +372,40 @@ mod tests {
             ledger.record(0, pod);
         }
         assert!(ledger.admits(&node, 0, &pods[8]));
+    }
+
+    // ─── Unplaced Pods (IR v1 §4.1, X-4) ────────────────────────────────
+
+    #[test]
+    fn unplaced_pod_takes_no_device() {
+        let nodes = [device_node(Some(8))];
+        let mut assignment = [0; 9];
+        assignment[8] = crate::model::UNPLACED;
+        let over = device_overflow_per_node(&assignment, &sixty_percent_then_half(), &nodes);
+        assert_eq!(over, vec![0.0]);
+    }
+
+    #[test]
+    fn ledger_forgets_a_removed_pod() {
+        let node = device_node(Some(8));
+        let pods = sixty_percent_then_half();
+        let mut ledger = DeviceLedger::new(1);
+        for pod in &pods[..8] {
+            ledger.record(0, pod);
+        }
+        ledger.remove(0, &pods[0]);
+        assert!(ledger.admits(&node, 0, &pods[8]));
+    }
+
+    #[test]
+    fn ledger_judges_a_pod_in_place_of_another() {
+        let node = device_node(Some(8));
+        let pods = sixty_percent_then_half();
+        let mut ledger = DeviceLedger::new(1);
+        for pod in &pods[..8] {
+            ledger.record(0, pod);
+        }
+        assert!(ledger.admits_in_place_of(&node, 0, &pods[8], &pods[0]));
+        assert!(!ledger.admits(&node, 0, &pods[8]));
     }
 }

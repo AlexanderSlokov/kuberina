@@ -38,6 +38,8 @@ HTML file in a browser for the interactive cluster heatmap.
 |---|---|
 | Phase 0 | Re-derives net allocatable capacity by re-applying DaemonSet pre-deduction |
 | Capacity | Per-node sum of assigned pod requests ≤ allocatable, on all 8 dimensions |
+| Placement | Every Pod appears exactly once, in `solution` or in `unplaced` (`ir-v1.md` §4) |
+| In-order admission | When `metadata.admission` is `in-order`, no unplaced Pod could take the place of a placed Pod that arrived after it (`ir-v1.md` §4.1). The inspector also reports the GPU allocation of every admission blueprint |
 | GPU devices | On a node with `gpuDevices`, some assignment of every Pod to devices fits (`ir-v1.md` §3.4). The search is exhaustive, so it also catches a placement that the solver's greedy device decode got wrong |
 | Node selector | Every pod's `nodeSelector` matches the labels of the node it landed on |
 | Assignment | Every entry in the solution names a node that exists |

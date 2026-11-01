@@ -1,4 +1,4 @@
-//! Shared fixtures for the per-device GPU tests (backlog X-3). Compiled for tests only.
+//! Shared test fixtures: per-device GPU (X-3) and admission (X-4). Compiled for tests only.
 
 use std::collections::HashMap;
 
@@ -18,6 +18,7 @@ pub fn shared_gpu_pod(name: &str, milli: u32) -> Pod {
         topology_spread: None,
         observed: None,
         gpu_share: Some(GpuShare { devices: 1, milli }),
+        arrival: None,
     }
 }
 
@@ -40,5 +41,23 @@ pub fn eight_gpu_node(name: &str) -> Node {
         zone: String::new(),
         rack: String::new(),
         gpu_devices: Some(8),
+    }
+}
+
+/// A CPU-only pod requesting `cpu` cores and nothing else.
+pub fn cpu_pod(name: &str, cpu: f64) -> Pod {
+    Pod {
+        requests: ResourceVector::new(cpu, 0.0, 0.0),
+        gpu_share: None,
+        ..shared_gpu_pod(name, 1)
+    }
+}
+
+/// A node with `cpu` cores and no other declared capacity.
+pub fn cpu_node(name: &str, cpu: f64) -> Node {
+    Node {
+        allocatable: ResourceVector::new(cpu, 0.0, 0.0),
+        gpu_devices: None,
+        ..eight_gpu_node(name)
     }
 }

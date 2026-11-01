@@ -7,6 +7,8 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::ops::Add;
 
+use crate::unplaced_term::UnplacedWeights;
+
 /// Multi-dimensional resource capacity/request (8D).
 ///
 /// Maps to R = {CPU, RAM, GPU, Storage, DiskR, DiskW, NetIn, NetOut}
@@ -271,6 +273,9 @@ pub struct Pod {
     /// Per-device GPU demand, set when the declaration has `gpuMilli` (IR v1 §3.4).
     /// `requests.gpu` then holds the aggregate, `devices × milli / 1000`.
     pub gpu_share: Option<GpuShare>,
+    /// Arrival position of the Pod's declaration (IR v1 §3.5); read only by in-order
+    /// admission. Replicas share it and arrive in replica order.
+    pub arrival: Option<u64>,
 }
 
 impl Pod {
@@ -330,6 +335,28 @@ pub struct Scorecard {
     pub affinity_violations: f64,
     pub utilization_variance: f64,
     pub topology_spread_penalty: f64,
+    pub unplaced_penalty: f64,
+}
+
+/// Assignment value of a Pod the planner declined (IR v1 §4.1, backlog X-4).
+///
+/// Only `--admission` runs produce it. Every reader of an assignment goes through
+/// `placements`, so a declined Pod adds no load and occupies no node.
+pub const UNPLACED: usize = usize::MAX;
+
+/// `(pod_idx, node_idx)` for every placed Pod, skipping `UNPLACED`.
+///
+/// ```
+/// # use kuberina_solver::model::{placements, UNPLACED};
+/// let placed: Vec<_> = placements(&[3, UNPLACED]).collect();
+/// assert_eq!(placed, vec![(0, 3)]);
+/// ```
+pub fn placements(assignment: &[usize]) -> impl Iterator<Item = (usize, usize)> + '_ {
+    assignment
+        .iter()
+        .copied()
+        .enumerate()
+        .filter(|&(_, node_idx)| node_idx != UNPLACED)
 }
 
 #[derive(Debug, Clone)]
@@ -376,6 +403,8 @@ pub struct GaConfig {
     /// `docs/references/papers/ga-termination-criteria.md` §2.
     pub min_relative_improvement: f64,
     pub random_seed: u64,
+    /// `--admission free` (X-4): mutation may also place and unplace Pods.
+    pub free_admission: bool,
 }
 
 impl Default for GaConfig {
@@ -390,6 +419,7 @@ impl Default for GaConfig {
             early_stop_generations: 50,
             min_relative_improvement: 1e-4,
             random_seed: 42,
+            free_admission: false,
         }
     }
 }
@@ -405,6 +435,9 @@ pub struct FitnessWeights {
     pub affinity_violation: f64,
     pub utilization_variance: f64,
     pub topology_spread: f64,
+    /// Charge for unplaced Pods (X-4). Zero unless admission is on; see
+    /// `unplaced_term::provisional_unplaced_weights`.
+    pub unplaced: UnplacedWeights,
 }
 
 impl Default for FitnessWeights {
@@ -415,6 +448,7 @@ impl Default for FitnessWeights {
             affinity_violation: 5.0,
             utilization_variance: 2.0,
             topology_spread: 3.0,
+            unplaced: UnplacedWeights::default(),
         }
     }
 }
@@ -535,5 +569,16 @@ mod tests {
         assert!(ResourceVector::zero().is_zero());
         let not_zero = ResourceVector::new_8d(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
         assert!(!not_zero.is_zero());
+    }
+
+    // ─── Unplaced Pods (IR v1 §4.1, X-4) ────────────────────────────────
+
+    #[test]
+    fn placements_skip_unplaced_pods() {
+        let assignment = [2, UNPLACED, 0];
+        assert_eq!(
+            placements(&assignment).collect::<Vec<_>>(),
+            vec![(0, 2), (2, 0)]
+        );
     }
 }

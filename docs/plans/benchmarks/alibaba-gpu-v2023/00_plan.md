@@ -287,3 +287,13 @@ Settled by the maintainer on 2026-10-31:
    same machine that produces Kuberina's own benchmark records.
 3. **Stages 3 and 4 belong to Phase 2 (v0.4.0).** The IR fields they add are additive
    under ADR-0002 and land after v0.3.0 fixes the v1 surface.
+
+Settled by the maintainer on 2026-11-01, for Stage 4:
+
+4. **In-order admission means skip and continue.** Pod *i* is admitted if, and only if,
+   the Pods admitted before it plus *i* can be packed. Kuberina may move Pods it has
+   already admitted; a rejected Pod stays rejected. This is FGD's rule plus
+   re-planning, which is what E2 measures.
+5. **Arrival order is an IR field,** an optional `arrival` on a declaration.
+6. **`kuberina-forge out` refuses a blueprint with unplaced Pods.** Admission serves the
+   benchmark; applying a partial plan to a cluster is out of scope.

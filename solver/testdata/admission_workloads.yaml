@@ -1,0 +1,18 @@
+# Admission fixture (IR v1 §4.1, backlog X-4). Eleven Pods request 21.5 GPUs of 16
+# (134%), in the order their `arrival` states. The whole-GPU training Pods arrive
+# among fractional inference Pods, so in-order admission must skip a Pod that does not
+# fit and still admit later ones.
+apiVersion: kuberina.io/v1
+kind: Workloads
+namespaces:
+  bench:
+    - { name: train-a, arrival: 0, requests: { cpu: 16, ram: 64, gpu: 4 } }
+    - { name: infer-a, arrival: 1, requests: { cpu: 4, ram: 16, gpu: 1 }, gpuMilli: 600 }
+    - { name: train-b, arrival: 2, requests: { cpu: 32, ram: 128, gpu: 8 } }
+    - { name: infer-b, arrival: 3, requests: { cpu: 4, ram: 16, gpu: 1 }, gpuMilli: 600 }
+    - { name: train-c, arrival: 4, requests: { cpu: 16, ram: 64, gpu: 4 } }
+    - { name: infer-c, arrival: 5, requests: { cpu: 4, ram: 16, gpu: 1 }, gpuMilli: 500 }
+    - { name: train-d, arrival: 6, requests: { cpu: 8, ram: 32, gpu: 2 } }
+    - { name: infer-d, arrival: 7, requests: { cpu: 4, ram: 16, gpu: 1 }, gpuMilli: 300 }
+    - { name: infer-e, arrival: 8, requests: { cpu: 4, ram: 16, gpu: 1 }, gpuMilli: 700 }
+    - { name: infer-f, arrival: 9, replicas: 2, requests: { cpu: 4, ram: 16, gpu: 1 }, gpuMilli: 400 }

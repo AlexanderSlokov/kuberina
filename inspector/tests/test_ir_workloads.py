@@ -62,3 +62,8 @@ def test_invalid_gpu_milli_or_device_count_names_the_declaration(gpu, milli):
     with pytest.raises(ValueError, match="ai/inference"):
         unroll_workloads({"namespaces": {"ai": [
             {"name": "inference", "requests": {"gpu": gpu}, "gpuMilli": milli}]}})
+
+
+def test_arrival_reaches_every_replica():
+    pods = unroll_workloads({"namespaces": {"ai": [{"name": "web", "replicas": 2, "arrival": 4}]}})
+    assert [p["arrival"] for p in pods] == [4, 4]

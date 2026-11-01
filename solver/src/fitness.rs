@@ -9,7 +9,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::csp::{compute_capacity_overflow, compute_selector_violations, node_within_capacity};
-use crate::model::{Blueprint, FitnessWeights, Node, Pod, PodGroup, ResourceVector, Scorecard};
+use crate::model::{
+    Blueprint, FitnessWeights, Node, Pod, PodGroup, ResourceVector, Scorecard, UNPLACED, placements,
+};
+use crate::unplaced_term::compute_unplaced_penalty;
 
 /// Compute weighted-sum fitness score for a blueprint.
 ///
@@ -30,19 +33,22 @@ pub fn compute_fitness(
     let f_aff = compute_affinity_violations(&blueprint.assignment, pods) as f64;
     let f_var = compute_utilization_variance(&blueprint.node_load, nodes);
     let f_spread = compute_topology_spread_penalty(&blueprint.assignment, pods, nodes);
+    let unplaced = compute_unplaced_penalty(&blueprint.assignment, pods, &weights.unplaced);
 
     sc.active_nodes = f_nodes;
     sc.fragmentation = f_frag;
     sc.affinity_violations = f_aff;
     sc.utilization_variance = f_var;
     sc.topology_spread_penalty = f_spread;
+    sc.unplaced_penalty = unplaced;
 
     let fitness = penalty
         + weights.node_count * f_nodes
         + weights.fragmentation * f_frag
         + weights.affinity_violation * f_aff
         + weights.utilization_variance * f_var
-        + weights.topology_spread * f_spread;
+        + weights.topology_spread * f_spread
+        + unplaced;
 
     (fitness, sc)
 }
@@ -56,10 +62,9 @@ pub fn compute_fitness(
 /// assert_eq!(count_active_nodes(&[0, 0, 2], 3), 2);
 /// ```
 pub fn count_active_nodes(assignment: &[usize], _num_nodes: usize) -> usize {
-    let mut seen = std::collections::HashSet::new();
-    for &n in assignment {
-        seen.insert(n);
-    }
+    let seen: HashSet<usize> = placements(assignment)
+        .map(|(_, node_idx)| node_idx)
+        .collect();
     seen.len()
 }
 
@@ -131,6 +136,10 @@ fn unmet_affinity_entries(
 ) -> usize {
     let mut unmet = 0;
     for (i, pod) in pods.iter().enumerate() {
+        // WHY skip: a declined Pod is on no node, so it has nothing to be near (X-4).
+        if assignment[i] == UNPLACED {
+            continue;
+        }
         for entry in &pod.affinity_targets {
             let named: Vec<usize> = entry
                 .iter()
@@ -158,7 +167,8 @@ fn colocated_anti_affinity_pairs(
             let Some(j) = lookup_identity(index_of, target) else {
                 continue;
             };
-            if i != j && assignment[i] == assignment[j] {
+            // WHY the UNPLACED test: two declined Pods share no node (X-4).
+            if i != j && assignment[i] == assignment[j] && assignment[i] != UNPLACED {
                 pairs.insert((i.min(j), i.max(j)));
             }
         }
@@ -245,7 +255,7 @@ pub fn compute_topology_spread_penalty(assignment: &[usize], pods: &[Pod], nodes
                 }
                 None => false,
             };
-            if !same_spread {
+            if !same_spread || assignment[j] == UNPLACED {
                 continue;
             }
             let node = &nodes[assignment[j]];
@@ -353,13 +363,14 @@ fn gang_penalty(blueprint: &Blueprint, pods: &[Pod], nodes: &[Node], groups: &[P
             .iter()
             .filter(|&&pod_idx| {
                 let node_idx = blueprint.assignment[pod_idx];
-                node_within_capacity(
-                    node_idx,
-                    &blueprint.assignment,
-                    &blueprint.node_load,
-                    pods,
-                    nodes,
-                )
+                node_idx != UNPLACED
+                    && node_within_capacity(
+                        node_idx,
+                        &blueprint.assignment,
+                        &blueprint.node_load,
+                        pods,
+                        nodes,
+                    )
             })
             .count();
         if placed < group.min_members {
@@ -389,6 +400,7 @@ mod tests {
             topology_spread: None,
             observed: None,
             gpu_share: None,
+            arrival: None,
         }
     }
 
@@ -604,7 +616,7 @@ mod tests {
 
     // ─── Per-device GPU (IR v1 §3.4, X-3) ───────────────────────────────
 
-    use crate::gpu_test_fixtures::{eight_gpu_node, sixty_percent_then_half};
+    use crate::test_fixtures::{eight_gpu_node, sixty_percent_then_half};
 
     /// All nine done-when pods on one eight-device node, as one gang of nine.
     fn device_bound_gang() -> (Blueprint, Vec<Pod>, Vec<Node>, PodGroup) {
@@ -631,6 +643,79 @@ mod tests {
     #[test]
     fn gang_on_a_node_whose_devices_cannot_hold_it_is_penalized() {
         let (blueprint, pods, nodes, group) = device_bound_gang();
+        assert!(gang_penalty(&blueprint, &pods, &nodes, &[group]) > 0.0);
+    }
+
+    // ─── Unplaced Pods (IR v1 §4.1, X-4) ────────────────────────────────
+
+    use crate::model::UNPLACED;
+
+    #[test]
+    fn unplaced_pod_activates_no_node() {
+        assert_eq!(count_active_nodes(&[0, UNPLACED], 1), 1);
+    }
+
+    #[test]
+    fn two_unplaced_pods_do_not_share_a_node() {
+        let pods = vec![
+            Pod {
+                anti_affinity_targets: vec!["ns/b".into()],
+                ..pod("a")
+            },
+            pod("b"),
+        ];
+        assert_eq!(compute_affinity_violations(&[UNPLACED, UNPLACED], &pods), 0);
+    }
+
+    #[test]
+    fn unplaced_pod_has_no_unmet_affinity() {
+        let pods = vec![
+            Pod {
+                affinity_targets: vec![vec!["ns/b".into()]],
+                ..pod("a")
+            },
+            pod("b"),
+        ];
+        assert_eq!(compute_affinity_violations(&[UNPLACED, 0], &pods), 0);
+    }
+
+    #[test]
+    fn unplaced_pod_is_outside_every_spread_domain() {
+        use crate::model::TopologySpread;
+        let ts = Some(TopologySpread {
+            max_skew: 1,
+            topology_key: "zone".into(),
+        });
+        let pods: Vec<Pod> = ["w-0000", "w-0001", "w-0002"]
+            .iter()
+            .map(|n| Pod {
+                topology_spread: ts.clone(),
+                ..pod(n)
+            })
+            .collect();
+        let nodes = vec![
+            Node {
+                zone: "a".into(),
+                ..node("n0", 4.0, 16.0)
+            },
+            Node {
+                zone: "b".into(),
+                ..node("n1", 4.0, 16.0)
+            },
+        ];
+        // Placed: one per zone. The unplaced replica counts in neither.
+        assert_eq!(
+            compute_topology_spread_penalty(&[0, 1, UNPLACED], &pods, &nodes),
+            0.0
+        );
+    }
+
+    #[test]
+    fn unplaced_gang_member_counts_as_missing() {
+        let (mut blueprint, pods, nodes, group) = device_bound_gang();
+        blueprint.assignment[8] = UNPLACED;
+        blueprint.node_load =
+            crate::phase1_ffd::compute_node_loads(&blueprint.assignment, &pods, 1);
         assert!(gang_penalty(&blueprint, &pods, &nodes, &[group]) > 0.0);
     }
 }

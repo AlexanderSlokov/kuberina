@@ -83,6 +83,7 @@ def _replicas_of(namespace, declaration):
             "declaration": name,
             "requests": requests,
             **device_fields,
+            **({"arrival": declaration["arrival"]} if "arrival" in declaration else {}),
             "nodeSelector": declaration.get("nodeSelector") or {},
             "affinity": list(declaration.get("affinity") or []),
             "antiAffinity": list(declaration.get("antiAffinity") or []),
