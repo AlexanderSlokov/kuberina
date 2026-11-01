@@ -2,7 +2,8 @@
 
 **Backlog item:** X-2 · **Issue:** [#24](https://github.com/AlexanderSlokov/kuberina/issues/24)
 **Plan:** `docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`, Stage 2
-**Kuberina commit:** `a6d8748`, with this session's uncommitted `bench/alibaba/` adapter.
+**Kuberina commit:** `df5895e`, which adds the `bench/alibaba/` adapter. The measurements
+ran on its working tree before the commit; the adapter code is identical.
 **Trace:** `alibaba/clusterdata` at `3858992ca41bf92082e6d6522ddf0bebd14e838b`, the
 commit of the X-1 calibration.
 **Simulator logs:** `docs/plans/benchmarks/alibaba-gpu-v2023/x1-seed42/*/simon.log.gz`,

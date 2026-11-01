@@ -6,21 +6,21 @@ work below is uncommitted. Delete this file once its items are done or moved int
 
 ## State at hand-off
 
-Updated 2026-11-01, 16:00. Branch `24-challenge-alibaba`, pushed through `a6d8748`.
+Updated 2026-11-01, 16:00. Branch `24-challenge-alibaba`, committed through `df5895e`
+and pushed through `a6d8748`.
 
 - X-1 is done. The FGD simulator reproduces the published seed-42 figures exactly. See
   `docs/references/sessions/2026-10-31-fgd-simulator-calibration.md`.
 - K-3 is done (#26): affinity rules reach the solver, the inspector checks them, and the
   MSC Irina testdata is IR v1 with declaration-level rules. See
   `docs/references/sessions/2026-11-01-irina-with-affinity.md`.
-- X-2 is done, uncommitted: the trace adapter in `bench/alibaba/`, its tests, the
+- X-2 is done at `df5895e`: the trace adapter in `bench/alibaba/`, its tests, the
   `bench-alibaba-fetch` and `bench-alibaba-ir` targets, and
   `docs/references/sessions/2026-11-01-alibaba-trace-adapter.md`. The seed-42 IR has
   1,213 nodes and 10,866 Pods, and its GPU demand equals the logged arrivals at every
-  Pod. After committing, replace "with this session's uncommitted adapter" in the
-  session record with the commit SHA.
-- Also uncommitted: this file, the S-1/S-2 rework in `BACKLOG.md`, and the temporary
-  timing example `solver/examples/fitness_timing.rs`, kept for S-1.
+  Pod.
+- Uncommitted on purpose: the temporary timing example
+  `solver/examples/fitness_timing.rs`, kept for S-1.
 
 ## Next, in order
 
