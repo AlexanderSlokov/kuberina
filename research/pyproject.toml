@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-kuberina = "kuberina.__main__:main"
+kuberina-poc = "kuberina.__main__:main"
 
 [dependency-groups]
 dev = [

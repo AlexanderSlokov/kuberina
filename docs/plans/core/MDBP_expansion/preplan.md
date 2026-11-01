@@ -284,7 +284,7 @@ So sánh Kuberina IR v0.2.0 spec ở trên với hai file testdata hiện tại 
 
 ## 5. Phân tích tác động đến PAPER.md
 
-Expansion từ 3D → 8D + IR format mới + compiler pipeline architecture **sẽ trigger rewrite** một số phần trong `PAPER.md`. Dưới đây là phân tích từng section:
+Expansion từ 3D → 8D + IR format mới + compiler pipeline architecture **sẽ trigger rewrite** một số phần trong `../../../references/PAPER.md`. Dưới đây là phân tích từng section:
 
 ### 5.1. Sections PHẢI chỉnh lý
 

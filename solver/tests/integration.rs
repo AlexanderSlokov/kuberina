@@ -50,7 +50,7 @@ fn full_pipeline_homelab() {
         early_stop_generations: 30,
         ..GaConfig::default()
     };
-    let best = run_ga(&seed, &pods, &nodes, &groups, &config, &weights);
+    let best = run_ga(&seed, &pods, &nodes, &groups, &config, &weights).best;
 
     // 1. All pods assigned
     assert_eq!(best.assignment.len(), pods.len());
@@ -116,7 +116,8 @@ fn ga_reduces_affinity_violations() {
         &groups,
         &config,
         &FitnessWeights::default(),
-    );
+    )
+    .best;
     let ga_violations = compute_affinity_violations(&best.assignment, &pods);
 
     // GA should have same or fewer violations

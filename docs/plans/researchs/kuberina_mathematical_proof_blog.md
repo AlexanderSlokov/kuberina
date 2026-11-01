@@ -261,4 +261,4 @@ Kuberina doesn't just work. It works *provably*.
 make research-verify
 ```
 
-*The verification script (`research/mathematical_proof.py`) shares zero code with the Rust solver. It re-implements constraint checking from scratch.*
+*The verification script (`bench/mathematical_proof.py`) shares zero code with the Rust solver. It re-implements constraint checking from scratch.*

@@ -174,6 +174,12 @@ class GAConfig:
     crossover_rate: float = 0.8
     max_generations: int = 500
     early_stop_generations: int = 50
+    # Smallest relative gain that counts as progress for early stopping (#20).
+    # WHY 1e-4: on the MSC Irina benchmark, smooth drift accumulates 3.0e-6 over
+    # 200 generations while a real gain — one node emptied — is 6.2e-3; 1e-4 is the
+    # geometric mean of the two. Derivation in
+    # docs/references/papers/ga-termination-criteria.md §2.
+    min_relative_improvement: float = 1e-4
     random_seed: int = 42
 
 

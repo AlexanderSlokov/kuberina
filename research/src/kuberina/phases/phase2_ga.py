@@ -11,6 +11,7 @@ from __future__ import annotations
 import copy
 import logging
 import random
+import sys
 
 from kuberina.fitness import compute_fitness
 from kuberina.model.types import (
@@ -48,6 +49,11 @@ def run_ga(
     _evaluate_all(population, pods, nodes, groups, fitness_weights)
 
     best = _find_best(population)
+    # WHY two variables (#20): `best` tracks every improvement so the run never
+    # returns a worse plan, but the stale counter measures progress against the last
+    # gain that mattered. Comparing staleness to `best` let 0.0003 on a fitness of
+    # 1.58 million reset the counter forever, so the criterion never fired.
+    anchor_fitness = best.fitness
     stale_count = 0
 
     for gen in range(config.max_generations):
@@ -61,19 +67,50 @@ def run_ga(
 
         if current_best.fitness < best.fitness:
             best = copy.deepcopy(current_best)
+
+        if _exceeds_improvement_threshold(
+            anchor_fitness, best.fitness, config.min_relative_improvement,
+        ):
+            anchor_fitness = best.fitness
             stale_count = 0
         else:
             stale_count += 1
 
         if stale_count >= config.early_stop_generations:
-            logger.info("Early stop at generation %d (no improvement for %d gens)",
-                        gen, config.early_stop_generations)
+            logger.info("Early stop at generation %d (gain under %.4f%% for %d gens)",
+                        gen, config.min_relative_improvement * 100.0,
+                        config.early_stop_generations)
             break
 
         if gen % 50 == 0:
             logger.info("Gen %d: best_fitness=%.4f", gen, best.fitness)
 
     return best
+
+
+def _exceeds_improvement_threshold(
+    anchor: float, candidate: float, min_relative: float,
+) -> bool:
+    """Is the gain from `anchor` to `candidate` worth resetting the stale counter for?
+
+    Fitness is minimized, so a gain is a decrease. The test is relative because an
+    absolute gain means nothing across instance sizes: 0.0003 is progress on a
+    fitness of 1.0 and rounding error on a fitness of 1.58 million (#20).
+
+    Example:
+        >>> _exceeds_improvement_threshold(1_000_000.0, 999_000.0, 1e-4)
+        True
+        >>> _exceeds_improvement_threshold(1_000_000.0, 999_999.0, 1e-4)
+        False
+    """
+    gain = anchor - candidate
+    if gain <= 0.0:
+        return False
+    scale = abs(anchor)
+    if scale <= sys.float_info.epsilon:
+        # A zero anchor has no scale to measure against, so any gain counts.
+        return True
+    return gain / scale > min_relative
 
 
 def _init_population(

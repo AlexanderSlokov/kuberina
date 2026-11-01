@@ -343,6 +343,7 @@ mod tests {
             anti_affinity_targets: vec![],
             group_name: String::new(),
             topology_spread: None,
+            observed: None,
         }
     }
 

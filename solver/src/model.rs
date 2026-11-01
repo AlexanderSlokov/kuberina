@@ -182,6 +182,7 @@ pub struct Node {
 /// assert_eq!(ts.max_skew, 1);
 /// ```
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TopologySpread {
     #[serde(default = "default_max_skew", rename = "maxSkew")]
     pub max_skew: usize,
@@ -191,6 +192,31 @@ pub struct TopologySpread {
 
 fn default_max_skew() -> usize {
     1
+}
+
+/// Steady-state usage a pod was observed to consume, as opposed to what it requests.
+///
+/// Optional throughout (IR v1, issue #13). Absent, the solver behaves exactly as it
+/// did before the block existed — nothing in the packing model reads it yet. It is
+/// carried so that a producer of telemetry can record it on the same terms as every
+/// other input: a file the operator reviews, not a metrics endpoint the planner polls.
+///
+/// Every percentile uses the same 8-dimensional shape as `requests`, and parses
+/// through the same quantity handling, so `ram: "512Mi"` means what it always means.
+#[derive(Debug, Clone, Default)]
+pub struct ObservedUsage {
+    /// Retention period the statistics summarize, verbatim, e.g. `720h`.
+    pub window: String,
+    pub p50: Option<ResourceVector>,
+    pub p95: Option<ResourceVector>,
+    pub p99: Option<ResourceVector>,
+    pub peak: Option<ResourceVector>,
+    /// Fraction of the window the pod spent above its own request, in [0, 1].
+    ///
+    /// WHY it is not derivable from the percentiles: a workload whose p99 sits well
+    /// below its request but which occasionally exceeds it entirely is mis-sized
+    /// rather than over-provisioned, and the two want different responses.
+    pub exceeded_request_fraction: f64,
 }
 
 /// A Kubernetes pod to be scheduled.
@@ -211,6 +237,9 @@ pub struct Pod {
     pub group_name: String,
     /// Topology spread constraint (soft penalty in v0.2.0).
     pub topology_spread: Option<TopologySpread>,
+    /// Steady-state usage, when a producer supplied it. Not read by the packing
+    /// model; see `ObservedUsage` and issue #13.
+    pub observed: Option<ObservedUsage>,
 }
 
 /// Gang-scheduled pod group — all-or-nothing placement.
@@ -273,10 +302,34 @@ pub struct Blueprint {
 pub struct GaConfig {
     pub population_size: usize,
     pub tournament_size: usize,
-    pub mutation_rate: f64,
+    /// Expected number of pods relocated per child, NOT a per-gene probability.
+    ///
+    /// WHY a count: a fixed per-gene rate is a different operator at different
+    /// problem sizes. At 10 pods, 0.03 relocates 0.3 assignments — a local move.
+    /// At 2,714 pods it relocates 81, which is a random restart: no child lands
+    /// near its parent, so elitism preserves the seed and the search never starts.
+    /// A count keeps the operator local as |P| grows.
+    pub mutations_per_child: f64,
+    /// Expected number of pods relocated when seeding each initial individual.
+    ///
+    /// Large enough that crossover has material to work with, small enough that
+    /// the population starts as a neighborhood of the FFD seed rather than noise.
+    pub init_mutations: f64,
     pub crossover_rate: f64,
     pub max_generations: usize,
     pub early_stop_generations: usize,
+    /// Smallest relative gain that counts as progress for early stopping.
+    ///
+    /// WHY a relative threshold (#20): the stale counter used to reset on any
+    /// improvement at all, including 0.0003 on a fitness of 1.58 million, so the
+    /// criterion never fired and both benchmark runs burned their full budget.
+    ///
+    /// WHY 1e-4: on the MSC Irina benchmark at `1ab1ad7`, smooth drift accumulates
+    /// 3.0e-6 over 200 generations and a real gain — one node emptied — is 6.2e-3.
+    /// 1e-4 is the geometric mean of the two: 33x above the noise floor, 62x below
+    /// the smallest gain worth keeping. Derivation and sources in
+    /// `docs/references/papers/ga-termination-criteria.md` §2.
+    pub min_relative_improvement: f64,
     pub random_seed: u64,
 }
 
@@ -285,10 +338,12 @@ impl Default for GaConfig {
         Self {
             population_size: 128,
             tournament_size: 3,
-            mutation_rate: 0.05,
+            mutations_per_child: 4.0,
+            init_mutations: 16.0,
             crossover_rate: 0.8,
             max_generations: 500,
             early_stop_generations: 50,
+            min_relative_improvement: 1e-4,
             random_seed: 42,
         }
     }
@@ -338,17 +393,21 @@ pub struct FfdWeights {
 impl Default for FfdWeights {
     fn default() -> Self {
         Self {
+            // WHY uniform: synthetic_volume divides each dimension by the largest
+            // node capacity in that dimension, so the terms are already comparable
+            // and a weight expresses preference, not unit conversion. The previous
+            // 0.01 defaults on I/O were compensating for raw magnitudes and made
+            // FFD blind to whichever I/O dimension actually binds (#18).
             alpha: 1.0,
             beta: 1.0,
+            // GPU stays elevated: it is indivisible and confined to a small node
+            // subset, so a GPU pod placed late has nowhere left to go.
             gamma: 10.0,
-            // WHY low defaults: I/O dimensions rarely dominate unless user
-            // explicitly profiles workloads. Prevents FFD from over-weighting
-            // disk/network in generic clusters.
-            delta: 0.1,
-            epsilon_r: 0.01,
-            epsilon_w: 0.01,
-            zeta_in: 0.01,
-            zeta_out: 0.01,
+            delta: 1.0,
+            epsilon_r: 1.0,
+            epsilon_w: 1.0,
+            zeta_in: 1.0,
+            zeta_out: 1.0,
         }
     }
 }
