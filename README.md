@@ -45,10 +45,9 @@ before anything reaches the cluster.
   node.
 - **Manifest output.** `kuberina-forge out` writes your manifests back out with a
   required `nodeAffinity` that pins each workload to its planned nodes.
-- **Independent validation.** The inspector checks the constraints in a blueprint with
-  its own code and renders a heatmap of node utilization. The inspector reads the
-  MSC Irina benchmark files only; support for IR v1 files is tracked as K-3 in
-  [BACKLOG.md](BACKLOG.md).
+- **Independent validation.** The inspector checks capacity, node selectors, and
+  affinity rules in a blueprint with its own code, and renders a heatmap of node
+  utilization.
 
 ## How Kuberina works
 
@@ -146,11 +145,6 @@ make solver-build    # needs Rust; writes solver/target/debug/kuberina-solver
 
 The repository includes *MSC Irina*, a generated cluster of 620 nodes and 2,714 Pods.
 
-> [!CAUTION]
-> At commit `c15a04c`, `make solver-irina` fails with ``unknown field `pods` ``. The
-> benchmark files predate the stricter IR v1 parser. The fix is tracked as K-3 in
-> [BACKLOG.md](BACKLOG.md). Until it lands, run the benchmark at commit `24ffc52`.
-
 To plan the benchmark and view the result:
 
 ```shell
@@ -161,9 +155,9 @@ make inspector-run    # needs uv
 `make inspector-run` writes `kuberina_dashboard.html`. Open it in a browser to see the
 utilization heatmap.
 
-At commit `24ffc52`, one plan of this cluster took 185 seconds and used 540 of the 620
-nodes. The session record
-[2026-09-06-ga-early-stop-threshold](docs/references/sessions/2026-09-06-ga-early-stop-threshold.md)
+At commit `096177e`, one plan of this cluster took 865 seconds and used 540 of the 620
+nodes, with 964 of its soft affinity and anti-affinity rules unmet. The session record
+[2026-11-01-irina-with-affinity](docs/references/sessions/2026-11-01-irina-with-affinity.md)
 lists the commands and the full results.
 
 ## What Kuberina is not

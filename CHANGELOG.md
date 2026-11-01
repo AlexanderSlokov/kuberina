@@ -153,6 +153,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dimension is disk write throughput, not CPU, and the paper now says so. (#15, #8, #11)
 
 ### Fixed
+- **Affinity and anti-affinity rules now affect plans.**
+  ([#26](https://github.com/AlexanderSlokov/kuberina/issues/26)) Before this change, no
+  rule reached the solver: the fitness function looked targets up by bare Pod name, so
+  `ai/trainer` as written by `kuberina-forge` matched nothing, and the MSC Irina testdata
+  kept all its rules in a `pods:` list that the solver did not read. Targets now name a
+  declaration (`ai/trainer`, every replica) or one Pod (`ai/trainer-0003`), and a target
+  that names nothing is a parse error. Affinity follows Kubernetes semantics: one named
+  Pod on the node satisfies the rule. The inspector reads IR v1 workloads and checks
+  affinity with its own code, and the MSC Irina testdata is regenerated with
+  declaration-level rules. `make solver-irina` and `make inspector-run` work again. With the rules in force, a plan of MSC Irina takes 865
+  seconds instead of 185, uses the same 540 nodes, and leaves 964 rules unmet. Operators
+  whose workloads name targets without a namespace must add it; the error message names
+  the target. See `docs/references/sessions/2026-11-01-irina-with-affinity.md`.
+- **`make test` runs every test suite.** It covers `kuberina-forge`, the solver, the
+  inspector, and the benchmark scripts, which had no tests before.
 - **The README describes what Kuberina does today, and its commands run.**
   ([#6](https://github.com/AlexanderSlokov/kuberina/issues/6),
   [#14](https://github.com/AlexanderSlokov/kuberina/issues/14))

@@ -18,10 +18,11 @@ work below is uncommitted. Delete this file once its items are done or moved int
 
 ## Next, in order
 
-1. Fix K-3 first ([#26](https://github.com/AlexanderSlokov/kuberina/issues/26)). Affinity
-   has no effect on any plan, `make solver-irina` and `make inspector-run` fail, and X-3
-   cannot meet its done-when condition, which needs the Irina FFD fitness. Start with
-   the target semantics in `docs/references/ir-v1.md` §3.1.
+1. S-1: resolve affinity targets and spread groups to indices once at load. Fitness
+   takes 12.3 ms per call on MSC Irina, 73% of it in the affinity term. The temporary
+   timing example is `solver/examples/fitness_timing.rs` (uncommitted).
+1. S-2: derive the objective weights from measured term ranges. It must land before the
+   first Kuberina run on the Alibaba trace, by the stance in the #24 plan.
 1. Start X-2, the trace adapter in `bench/alibaba/`. Its input is a simulator log; the
    three seed-42 logs are in `x1-seed42/*/simon.log.gz`.
 1. Start X-3, the per-device GPU model. Write the IR fields into

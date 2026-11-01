@@ -66,35 +66,6 @@ state which keys are valid, and `inspector/inspector.py` does not check spread.
 `topology.kubernetes.io/zone` from a manifest is scored against node zones, a regression
 test covers the `forge/testdata` case, and the inspector reports skew per spread group.
 
-### K-3 — Make affinity work end to end, and read the MSC Irina testdata as IR v1
-
-**Issue:** [#26](https://github.com/AlexanderSlokov/kuberina/issues/26), a sub-issue of
-[#24](https://github.com/AlexanderSlokov/kuberina/issues/24) ·
-**Evidence:** `docs/references/sessions/2026-11-01-affinity-constraints-unread.md`
-
-Three defects share one fix:
-
-- `solver/testdata/irina_workloads.yaml` keeps its 14,258 affinity and anti-affinity
-  targets in a top-level `pods:` list. The solver at `24ffc52` ignored that list, and the
-  IR v1 parser rejects it, so `make solver-irina` fails with ``unknown field `pods` ``.
-- Affinity targets written by `kuberina-forge in`, such as `ai/trainer`, match no Pod,
-  because the solver looks targets up by bare Pod name.
-- The inspector reads only `pods:`, fails on every file that `kuberina-forge in` writes,
-  and checks no affinity rule.
-
-The agreed target semantics: `ns/name` names a declaration and covers all of its
-replicas; `ns/name-0003` names one unrolled replica.
-
-**Touches:** `docs/references/ir-v1.md` §3.1 (first), `solver/src/parser.rs`,
-`solver/src/fitness.rs`, `bench/gen_irina_testdata.py`, `solver/testdata/`,
-`research/testdata/`, `inspector/inspector.py`, `solver/tests/`.
-**Done when:** the solver resolves both target forms, with a regression test for each;
-the generator writes every constraint under `namespaces:` and no `pods:` key; the
-inspector unrolls `namespaces:` by `ir-v1.md` §3.1 and reports affinity violations with
-its own code; `make solver-irina` and `make inspector-run` both succeed; a test parses
-every committed testdata file; and a session record reports the re-run of MSC Irina with
-its constraints in force.
-
 ### K-1 — Optional `observed` usage block in the workload IR
 
 **Issue:** [#13](https://github.com/AlexanderSlokov/kuberina/issues/13) ·
@@ -123,6 +94,28 @@ the tool operators already open.
 Selecting what to pack against (`--pack-against p95`) is deliberately **not** part of
 this item. Changing the packing input changes what the feasibility proof guarantees,
 and that decision waits for real data.
+
+---
+
+## Solver search quality (`solver/src/`)
+
+**ROADMAP:** Phase 1 (v0.3.0), *Search Quality and Termination* ·
+**Evidence:** `docs/references/sessions/2026-11-01-irina-with-affinity.md`
+
+| ID | Task | Touches | Depends on | Done when |
+|---|---|---|---|---|
+| S-1 | Resolve affinity targets and spread groups to indices once at load | `solver/src/model.rs`, `target_resolution.rs`, `fitness.rs` | — | MSC Irina seed and final fitness match `096177e` to the digit in both configurations, and `compute_fitness` takes under 1 ms per call on the FFD seed |
+| S-2 | Derive objective weights from measured term ranges | `solver/src/model.rs`, `docs/references/` | S-1 | Each weight cites its derivation in a session record, and the weights are fixed before the first run on the Alibaba trace |
+
+---
+
+## Paper corrections (`docs/references/PAPER.md`)
+
+These items run last, by the rule at the top of this file.
+
+| ID | Task | Issue | Done when |
+|---|---|---|---|
+| P-1 | Replace the §7 claim that 14,258 affinity constraints were satisfied | [#26](https://github.com/AlexanderSlokov/kuberina/issues/26) | §7 reports the instance and results of `2026-11-01-irina-with-affinity.md`, and #26 is closed |
 
 ---
 
