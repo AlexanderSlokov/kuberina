@@ -41,13 +41,21 @@ before anything reaches the cluster.
   capacity of every node before it plans.
 - **Capacity headroom.** The `--headroom` flag reserves a percentage of each node's
   capacity.
+- **Shared GPUs.** A node can declare its GPU devices with `gpuDevices`, and a workload
+  can state the share of each device it needs with `gpuMilli`. Kuberina then checks
+  that every Pod fits on real devices, in addition to the node's GPU total. For example,
+  a Pod that needs half a GPU does not fit a node whose eight GPUs are each 60% used.
+- **Admission for benchmarks.** With `--admission in-order` or `--admission free`, the
+  solver may leave Pods unplaced when they ask for more than the cluster holds, and it
+  lists them under `unplaced:` in the blueprint. This mode serves comparisons with
+  scheduler traces, and `kuberina-forge out` refuses such a partial plan.
 - **A reviewable blueprint.** A _blueprint_ is the YAML file that maps each Pod to a
   node.
 - **Manifest output.** `kuberina-forge out` writes your manifests back out with a
   required `nodeAffinity` that pins each workload to its planned nodes.
-- **Independent validation.** The inspector checks capacity, node selectors, and
-  affinity rules in a blueprint with its own code, and renders a heatmap of node
-  utilization.
+- **Independent validation.** The inspector checks capacity, GPU devices, node
+  selectors, affinity rules, and the admission rules in a blueprint with its own code,
+  and renders a heatmap of node utilization.
 
 ## How Kuberina works
 
@@ -139,7 +147,7 @@ make solver-build    # needs Rust; writes solver/target/debug/kuberina-solver
 
     The output manifests match your input manifests, with one addition: a required
     `nodeAffinity` on each workload. `kuberina-forge out` refuses a blueprint that the
-    solver marked infeasible.
+    solver marked infeasible, and one that leaves Pods unplaced.
 
 ## Run the benchmark
 
