@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **A trace adapter converts the Alibaba GPU trace into Kuberina IR**
+  ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24), X-2). The
+  `bench/alibaba/` package reads the trace CSV files and the FGD simulator's logs and
+  writes `infra.yaml`, `workloads.yaml`, and `sequence.csv`. The workload holds the
+  Pods in the order the simulator offered them, and `sequence.csv` records which node
+  each simulator policy chose for each Pod. For seed 42, the adapter writes 1,213 nodes
+  and 10,866 Pods whose GPU demand, 8,075,080 milli-GPU, equals the simulator's logged
+  arrivals at every Pod. The adapter writes nothing when the logs disagree with each
+  other or with the trace. Run `make bench-alibaba-fetch` and then
+  `make bench-alibaba-ir`. The record is
+  `docs/references/sessions/2026-11-01-alibaba-trace-adapter.md`. The output is not yet
+  a meaningful planning input: GPU stays one number per node until X-3, and every Pod
+  must be placed until X-4.
 - **The FGD scheduler simulator reproduces its published results on this workstation**
   ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24), X-1). On the Alibaba
   `openb_pod_list_default` trace with seed 42, FGD reaches 95.29% GPU allocation at

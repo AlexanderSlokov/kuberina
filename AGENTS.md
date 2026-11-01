@@ -1,15 +1,19 @@
+# Terms
+
+- **Founder**: The person who has the final say on all decisions, aka @AleksandrSlokov. You can check the git email/username in the git commits to know who you 're talking to.
+
 # Workflow instructions
 
-- When new requirements comes, update `ROADMAP.md` accordingly.
+- When new ideas arrive from the Founder, update `ROADMAP.md`.
 - After your plan is accepted, update `BACKLOG.md` to propagate task items. Other AI Agents may pick them up to do.
-- After finished feature implement / bug fix,... Update the CHANGELOG.md.
+- After finished feature implement / bug fix,... Update the `CHANGELOG.md`.
 
 ## Documentation flow
 
-A change moves through them in order; skipping a stage loses the reason the work exists:
+A change in Kuberina moves through the following documents in order:
 
 1. `ROADMAP.md`: A new capability appears here first, attached to a phase
-   and a target version. Nothing enters the backlog without a roadmap item to descend from, 
+   and a target version. Changes must decend from here to BACKLOG, 
    except corrections to artifacts that already exist (a wrong figure, a stale path).
 
 2. `BACKLOG.md`: Roadmap items decompose into tasks here. Each task
@@ -17,24 +21,22 @@ A change moves through them in order; skipping a stage loses the reason the work
    "done when" condition. Group tasks by the artifact they modify. Link the GitHub
    issue when one exists — the issue holds the discussion, the backlog item holds the
    plan of record.
+
 3. `CHANGELOG.md`: When a backlog task is complete, remove it from
-   BACKLOG.md and describe the result under `[Unreleased]`, following Keep a Changelog.
-   They will be release notes verbatim, so write them for an operator: state what changed and why it mattered.
+   `BACKLOG.md` and describe the result under `[Unreleased]`, following Keep a Changelog.
+   They will be release notes verbatim, so write short and concise: what changed and why it mattered.
 
 ## Documentation layout
 
-`docs/` follows [Diátaxis](https://diataxis.fr/). Place a document by its *purpose*.
-A how-to guide about the solver goes in `docs/how-to/`, next to how-to guides about
-other components:
+They are in `docs/` folder, follows [Diátaxis](https://diataxis.fr/):
 
 - `docs/tutorials/` — learning-oriented. A beginner following steps to a first result.
 - `docs/how-to/` — task-oriented. A competent user achieving one specific goal.
 - `docs/references/` — information-oriented. Facts to look up: schemas, measured
-  numbers, the paper, session records. These pages describe; they contain no steps.
-- `docs/explanation/` — understanding-oriented. Why the design is the way it is.
+  numbers, the paper, session records.
+- `docs/explanation/` — understanding-oriented. Designs, ideas, and rationale.
 
-`docs/plans/` sits outside the four. It holds working artifacts: implementation plans
-and raw benchmark console output.
+`docs/plans/` holds artifacts like implementation plans and raw benchmark console outpu.
 
 ## Session records
 
@@ -43,8 +45,7 @@ comparison, a reproduction of a defect — write them down in
 `docs/references/sessions/YYYY-MM-DD-<topic>.md` before the session ends.
 
 State what was measured, the commit it was measured at, and the command that produced
-it. A number without its provenance cannot be checked later, and `PAPER.md` is written
-from these records. Record what the run actually reported,
+it. `PAPER.md` is written from these records. Record what the run actually reported,
 including results that are worse than the previous ones — the session record is
 evidence, and evidence that only ever improves is not evidence.
 

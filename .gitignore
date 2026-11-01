@@ -34,3 +34,7 @@ solver/kuberina_solution.yaml
 # Python stuffs
 .pytest_cache/
 __pycache__/
+
+# Alibaba trace downloads and adapter output (make bench-alibaba-fetch / -ir)
+/bench/alibaba/data/
+/bench/alibaba/out/

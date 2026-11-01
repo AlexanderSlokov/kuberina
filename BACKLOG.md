@@ -104,8 +104,12 @@ and that decision waits for real data.
 
 | ID | Task | Touches | Depends on | Done when |
 |---|---|---|---|---|
-| S-1 | Resolve affinity targets and spread groups to indices once at load | `solver/src/model.rs`, `target_resolution.rs`, `fitness.rs` | — | MSC Irina seed and final fitness match `096177e` to the digit in both configurations, and `compute_fitness` takes under 1 ms per call on the FFD seed |
-| S-2 | Derive objective weights from measured term ranges | `solver/src/model.rs`, `docs/references/` | S-1 | Each weight cites its derivation in a session record, and the weights are fixed before the first run on the Alibaba trace |
+| S-1 | Resolve affinity targets and spread groups to indices once at load, then evaluate only what a mutation changes | `solver/src/model.rs`, `target_resolution.rs`, `fitness.rs` | — | MSC Irina seed and final fitness match `096177e` to the digit in both configurations, and `compute_fitness` takes under 1 ms per call on the FFD seed |
+
+S-1 gets its own GitHub issue and its own work session, after #24. It does not block
+#24: the Alibaba `openb_pod_list_default` trace carries no affinity or topology spread
+rule, and those two terms hold all of the measured fitness cost. The cost on the Alibaba
+instance is measured separately by X-5.
 
 ---
 
@@ -126,10 +130,10 @@ These items run last, by the rule at the top of this file.
 
 | ID | Task | Touches | Depends on | Done when |
 |---|---|---|---|---|
-| X-2 | Trace adapter | `bench/alibaba/` | — | Emitted GPU demand equals the simulator's logged arrivals |
-| X-3 | Per-device GPU model | `ir-v1.md`, `solver/src/`, `inspector/`, `forge/internal/ir/` | — | 0.5-GPU pod rejected on 8×60%-used devices by solver and inspector; Irina FFD fitness unchanged |
-| X-4 | Admission (unplaced pods) | `ir-v1.md` §4, `solver/src/`, `inspector/`, `forge/internal/forgeout/` | X-3 | 130% fixture gives a feasible blueprint with `unplaced:` |
-| X-5 | Scale check | `docs/references/sessions/` | X-2, X-4 | Measured wall clock and memory for one full solve |
+| X-3 | Per-device GPU model, and the adapter writes the new device fields | `ir-v1.md`, `solver/src/`, `inspector/`, `forge/internal/ir/`, `bench/alibaba/ir_documents.py` | — | 0.5-GPU pod rejected on 8×60%-used devices by solver and inspector; Irina FFD fitness unchanged; the regenerated seed-42 IR still sums to 8,075,080 milli-GPU |
+| X-4 | Admission (unplaced pods); decide how the solver learns arrival order, which IR v1 cannot state | `ir-v1.md` §3–§4, `solver/src/`, `inspector/`, `forge/internal/forgeout/` | X-3 | 130% fixture gives a feasible blueprint with `unplaced:` |
+| S-2 | Derive objective weights from measured term ranges on the Alibaba instance, including X-4's unplaced-GPU term | `solver/src/model.rs`, `docs/references/` | X-4 | Each weight cites its derivation in a session record, fixed before Kuberina's first run on the trace (plan, *Purpose and stance*) |
+| X-5 | Scale check | `docs/references/sessions/` | S-2 | Measured wall clock and memory for one full solve |
 | X-6 | Experiments E1–E5 | `bench/alibaba/`, `docs/references/sessions/` | X-5 | One session record per experiment, seeds 42–51 |
 
 ---

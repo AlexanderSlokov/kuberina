@@ -87,7 +87,7 @@ bench-generate-testdata:
 	cd solver && uv run --with pyyaml python ../bench/gen_irina_testdata.py
 
 bench-test:
-	cd bench && uv run --with pyyaml --with pytest pytest -q --doctest-modules gen_irina_testdata.py tests
+	cd bench && uv run --with pyyaml --with pytest pytest -q --doctest-modules gen_irina_testdata.py alibaba tests
 
 bench-proof:
 	uv run --with pyyaml python bench/mathematical_proof.py
@@ -96,6 +96,28 @@ bench-proof:
 # computed against a cluster the optimizer never saw. See #8.
 bench-proof-headroom-20:
 	uv run --with pyyaml python bench/mathematical_proof.py --headroom 20
+
+# Alibaba cluster-trace-gpu-v2023 (issue #24). The trace is pinned to the commit the
+# FGD simulator calibration used (docs/references/sessions/2026-10-31-*).
+ALIBABA_TRACE_SHA := 3858992ca41bf92082e6d6522ddf0bebd14e838b
+ALIBABA_TRACE_URL := https://raw.githubusercontent.com/alibaba/clusterdata/$(ALIBABA_TRACE_SHA)/cluster-trace-gpu-v2023/csv
+ALIBABA_X1 := ../docs/plans/benchmarks/alibaba-gpu-v2023/x1-seed42
+
+bench-alibaba-fetch:
+	mkdir -p bench/alibaba/data
+	for f in openb_node_list_gpu_node.csv openb_pod_list_default.csv; do \
+		curl -sSfL -o bench/alibaba/data/$$f $(ALIBABA_TRACE_URL)/$$f || exit 1; \
+	done
+
+# Seed 42 IR from the three X-1 simulator logs (backlog X-2).
+bench-alibaba-ir:
+	cd bench && uv run --with pyyaml python -m alibaba.adapter \
+		--nodes alibaba/data/openb_node_list_gpu_node.csv \
+		--pods alibaba/data/openb_pod_list_default.csv \
+		--log FGD=$(ALIBABA_X1)/06-FGD/simon.log.gz \
+		--log BestFit=$(ALIBABA_X1)/05-BestFit/simon.log.gz \
+		--log Random=$(ALIBABA_X1)/01-Random/simon.log.gz \
+		--out alibaba/out/seed42
 
 # --- Research (Python reference implementation) -----------------------------
 
@@ -134,5 +156,5 @@ full-pipeline: ## Generate testdata -> solve -> inspect -> prove
 .PHONY: forge-build forge-test forge-lint forge-demo \
 	solver-build solver-test solver-clippy solver-lint solver-fmt \
 	solver-homelab solver-irina solver-irina-headroom-20 \
-	inspector-test inspector-run bench-test bench-generate-testdata bench-proof bench-proof-headroom-20 \
+	inspector-test inspector-run bench-test bench-alibaba-fetch bench-alibaba-ir bench-generate-testdata bench-proof bench-proof-headroom-20 \
 	research-homelab research-irina research-generate-testdata full-pipeline test

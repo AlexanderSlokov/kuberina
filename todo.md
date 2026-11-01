@@ -6,32 +6,47 @@ work below is uncommitted. Delete this file once its items are done or moved int
 
 ## State at hand-off
 
+Updated 2026-11-01, 16:00. Branch `24-challenge-alibaba`, pushed through `a6d8748`.
+
 - X-1 is done. The FGD simulator reproduces the published seed-42 figures exactly. See
-  `docs/references/sessions/2026-10-31-fgd-simulator-calibration.md`. Raw output is in
-  `docs/plans/benchmarks/alibaba-gpu-v2023/x1-seed42/`.
-- The README is rewritten in the Kubernetes documentation style, and
-  `docs/tutorials/plan-your-first-cluster.md` is new. `AGENTS.md` gained a
-  *Writing documentation* section, and `CLAUDE.md` imports `AGENTS.md`.
-- Two defects found while writing the tutorial are filed in `BACKLOG.md` as K-2
-  (topology spread ignores `topology.kubernetes.io/zone`) and K-3 (the MSC Irina testdata
-  and the inspector fail under IR v1).
+  `docs/references/sessions/2026-10-31-fgd-simulator-calibration.md`.
+- K-3 is done (#26): affinity rules reach the solver, the inspector checks them, and the
+  MSC Irina testdata is IR v1 with declaration-level rules. See
+  `docs/references/sessions/2026-11-01-irina-with-affinity.md`.
+- X-2 is done, uncommitted: the trace adapter in `bench/alibaba/`, its tests, the
+  `bench-alibaba-fetch` and `bench-alibaba-ir` targets, and
+  `docs/references/sessions/2026-11-01-alibaba-trace-adapter.md`. The seed-42 IR has
+  1,213 nodes and 10,866 Pods, and its GPU demand equals the logged arrivals at every
+  Pod. After committing, replace "with this session's uncommitted adapter" in the
+  session record with the commit SHA.
+- Also uncommitted: this file, the S-1/S-2 rework in `BACKLOG.md`, and the temporary
+  timing example `solver/examples/fitness_timing.rs`, kept for S-1.
 
 ## Next, in order
 
-1. S-1: resolve affinity targets and spread groups to indices once at load. Fitness
-   takes 12.3 ms per call on MSC Irina, 73% of it in the affinity term. The temporary
-   timing example is `solver/examples/fitness_timing.rs` (uncommitted).
-1. S-2: derive the objective weights from measured term ranges. It must land before the
-   first Kuberina run on the Alibaba trace, by the stance in the #24 plan.
-1. Start X-2, the trace adapter in `bench/alibaba/`. Its input is a simulator log; the
-   three seed-42 logs are in `x1-seed42/*/simon.log.gz`.
-1. Start X-3, the per-device GPU model. Write the IR fields into
-   `docs/references/ir-v1.md` before any code.
-1. Fix K-2.
+Decided 2026-11-01: finish #24 first. Performance work (S-1) waits for its own issue and
+session, because the Alibaba default trace has no affinity or spread rule.
+
+1. X-3: per-device GPU model. Write the IR fields into `docs/references/ir-v1.md` §1–§3
+   before any code; the inspector gets its own independent device check. Then make
+   `bench/alibaba/ir_documents.py` write the device fields and regenerate the seed-42
+   IR; its GPU total must stay 8,075,080 milli-GPU.
+1. X-4: admission. Pods may stay unplaced, with an `unplaced:` list in the blueprint and
+   `--admission in-order | free`. IR v1 has no arrival field: the adapter writes
+   declarations in arrival order and `sequence.csv` states the order. Decide which one
+   the solver reads before writing the `in-order` mode.
+1. S-2: derive the objective weights on the Alibaba instance and fix them before the
+   first run.
+1. X-5: one full solve of the seed-42 tuned set; measure wall clock and memory.
+1. X-6: experiments E1–E5 over seeds 42–51.
+
+Later, outside #24: open a GitHub issue for S-1, fix K-2 (topology spread keys), and P-1
+(correct PAPER §7, then close #26).
 
 ## Things to know before continuing
 
-- **The simulator lived in `/tmp`, which may not survive a reboot.** To rebuild it:
+- **The simulator lived in `/tmp` and is gone after a reboot (checked 2026-11-01).** X-2
+  needed only its committed logs. To rebuild it:
 
     ```shell
     git clone https://github.com/hkust-adsl/kubernetes-scheduler-simulator.git fgd-sim
@@ -42,6 +57,8 @@ work below is uncommitted. Delete this file once its items are done or moved int
 
     Then prepare the trace and run cells as described in the session record. The command
     file is `x1-seed42/cells_seed42.sh`. Set `GODEBUG=randseednop=0`.
+- **The trace CSV files are not in the repository.** `make bench-alibaba-fetch`
+  downloads them at the pinned commit into `bench/alibaba/data/` (Git ignores it).
 - **Go is not on the default `PATH`.** The SDK is at `~/sdk/go1.26.1/bin`.
 - **One simulator cell takes about 36 minutes and 2.4–3.2 GB of RAM.** All ten seeds
   for three policies is 30 cells, about 6 hours with three in parallel on this machine.
