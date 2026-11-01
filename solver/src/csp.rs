@@ -11,6 +11,7 @@
 //!   4. NodeSelector:    Labels(n_j) ⊇ Selector(p_i)
 //!   5. Gang:            All pods in group feasible, or none
 
+use crate::gpu_devices::{device_overflow_per_node, devices_fit_on_node};
 use crate::model::{Node, Pod, PodGroup, ResourceVector};
 
 /// Pod can only land on a tainted node if it has matching tolerations.
@@ -72,12 +73,15 @@ pub fn compute_overflow_by_dimension(
         loads[node_idx] = loads[node_idx] + pods[pod_idx].requests;
     }
 
+    let stranded_gpu = device_overflow_per_node(assignment, pods, nodes);
     let mut over = ResourceVector::zero();
     for (node_idx, load) in loads.iter().enumerate() {
         let cap = &nodes[node_idx].allocatable;
         over.cpu += (load.cpu - cap.cpu).max(0.0);
         over.ram += (load.ram - cap.ram).max(0.0);
-        over.gpu += (load.gpu - cap.gpu).max(0.0);
+        // WHY max: GPU that no device can hold is overflow even when the node's GPU
+        // sum fits (IR v1 §3.4). Without devices, `stranded_gpu` is zero.
+        over.gpu += (load.gpu - cap.gpu).max(0.0).max(stranded_gpu[node_idx]);
         over.storage += (load.storage - cap.storage).max(0.0);
         // WHY: Disk/Network overflow is the Noisy Neighbor signal —
         // 10 DB pods crushing a node's IOPS triggers massive penalty.
@@ -87,6 +91,23 @@ pub fn compute_overflow_by_dimension(
         over.net_out += (load.net_out - cap.net_out).max(0.0);
     }
     over
+}
+
+/// Whether node `node_idx` holds the pods assigned to it: the per-node sum of
+/// `allocatable` and, on a node with GPU devices, the per-device check.
+///
+/// ```ignore
+/// let ok = node_within_capacity(j, &bp.assignment, &bp.node_load, &pods, &nodes);
+/// ```
+pub fn node_within_capacity(
+    node_idx: usize,
+    assignment: &[usize],
+    node_load: &[ResourceVector],
+    pods: &[Pod],
+    nodes: &[Node],
+) -> bool {
+    nodes[node_idx].allocatable.fits(node_load[node_idx])
+        && devices_fit_on_node(node_idx, assignment, pods, nodes)
 }
 
 /// Count number of pods placed on nodes violating Taint or NodeSelector.
@@ -189,6 +210,7 @@ mod tests {
             group_name: String::new(),
             topology_spread: None,
             observed: None,
+            gpu_share: None,
         }
     }
 
@@ -200,6 +222,7 @@ mod tests {
             taints: vec![],
             zone: String::new(),
             rack: String::new(),
+            gpu_devices: None,
         }
     }
 
@@ -329,5 +352,31 @@ mod tests {
         }];
         // disk_read overflow: 600 - 500 = 100
         assert!((compute_capacity_overflow(&[0], &pods, &nodes) - 100.0).abs() < 1e-9);
+    }
+
+    // ─── Per-device GPU (IR v1 §3.4, X-3) ───────────────────────────────
+
+    use crate::gpu_test_fixtures::{eight_gpu_node, sixty_percent_then_half};
+
+    #[test]
+    fn stranded_device_gpu_counts_as_gpu_overflow_where_the_sum_fits() {
+        let over = compute_overflow_by_dimension(
+            &[0; 9],
+            &sixty_percent_then_half(),
+            &[eight_gpu_node("n")],
+        );
+        assert!((over.gpu - 0.5).abs() < 1e-9, "{}", over.gpu);
+    }
+
+    #[test]
+    fn node_within_capacity_checks_devices_as_well_as_the_sum() {
+        let pods = sixty_percent_then_half();
+        let nodes = [eight_gpu_node("a"), eight_gpu_node("b")];
+        let mut assignment = vec![0; 9];
+        let loads = crate::phase1_ffd::compute_node_loads(&assignment, &pods, 2);
+        assert!(!node_within_capacity(0, &assignment, &loads, &pods, &nodes));
+        assignment[8] = 1;
+        let loads = crate::phase1_ffd::compute_node_loads(&assignment, &pods, 2);
+        assert!(node_within_capacity(0, &assignment, &loads, &pods, &nodes));
     }
 }

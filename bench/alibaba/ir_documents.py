@@ -5,8 +5,10 @@ written as plain numbers because the inspector reads numbers only. Throughput an
 storage are left out, which IR v1 reads as unconstrained on nodes and zero on pods: the
 simulator models CPU, memory and GPU only.
 
-GPU is the scalar of IR v1 until backlog X-3 adds per-device fields, so a 0.81-GPU pod
-is written as `gpu: 0.81`.
+GPU follows the per-device model of §3.4, as the simulator's GPU-sharing plugin does:
+each node states `gpuDevices`, and a pod's trace `num_gpu` becomes `requests.gpu`. A
+pod that needs part of a device also states `gpuMilli`: trace row `num_gpu: 1,
+gpu_milli: 810` becomes `requests: {gpu: 1}` with `gpuMilli: 810`.
 """
 
 from __future__ import annotations
@@ -25,15 +27,17 @@ MILLI = 1000
 Resources = dict[str, float]
 
 
-class NodeEntry(TypedDict):
+class NodeEntry(TypedDict, total=False):
     name: str
     labels: dict[str, str]
     allocatable: Resources
+    gpuDevices: int  # present on nodes with at least one GPU
 
 
-class Declaration(TypedDict):
+class Declaration(TypedDict, total=False):
     name: str
     requests: Resources
+    gpuMilli: int  # present when the pod needs part of each device
 
 
 class Infrastructure(TypedDict):
@@ -76,9 +80,8 @@ def build_workloads(
     namespaces: dict[str, list[Declaration]] = {}
     for record in records:
         namespace, name = record.pod.split("/", 1)
-        requests = _pod_requests(_trace_row(record.pod, pods))
         namespaces.setdefault(namespace, []).append(
-            {"name": name, "requests": requests}
+            _declaration(name, _trace_row(record.pod, pods))
         )
     return {"apiVersion": IR_API_VERSION, "kind": "Workloads", "namespaces": namespaces}
 
@@ -108,24 +111,24 @@ def _node_entry(node: TraceNode) -> NodeEntry:
         "ram": node.memory_mib / MIB_PER_GIB,
         "gpu": node.gpus,
     }
-    return {
+    entry: NodeEntry = {
         "name": node.name,
         "labels": {GPU_MODEL_LABEL: node.model},
         "allocatable": allocatable,
     }
+    if node.gpus:
+        entry["gpuDevices"] = node.gpus
+    return entry
 
 
-def _pod_requests(pod: TracePod) -> Resources:
+def _declaration(name: str, pod: TracePod) -> Declaration:
     requests: Resources = {
         "cpu": pod.cpu_milli / MILLI,
         "ram": pod.memory_mib / MIB_PER_GIB,
     }
-    if pod.gpu_milli_total:
-        requests["gpu"] = _whole_or_fraction(pod.gpu_milli_total)
-    return requests
-
-
-def _whole_or_fraction(gpu_milli: int) -> float:
-    """Write whole devices as integers (`8`) and fractions as decimals (`0.81`)."""
-    whole, remainder = divmod(gpu_milli, MILLI)
-    return whole if remainder == 0 else gpu_milli / MILLI
+    declaration: Declaration = {"name": name, "requests": requests}
+    if pod.num_gpu:
+        requests["gpu"] = pod.num_gpu
+    if pod.num_gpu and pod.gpu_milli < MILLI:
+        declaration["gpuMilli"] = pod.gpu_milli
+    return declaration

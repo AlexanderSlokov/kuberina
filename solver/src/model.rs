@@ -168,6 +168,30 @@ pub struct Node {
     pub zone: String,
     /// Rack topology — used by topologySpread with topologyKey "rack".
     pub rack: String,
+    /// GPU devices of 1,000 milli-GPU each (IR v1 §2, `gpuDevices`). `None` checks
+    /// GPU as one sum per node, as every release before X-3 did.
+    pub gpu_devices: Option<u32>,
+}
+
+/// A pod's GPU demand stated per device (IR v1 §3.4): `devices` distinct devices,
+/// each with `milli` milli-GPU free.
+///
+/// ```
+/// # use kuberina_solver::model::GpuShare;
+/// let half_gpu = GpuShare { devices: 1, milli: 500 };
+/// assert_eq!(half_gpu.total_milli(), 500);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GpuShare {
+    pub devices: u32,
+    pub milli: u32,
+}
+
+impl GpuShare {
+    /// Milli-GPU summed over the share's devices.
+    pub fn total_milli(self) -> u64 {
+        u64::from(self.devices) * u64::from(self.milli)
+    }
 }
 
 /// Topology spread constraint — distribute pods evenly across zones/racks.
@@ -244,6 +268,9 @@ pub struct Pod {
     /// Steady-state usage, when a producer supplied it. Not read by the packing
     /// model; see `ObservedUsage` and issue #13.
     pub observed: Option<ObservedUsage>,
+    /// Per-device GPU demand, set when the declaration has `gpuMilli` (IR v1 §3.4).
+    /// `requests.gpu` then holds the aggregate, `devices × milli / 1000`.
+    pub gpu_share: Option<GpuShare>,
 }
 
 impl Pod {

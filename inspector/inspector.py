@@ -15,6 +15,7 @@ except ImportError:
     sys.exit(1)
 
 from affinity_check import count_affinity_violations
+from gpu_device_check import device_violations
 from ir_workloads import flatten_resources, resolve_targets, unroll_workloads
 
 
@@ -44,8 +45,22 @@ def normalize_ir(infra):
     """
     for node in infra.get("nodes", []):
         node["allocatable"] = flatten_resources(node.get("allocatable", {}))
+        _reconcile_gpu_devices(node)
     for ds in infra.get("daemonsets", []):
         ds["resources"] = flatten_resources(ds.get("resources", {}))
+
+
+def _reconcile_gpu_devices(node):
+    """Apply ir-v1.md §2: `gpuDevices` sets an absent `allocatable.gpu` and must match one."""
+    devices = node.get("gpuDevices")
+    if devices is None:
+        return
+    declared = node["allocatable"].setdefault("gpu", float(devices))
+    if declared != devices:
+        raise ValueError(
+            f"node {node['name']!r} has gpuDevices: {devices} but allocatable.gpu: {declared}; "
+            "expected them equal, or allocatable.gpu omitted"
+        )
 
 
 def pre_deduct_daemonsets(nodes, daemonsets):
@@ -120,6 +135,7 @@ def validate_solution(nodes, pods, solution):
         
     return {
         "node_loads": node_loads,
+        "gpu_device_violations": device_violations(nodes, pods, solution),
         "selector_violations": selector_violations,
         "unassigned_pods": unassigned_pods,
         "capacity_overflow": capacity_overflow,
@@ -408,6 +424,8 @@ def main():
     print(f"Capacity Overflow (Disk Write): {validation['capacity_overflow']['disk_write']:.2f}")
     print(f"Capacity Overflow (Net In): {validation['capacity_overflow']['net_in']:.2f}")
     print(f"Capacity Overflow (Net Out): {validation['capacity_overflow']['net_out']:.2f}")
+    print(f"GPU Device Violations: {len(validation['gpu_device_violations'])}"
+          + "".join(f"\n  {name}" for name in validation["gpu_device_violations"]))
     print(f"Unassigned Pods: {validation['unassigned_pods']}")
     print(f"Affinity Violations: {count_affinity_violations(pods, solution_map)}")
     print("--------------------------\n")

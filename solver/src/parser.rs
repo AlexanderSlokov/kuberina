@@ -16,6 +16,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
+use crate::gpu_ir::{node_gpu_devices, pod_gpu_share};
 use crate::model::{DaemonSet, Node, ObservedUsage, Pod, PodGroup, ResourceVector, TopologySpread};
 use crate::quantity::{QuantityContext, parse_quantity};
 use crate::target_resolution::resolve_affinity_targets;
@@ -101,6 +102,8 @@ struct RawNode {
     taints: Vec<RawTaint>,
     #[serde(default)]
     allocatable: RawResources,
+    #[serde(default, rename = "gpuDevices")]
+    gpu_devices: Option<u32>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -200,6 +203,8 @@ struct RawPod {
     topology_spread: Option<TopologySpread>,
     #[serde(default)]
     observed: Option<RawObservedUsage>,
+    #[serde(default, rename = "gpuMilli")]
+    gpu_milli: Option<u32>,
 }
 
 fn default_replicas() -> usize {
@@ -389,13 +394,18 @@ fn convert_nodes(raw_nodes: &[RawNode]) -> Result<Vec<Node>, String> {
     raw_nodes
         .iter()
         .map(|rn| {
+            let mut allocatable = raw_to_node_resources(&rn.allocatable)?;
+            let gpu_declared = rn.allocatable.gpu.is_some();
+            let gpu_devices =
+                node_gpu_devices(&rn.name, rn.gpu_devices, gpu_declared, &mut allocatable)?;
             Ok(Node {
                 name: rn.name.clone(),
-                allocatable: raw_to_node_resources(&rn.allocatable)?,
+                allocatable,
                 labels: rn.labels.clone(),
                 taints: rn.taints.iter().map(flatten_taint).collect(),
                 zone: rn.zone.clone(),
                 rack: rn.rack.clone(),
+                gpu_devices,
             })
         })
         .collect()
@@ -463,15 +473,15 @@ fn flatten_namespaces(raw: &RawWorkloadFile) -> Result<(Vec<Pod>, DeclarationInd
     for ns_name in ns_keys {
         let raw_pods = &raw.namespaces[ns_name];
         for rp in raw_pods {
-            let resources = raw_to_pod_resources(&rp.requests)?;
+            let mut resources = raw_to_pod_resources(&rp.requests)?;
+            let declaration = format!("{ns_name}/{}", rp.name);
+            let gpu_share = pod_gpu_share(&declaration, rp.gpu_milli, &mut resources)?;
             let tolerations: Vec<String> = rp.tolerations.iter().map(flatten_toleration).collect();
 
             let observed = rp.observed.as_ref().map(raw_to_observed).transpose()?;
 
             let replica_count = rp.replicas.max(1);
-            let slot = declarations
-                .entry(format!("{ns_name}/{}", rp.name))
-                .or_default();
+            let slot = declarations.entry(declaration.clone()).or_default();
             for replica_idx in 0..replica_count {
                 let pod_name = format_replica_name(&rp.name, replica_idx, replica_count);
                 slot.push(pods.len());
@@ -486,6 +496,7 @@ fn flatten_namespaces(raw: &RawWorkloadFile) -> Result<(Vec<Pod>, DeclarationInd
                     group_name: rp.gang.clone().unwrap_or_default(),
                     topology_spread: rp.topology_spread.clone(),
                     observed: observed.clone(),
+                    gpu_share,
                 });
             }
         }
@@ -649,6 +660,7 @@ fn auto_group_gangs(pods: &[Pod]) -> Vec<PodGroup> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::GpuShare;
 
     #[test]
     fn load_homelab_infra() {
@@ -1033,5 +1045,76 @@ namespaces:
         assert!((observed.exceeded_request_fraction - 0.004).abs() < 1e-12);
         assert!(observed.p50.is_none(), "absent percentiles stay absent");
         assert!(pods[1].observed.is_none(), "absent block must stay absent");
+    }
+
+    // ─── Per-device GPU (IR v1 §3.4, X-3) ───────────────────────────────
+
+    #[test]
+    fn gpu_devices_reach_the_node_and_set_absent_allocatable_gpu() {
+        let yaml = r#"
+nodes:
+  - name: gpu-node-01
+    allocatable: { cpu: 96, ram: 384Gi }
+    gpuDevices: 8
+"#;
+        let raw: RawInfraFile = serde_yaml::from_str(yaml).unwrap();
+        let nodes = convert_nodes(&raw.nodes).unwrap();
+        assert_eq!(nodes[0].gpu_devices, Some(8));
+        assert_eq!(nodes[0].allocatable.gpu, 8.0);
+    }
+
+    #[test]
+    fn gpu_devices_disagreeing_with_allocatable_gpu_fails_the_load() {
+        let yaml = r#"
+nodes:
+  - name: gpu-node-01
+    allocatable: { gpu: 4 }
+    gpuDevices: 8
+"#;
+        let raw: RawInfraFile = serde_yaml::from_str(yaml).unwrap();
+        assert!(
+            convert_nodes(&raw.nodes)
+                .unwrap_err()
+                .contains("gpu-node-01")
+        );
+    }
+
+    #[test]
+    fn gpu_milli_reaches_every_replica_as_a_share_and_an_aggregate() {
+        let yaml = r#"
+namespaces:
+  ai:
+    - name: inference
+      replicas: 2
+      requests: { cpu: 4, gpu: 1 }
+      gpuMilli: 500
+"#;
+        let raw: RawWorkloadFile = serde_yaml::from_str(yaml).unwrap();
+        let (pods, _) = flatten_namespaces(&raw).unwrap();
+        let half = Some(GpuShare {
+            devices: 1,
+            milli: 500,
+        });
+        assert!(
+            pods.iter()
+                .all(|p| p.gpu_share == half && p.requests.gpu == 0.5)
+        );
+    }
+
+    #[test]
+    fn bad_gpu_milli_fails_the_load_naming_the_declaration() {
+        let yaml = r#"
+namespaces:
+  ai:
+    - name: inference
+      requests: { gpu: 1 }
+      gpuMilli: 1500
+"#;
+        let raw: RawWorkloadFile = serde_yaml::from_str(yaml).unwrap();
+        assert!(
+            flatten_namespaces(&raw)
+                .unwrap_err()
+                .contains("ai/inference")
+        );
     }
 }

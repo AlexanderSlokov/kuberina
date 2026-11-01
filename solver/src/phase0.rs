@@ -29,6 +29,7 @@ use crate::model::{DaemonSet, Node, ResourceVector};
 ///     taints: vec![],
 ///     zone: String::new(),
 ///     rack: String::new(),
+///     gpu_devices: None,
 /// };
 /// assert!(is_eligible(&ds, &node));
 /// ```
@@ -59,6 +60,7 @@ pub fn is_eligible(ds: &DaemonSet, node: &Node) -> bool {
 ///     allocatable: ResourceVector::new(4.0, 16.0, 0.0),
 ///     labels: Default::default(), taints: vec![], zone: String::new(),
 ///     rack: String::new(),
+///     gpu_devices: None,
 /// }];
 /// let ds = vec![DaemonSet {
 ///     name: "kube-proxy".into(),
@@ -84,6 +86,7 @@ pub fn pre_deduct_daemonsets(nodes: &[Node], daemon_sets: &[DaemonSet]) -> Vec<N
                 taints: node.taints.clone(),
                 zone: node.zone.clone(),
                 rack: node.rack.clone(),
+                gpu_devices: node.gpu_devices,
             }
         })
         .collect()
@@ -102,6 +105,7 @@ mod tests {
             taints: vec![],
             zone: String::new(),
             rack: String::new(),
+            gpu_devices: None,
         }
     }
 
@@ -141,5 +145,13 @@ mod tests {
         let result = pre_deduct_daemonsets(&nodes, &ds);
         assert_eq!(result[0].allocatable.cpu, 3.5);
         assert_eq!(result[0].allocatable.ram, 15.0);
+    }
+
+    #[test]
+    fn pre_deduction_keeps_the_gpu_device_count() {
+        // Regression (X-3): Phase 0 rebuilt each node with `gpu_devices: None`, so the
+        // per-device check never ran and the fixture's half-GPU Pod passed as feasible.
+        let nodes = [crate::gpu_test_fixtures::eight_gpu_node("gpu-node-01")];
+        assert_eq!(pre_deduct_daemonsets(&nodes, &[])[0].gpu_devices, Some(8));
     }
 }

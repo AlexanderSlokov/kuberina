@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **GPUs can be checked device by device**
+  ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24), X-3). A node may
+  declare `gpuDevices`, and a declaration may state `gpuMilli`, the share of each device
+  it needs. On such a node, the solver and the inspector check that every Pod fits on
+  real devices, in addition to the per-node GPU sum. Before this change, a half-GPU Pod
+  was accepted onto a node whose eight GPUs were each 60% used, because 3.2 GPUs were
+  free in total. The solver now reports that placement as 0.50 GPU over capacity, and
+  the inspector reports a GPU device violation. Files without the two fields plan
+  exactly as before: the MSC Irina seed fitness is unchanged to the digit. The fields
+  are specified in `docs/references/ir-v1.md` §2 and §3.4, and the Alibaba trace
+  adapter now writes them. The record is
+  `docs/references/sessions/2026-11-01-per-device-gpu.md`.
 - **A trace adapter converts the Alibaba GPU trace into Kuberina IR**
   ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24), X-2). The
   `bench/alibaba/` package reads the trace CSV files and the FGD simulator's logs and

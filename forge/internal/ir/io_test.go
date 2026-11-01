@@ -76,3 +76,39 @@ func TestLoadBlueprintRejectsUnknownFields(t *testing.T) {
 		t.Fatal("IR documents are closed; an unknown key must fail the parse")
 	}
 }
+
+// The per-device GPU fields (ir-v1.md §2 and §3.4, X-3) serialize under their IR
+// names and disappear when unset, so documents without them stay byte-identical.
+func TestGpuDeviceFieldsSerializeUnderTheirIrNames(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "doc.yaml")
+	doc := struct {
+		Node Node `yaml:"node"`
+		Pod  Pod  `yaml:"pod"`
+	}{
+		Node: Node{Name: "gpu-node-01", GPUDevices: 8},
+		Pod:  Pod{Name: "inference", Requests: Resources{GPU: 1}, GPUMilli: 500},
+	}
+	if err := Write(path, doc); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	body, _ := os.ReadFile(path)
+	for _, want := range []string{"gpuDevices: 8", "gpuMilli: 500"} {
+		if !strings.Contains(string(body), want) {
+			t.Errorf("missing %q in:\n%s", want, body)
+		}
+	}
+}
+
+func TestUnsetGpuDeviceFieldsAreOmitted(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "doc.yaml")
+	if err := Write(path, struct {
+		Node Node
+		Pod  Pod
+	}{Node{Name: "n"}, Pod{Name: "p"}}); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	body, _ := os.ReadFile(path)
+	if strings.Contains(string(body), "gpu") {
+		t.Errorf("unset GPU fields must be omitted, got:\n%s", body)
+	}
+}

@@ -8,6 +8,7 @@
 //! Complexity: O(k·log(k) + k·m) — from PAPER.md §4.2.
 
 use crate::csp::can_place_pod_on_node;
+use crate::gpu_devices::DeviceLedger;
 use crate::model::{Blueprint, FfdWeights, Node, Pod, ResourceVector};
 
 /// Largest capacity present in the cluster, per dimension.
@@ -75,6 +76,7 @@ fn capacity_share(demand: f64, max_capacity: f64) -> f64 {
 ///     group_name: String::new(),
 ///     topology_spread: None,
 ///     observed: None,
+///     gpu_share: None,
 /// };
 /// // Against a cluster whose biggest node is 64 CPU / 256 RAM / 8 GPU:
 /// let scale = ResourceVector::new(64.0, 256.0, 8.0);
@@ -126,6 +128,7 @@ pub fn compute_node_loads(
 ///     group_name: String::new(),
 ///     topology_spread: None,
 ///     observed: None,
+///     gpu_share: None,
 /// }];
 /// let nodes = vec![Node {
 ///     name: "n1".into(), allocatable: ResourceVector::new(4.0, 16.0, 0.0),
@@ -133,6 +136,7 @@ pub fn compute_node_loads(
 ///     taints: vec![],
 ///     zone: String::new(),
 ///     rack: String::new(),
+///     gpu_devices: None,
 /// }];
 /// let bp = ffd_warmstart(&pods, &nodes, &FfdWeights::default());
 /// assert_eq!(bp.assignment, vec![0]);
@@ -152,6 +156,7 @@ pub fn ffd_warmstart(pods: &[Pod], nodes: &[Node], weights: &FfdWeights) -> Blue
 
     let mut assignment = vec![0_usize; num_pods];
     let mut residual: Vec<ResourceVector> = nodes.iter().map(|n| n.allocatable).collect();
+    let mut devices = DeviceLedger::new(num_nodes);
 
     for pod_idx in sorted_indices {
         let mut placed = false;
@@ -162,9 +167,13 @@ pub fn ffd_warmstart(pods: &[Pod], nodes: &[Node], weights: &FfdWeights) -> Blue
             if !residual[node_idx].fits(pods[pod_idx].requests) {
                 continue;
             }
+            if !devices.admits(&nodes[node_idx], node_idx, &pods[pod_idx]) {
+                continue;
+            }
 
             assignment[pod_idx] = node_idx;
             residual[node_idx] = residual[node_idx].subtract(pods[pod_idx].requests);
+            devices.record(node_idx, &pods[pod_idx]);
             placed = true;
             break;
         }
@@ -179,6 +188,7 @@ pub fn ffd_warmstart(pods: &[Pod], nodes: &[Node], weights: &FfdWeights) -> Blue
 
             assignment[pod_idx] = fallback;
             residual[fallback] = residual[fallback].subtract(pods[pod_idx].requests);
+            devices.record(fallback, &pods[pod_idx]);
         }
     }
 
@@ -209,6 +219,7 @@ mod tests {
             group_name: String::new(),
             topology_spread: None,
             observed: None,
+            gpu_share: None,
         }
     }
 
@@ -220,6 +231,7 @@ mod tests {
             taints: vec![],
             zone: String::new(),
             rack: String::new(),
+            gpu_devices: None,
         }
     }
 
@@ -310,5 +322,18 @@ mod tests {
         assert_eq!(max.cpu, 64.0);
         assert_eq!(max.ram, 192.0);
         assert_eq!(max.gpu, 8.0);
+    }
+
+    // ─── Per-device GPU (IR v1 §3.4, X-3) ───────────────────────────────
+
+    use crate::gpu_test_fixtures::{eight_gpu_node, sixty_percent_then_half};
+
+    #[test]
+    fn ffd_moves_the_half_gpu_pod_off_the_node_whose_devices_are_full() {
+        // The GPU sum of node a would accept it: 4.8 + 0.5 of 8 GPUs.
+        let nodes = [eight_gpu_node("a"), eight_gpu_node("b")];
+        let bp = ffd_warmstart(&sixty_percent_then_half(), &nodes, &FfdWeights::default());
+        assert_eq!(&bp.assignment[..8], &[0; 8]);
+        assert_eq!(bp.assignment[8], 1);
     }
 }

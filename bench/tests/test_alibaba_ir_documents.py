@@ -28,6 +28,11 @@ def test_node_allocatable_is_cores_gib_and_whole_gpus():
     assert node["allocatable"] == {"cpu": 96.0, "ram": 384.0, "gpu": 8}
 
 
+def test_node_declares_one_device_per_gpu():
+    # ir-v1.md §2 (X-3): the simulator packs fractional pods per device.
+    assert build_infrastructure([NODE])["nodes"][0]["gpuDevices"] == 8
+
+
 def test_node_carries_its_gpu_model_as_a_label():
     assert build_infrastructure([NODE])["nodes"][0]["labels"] == {"gpu-model": "G2"}
 
@@ -46,14 +51,24 @@ def test_clone_has_the_requests_of_its_source_row():
     assert declarations[2]["requests"] == declarations[0]["requests"]
 
 
-def test_fractional_gpu_request_is_milli_over_one_thousand():
-    request = build_workloads(RECORDS, PODS)["namespaces"]["paib-gpu"][0]["requests"]
-    assert request == {"cpu": 11.4, "ram": 40.0, "gpu": 0.81}
+def test_fractional_gpu_pod_requests_one_device_and_states_its_milli():
+    # ir-v1.md §3.4 (X-3): num_gpu becomes requests.gpu, gpu_milli becomes gpuMilli.
+    declaration = build_workloads(RECORDS, PODS)["namespaces"]["paib-gpu"][0]
+    assert declaration["requests"] == {"cpu": 11.4, "ram": 40.0, "gpu": 1}
+    assert declaration["gpuMilli"] == 810
 
 
-def test_cpu_only_pod_omits_gpu():
-    request = build_workloads(RECORDS, PODS)["namespaces"]["paib-gpu"][1]["requests"]
-    assert "gpu" not in request
+def test_whole_gpu_pod_omits_gpu_milli():
+    pods = {"openb-pod-0002": TracePod("openb-pod-0002", 32000, 1024, 8, 1000)}
+    records = [ArrivalRecord(0, "paib-gpu/openb-pod-0002", None, 8000)]
+    declaration = build_workloads(records, pods)["namespaces"]["paib-gpu"][0]
+    assert declaration["requests"]["gpu"] == 8
+    assert "gpuMilli" not in declaration
+
+
+def test_cpu_only_pod_omits_gpu_and_gpu_milli():
+    declaration = build_workloads(RECORDS, PODS)["namespaces"]["paib-gpu"][1]
+    assert "gpu" not in declaration["requests"] and "gpuMilli" not in declaration
 
 
 def test_logged_pod_missing_from_the_trace_is_an_error_naming_it():

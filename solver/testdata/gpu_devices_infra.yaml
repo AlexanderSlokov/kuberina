@@ -1,0 +1,8 @@
+# Per-device GPU fixture (IR v1 §3.4, backlog X-3): one node with eight GPU devices.
+apiVersion: kuberina.io/v1
+kind: Infrastructure
+nodes:
+  - name: gpu-node-01
+    labels: { gpu-model: G2 }
+    allocatable: { cpu: 96, ram: 384 }
+    gpuDevices: 8

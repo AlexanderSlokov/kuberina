@@ -85,5 +85,8 @@ def _declaration_gpu_milli(declaration: Mapping[str, object]) -> int:
     requests = declaration.get("requests", {})
     gpu = float(requests.get("gpu", 0)) if isinstance(requests, Mapping) else 0.0
     replicas = int(declaration.get("replicas", 1))  # type: ignore[call-overload]
-    # Rounding recovers the integer the adapter divided by 1000; no trace value is finer.
+    if "gpuMilli" in declaration:
+        # ir-v1.md §3.4: with gpuMilli, requests.gpu counts devices.
+        return round(gpu) * int(declaration["gpuMilli"]) * replicas  # type: ignore[call-overload]
+    # Rounding recovers whole devices written as numbers; no trace value is finer.
     return round(gpu * MILLI) * replicas

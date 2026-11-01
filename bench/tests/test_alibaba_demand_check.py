@@ -53,3 +53,15 @@ def test_emitted_demand_sums_gpu_over_declarations_and_replicas():
         }
     }
     assert emitted_gpu_milli(workloads) == 16810
+
+
+def test_emitted_demand_reads_gpu_as_devices_when_gpu_milli_is_present():
+    workloads = {
+        "namespaces": {
+            "a": [
+                {"name": "x", "requests": {"gpu": 1}, "gpuMilli": 810},
+                {"name": "y", "replicas": 3, "requests": {"gpu": 2}, "gpuMilli": 250},
+            ]
+        }
+    }
+    assert emitted_gpu_milli(workloads) == 810 + 3 * 500

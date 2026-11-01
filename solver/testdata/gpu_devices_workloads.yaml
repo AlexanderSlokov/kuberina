@@ -1,0 +1,14 @@
+# Per-device GPU fixture (IR v1 §3.4, backlog X-3). Eight Pods take 600 milli-GPU each,
+# one per device, which leaves 3.2 GPUs free in total and 400 milli on every device.
+# The half-GPU Pod fits the node's GPU sum and no single device.
+apiVersion: kuberina.io/v1
+kind: Workloads
+namespaces:
+  inference:
+    - name: sixty-percent
+      replicas: 8
+      requests: { cpu: 4, ram: 16, gpu: 1 }
+      gpuMilli: 600
+    - name: half
+      requests: { cpu: 4, ram: 16, gpu: 1 }
+      gpuMilli: 500

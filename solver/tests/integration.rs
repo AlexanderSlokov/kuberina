@@ -3,8 +3,9 @@
 //! Ported from `research/tests/test_integration.py`.
 //! Load testdata → Phase 0 → Phase 1 → Phase 2 → verify constraints.
 
-use kuberina_solver::csp::compute_capacity_overflow;
+use kuberina_solver::csp::{compute_capacity_overflow, compute_overflow_by_dimension};
 use kuberina_solver::fitness::{compute_affinity_violations, compute_fitness};
+use kuberina_solver::gpu_ir::check_device_inputs;
 use kuberina_solver::model::{FfdWeights, FitnessWeights, GaConfig};
 use kuberina_solver::parser::{load_infra, load_workloads};
 use kuberina_solver::phase0::pre_deduct_daemonsets;
@@ -13,6 +14,8 @@ use kuberina_solver::phase2_ga::run_ga;
 
 const INFRA: &str = "testdata/homelab_infra.yaml";
 const WORKLOADS: &str = "testdata/homelab_workloads.yaml";
+const GPU_DEVICES_INFRA: &str = "testdata/gpu_devices_infra.yaml";
+const GPU_DEVICES_WORKLOADS: &str = "testdata/gpu_devices_workloads.yaml";
 
 /// Run the complete 3-phase pipeline on the homelab scenario.
 ///
@@ -137,8 +140,27 @@ fn every_committed_testdata_file_loads() {
             "testdata/homelab_workloads.yaml",
         ),
         ("testdata/irina_infra.yaml", "testdata/irina_workloads.yaml"),
+        (GPU_DEVICES_INFRA, GPU_DEVICES_WORKLOADS),
     ] {
         load_infra(infra).unwrap_or_else(|e| panic!("{infra}: {e}"));
         load_workloads(workloads).unwrap_or_else(|e| panic!("{workloads}: {e}"));
     }
+}
+
+/// X-3 done-when, solver half: a half-GPU Pod cannot join eight 600-milli Pods on an
+/// eight-device node, although the node's GPU sum (4.8 + 0.5 of 8) would accept it.
+#[test]
+fn half_gpu_pod_on_eight_sixty_percent_devices_is_gpu_overflow() {
+    let (raw_nodes, daemon_sets) = load_infra(GPU_DEVICES_INFRA).unwrap();
+    // Through Phase 0, as the CLI runs: it once dropped the device count.
+    let nodes = pre_deduct_daemonsets(&raw_nodes, &daemon_sets);
+    let (pods, _) = load_workloads(GPU_DEVICES_WORKLOADS).unwrap();
+    check_device_inputs(&nodes, &pods).unwrap();
+
+    let seed = ffd_warmstart(&pods, &nodes, &FfdWeights::default());
+    let gpu_sum: f64 = pods.iter().map(|p| p.requests.gpu).sum();
+    assert!((gpu_sum - 5.3).abs() < 1e-9 && gpu_sum < nodes[0].allocatable.gpu);
+
+    let over = compute_overflow_by_dimension(&seed.assignment, &pods, &nodes);
+    assert!((over.gpu - 0.5).abs() < 1e-9, "GPU overflow {}", over.gpu);
 }

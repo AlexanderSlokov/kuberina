@@ -8,7 +8,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::csp::{compute_capacity_overflow, compute_selector_violations};
+use crate::csp::{compute_capacity_overflow, compute_selector_violations, node_within_capacity};
 use crate::model::{Blueprint, FitnessWeights, Node, Pod, PodGroup, ResourceVector, Scorecard};
 
 /// Compute weighted-sum fitness score for a blueprint.
@@ -345,7 +345,7 @@ fn compute_hard_penalty(
 /// Soft penalty if any gang pod can't fit on its assigned node.
 ///
 /// Penalty scales linearly with the number of missing pods to reach min_members.
-fn gang_penalty(blueprint: &Blueprint, _pods: &[Pod], nodes: &[Node], groups: &[PodGroup]) -> f64 {
+fn gang_penalty(blueprint: &Blueprint, pods: &[Pod], nodes: &[Node], groups: &[PodGroup]) -> f64 {
     let mut penalty = 0.0_f64;
     for group in groups {
         let placed = group
@@ -353,9 +353,13 @@ fn gang_penalty(blueprint: &Blueprint, _pods: &[Pod], nodes: &[Node], groups: &[
             .iter()
             .filter(|&&pod_idx| {
                 let node_idx = blueprint.assignment[pod_idx];
-                nodes[node_idx]
-                    .allocatable
-                    .fits(blueprint.node_load[node_idx])
+                node_within_capacity(
+                    node_idx,
+                    &blueprint.assignment,
+                    &blueprint.node_load,
+                    pods,
+                    nodes,
+                )
             })
             .count();
         if placed < group.min_members {
@@ -384,6 +388,7 @@ mod tests {
             group_name: String::new(),
             topology_spread: None,
             observed: None,
+            gpu_share: None,
         }
     }
 
@@ -395,6 +400,7 @@ mod tests {
             taints: vec![],
             zone: String::new(),
             rack: String::new(),
+            gpu_devices: None,
         }
     }
 
@@ -594,5 +600,37 @@ mod tests {
         // Better: [0,1,0] → zone-a=2, zone-b=1 → skew=1 → no penalty
         let penalty = compute_topology_spread_penalty(&[0, 1, 0], &pods, &nodes);
         assert!((penalty - 0.0).abs() < 1e-9);
+    }
+
+    // ─── Per-device GPU (IR v1 §3.4, X-3) ───────────────────────────────
+
+    use crate::gpu_test_fixtures::{eight_gpu_node, sixty_percent_then_half};
+
+    /// All nine done-when pods on one eight-device node, as one gang of nine.
+    fn device_bound_gang() -> (Blueprint, Vec<Pod>, Vec<Node>, PodGroup) {
+        let pods = sixty_percent_then_half();
+        let nodes = vec![eight_gpu_node("a")];
+        let assignment = vec![0; pods.len()];
+        let node_load = crate::phase1_ffd::compute_node_loads(&assignment, &pods, 1);
+        let blueprint = Blueprint {
+            assignment,
+            fitness: 0.0,
+            node_load,
+            scorecard: Default::default(),
+        };
+        let group = PodGroup {
+            name: "g".into(),
+            pod_indices: (0..pods.len()).collect(),
+            min_members: pods.len(),
+            node_selector: HashMap::new(),
+            colocate: false,
+        };
+        (blueprint, pods, nodes, group)
+    }
+
+    #[test]
+    fn gang_on_a_node_whose_devices_cannot_hold_it_is_penalized() {
+        let (blueprint, pods, nodes, group) = device_bound_gang();
+        assert!(gang_penalty(&blueprint, &pods, &nodes, &[group]) > 0.0);
     }
 }

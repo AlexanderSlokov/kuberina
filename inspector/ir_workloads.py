@@ -75,11 +75,14 @@ def _replicas_of(namespace, declaration):
     """The unrolled pods of one declaration."""
     total = max(int(declaration.get("replicas", 1)), 1)
     requests = flatten_resources(declaration.get("requests") or {})
+    name = f"{namespace}/{declaration['name']}"
+    device_fields = _gpu_device_fields(name, declaration.get("gpuMilli"), requests)
     return [
         {
             "identity": f"{namespace}/{replica_name(declaration['name'], i, total)}",
-            "declaration": f"{namespace}/{declaration['name']}",
+            "declaration": name,
             "requests": requests,
+            **device_fields,
             "nodeSelector": declaration.get("nodeSelector") or {},
             "affinity": list(declaration.get("affinity") or []),
             "antiAffinity": list(declaration.get("antiAffinity") or []),
@@ -88,6 +91,31 @@ def _replicas_of(namespace, declaration):
         }
         for i in range(total)
     ]
+
+
+def _gpu_device_fields(declaration, gpu_milli, requests):
+    """Read `gpuMilli` (ir-v1.md §3.4); rewrite `requests["gpu"]` to the aggregate.
+
+    With `gpuMilli: m`, `requests.gpu` counts devices: a whole number of at least 1.
+    The pod's GPU demand in the per-node sum becomes `devices * m / 1000`.
+
+    Example:
+        >>> requests = {"gpu": 1.0}
+        >>> _gpu_device_fields("ai/inference", 500, requests), requests["gpu"]
+        ({'gpuDevices': 1, 'gpuMilli': 500}, 0.5)
+    """
+    if gpu_milli is None:
+        return {}
+    if not isinstance(gpu_milli, int) or not 1 <= gpu_milli <= 1000:
+        raise ValueError(f"{declaration} has gpuMilli: {gpu_milli!r}; expected an integer in 1..=1000")
+    devices = requests.get("gpu", 0.0)
+    if devices < 1 or devices != int(devices):
+        raise ValueError(
+            f"{declaration} has gpuMilli with requests.gpu: {devices!r}; "
+            "expected a whole number of devices, at least 1"
+        )
+    requests["gpu"] = int(devices) * gpu_milli / 1000
+    return {"gpuDevices": int(devices), "gpuMilli": gpu_milli}
 
 
 def resolve_targets(pods):

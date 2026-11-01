@@ -99,6 +99,7 @@ mod tests {
             group_name: String::new(),
             topology_spread: None,
             observed: None,
+            gpu_share: None,
         }
     }
 

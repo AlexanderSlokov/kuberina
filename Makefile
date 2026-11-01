@@ -71,7 +71,7 @@ solver-irina-headroom-20:
 # Re-reads infra/workloads/solution from scratch and re-checks every constraint.
 # Shares no code with the solver — that independence is the point.
 inspector-test:
-	cd inspector && uv run --with pyyaml --with pytest pytest -q --doctest-modules ir_workloads.py affinity_check.py tests
+	cd inspector && uv run --with pyyaml --with pytest pytest -q --doctest-modules ir_workloads.py affinity_check.py gpu_device_check.py tests
 
 inspector-run:
 	uv run --with pyyaml python inspector/inspector.py \

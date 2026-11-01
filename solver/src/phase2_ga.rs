@@ -13,7 +13,7 @@ use rand::rngs::StdRng;
 use rand::seq::IndexedRandom;
 use rayon::prelude::*;
 
-use crate::csp::can_place_pod_on_node;
+use crate::csp::{can_place_pod_on_node, node_within_capacity};
 use crate::fitness::compute_fitness;
 use crate::model::{Blueprint, FitnessWeights, GaConfig, Node, Pod, PodGroup};
 use crate::phase1_ffd::compute_node_loads;
@@ -349,12 +349,12 @@ fn repair_gangs_on(
 ) -> Blueprint {
     for group in groups {
         child.node_load = compute_node_loads(&child.assignment, pods, nodes.len());
-        if gang_is_feasible(&child, group, nodes) {
+        if gang_is_feasible(&child, group, pods, nodes) {
             continue;
         }
 
-        let p1_feasible = gang_is_feasible(p1, group, nodes);
-        let p2_feasible = gang_is_feasible(p2, group, nodes);
+        let p1_feasible = gang_is_feasible(p1, group, pods, nodes);
+        let p2_feasible = gang_is_feasible(p2, group, pods, nodes);
 
         if !p1_feasible && !p2_feasible {
             // WHY: If both parents were infeasible (e.g. trapped on fallback node 0),
@@ -432,10 +432,10 @@ fn mutate(
             let mut was_feasible_j = false;
 
             if let Some(g_idx) = group_i {
-                was_feasible_i = gang_is_feasible(blueprint, &groups[g_idx], nodes);
+                was_feasible_i = gang_is_feasible(blueprint, &groups[g_idx], pods, nodes);
             }
             if let Some(g_idx) = group_j {
-                was_feasible_j = gang_is_feasible(blueprint, &groups[g_idx], nodes);
+                was_feasible_j = gang_is_feasible(blueprint, &groups[g_idx], pods, nodes);
             }
 
             // Perform swap
@@ -448,13 +448,13 @@ fn mutate(
                 blueprint.node_load = compute_node_loads(&blueprint.assignment, pods, num_nodes);
 
                 if group_i.is_some_and(|g_idx| {
-                    was_feasible_i && !gang_is_feasible(blueprint, &groups[g_idx], nodes)
+                    was_feasible_i && !gang_is_feasible(blueprint, &groups[g_idx], pods, nodes)
                 }) {
                     rollback = true;
                 }
 
                 if group_j.is_some_and(|g_idx| {
-                    was_feasible_j && !gang_is_feasible(blueprint, &groups[g_idx], nodes)
+                    was_feasible_j && !gang_is_feasible(blueprint, &groups[g_idx], pods, nodes)
                 }) {
                     rollback = true;
                 }
@@ -477,14 +477,14 @@ fn mutate(
             let mut was_feasible = false;
 
             if let Some(g_idx) = group_idx {
-                was_feasible = gang_is_feasible(blueprint, &groups[g_idx], nodes);
+                was_feasible = gang_is_feasible(blueprint, &groups[g_idx], pods, nodes);
             }
 
             blueprint.assignment[i] = new_node;
 
             if let Some(g_idx) = group_idx {
                 blueprint.node_load = compute_node_loads(&blueprint.assignment, pods, num_nodes);
-                if was_feasible && !gang_is_feasible(blueprint, &groups[g_idx], nodes) {
+                if was_feasible && !gang_is_feasible(blueprint, &groups[g_idx], pods, nodes) {
                     blueprint.assignment[i] = old_node; // rollback
                 }
             }
@@ -493,12 +493,16 @@ fn mutate(
 }
 
 /// Check if all gang pods fit on their assigned nodes.
-fn gang_is_feasible(blueprint: &Blueprint, group: &PodGroup, nodes: &[Node]) -> bool {
+fn gang_is_feasible(blueprint: &Blueprint, group: &PodGroup, pods: &[Pod], nodes: &[Node]) -> bool {
     group.pod_indices.iter().all(|&pod_idx| {
         let node_idx = blueprint.assignment[pod_idx];
-        nodes[node_idx]
-            .allocatable
-            .fits(blueprint.node_load[node_idx])
+        node_within_capacity(
+            node_idx,
+            &blueprint.assignment,
+            &blueprint.node_load,
+            pods,
+            nodes,
+        )
     })
 }
 
@@ -541,6 +545,7 @@ mod tests {
             group_name: String::new(),
             topology_spread: None,
             observed: None,
+            gpu_share: None,
         }
     }
 
@@ -552,6 +557,7 @@ mod tests {
             taints: vec![],
             zone: String::new(),
             rack: String::new(),
+            gpu_devices: None,
         }
     }
 
@@ -690,5 +696,37 @@ mod tests {
             outcome.generations_run,
             config.early_stop_generations + 1,
         );
+    }
+
+    // ─── Per-device GPU (IR v1 §3.4, X-3) ───────────────────────────────
+
+    use crate::gpu_test_fixtures::{eight_gpu_node, sixty_percent_then_half};
+
+    /// All nine done-when pods on one eight-device node, as one gang of nine.
+    fn device_bound_gang() -> (Blueprint, Vec<Pod>, Vec<Node>, PodGroup) {
+        let pods = sixty_percent_then_half();
+        let nodes = vec![eight_gpu_node("a")];
+        let assignment = vec![0; pods.len()];
+        let node_load = crate::phase1_ffd::compute_node_loads(&assignment, &pods, 1);
+        let blueprint = Blueprint {
+            assignment,
+            fitness: 0.0,
+            node_load,
+            scorecard: Default::default(),
+        };
+        let group = PodGroup {
+            name: "g".into(),
+            pod_indices: (0..pods.len()).collect(),
+            min_members: pods.len(),
+            node_selector: HashMap::new(),
+            colocate: false,
+        };
+        (blueprint, pods, nodes, group)
+    }
+
+    #[test]
+    fn gang_on_a_node_whose_devices_cannot_hold_it_is_not_feasible() {
+        let (blueprint, pods, nodes, group) = device_bound_gang();
+        assert!(!gang_is_feasible(&blueprint, &group, &pods, &nodes));
     }
 }

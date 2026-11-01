@@ -35,7 +35,7 @@ requiredness do not change inside v1 — that is what v2 is for.
 |---|---|---|
 | `cpu` | cores | `2500m` is accepted and means 2.5 |
 | `ram`, `storage` | GiB | `512Mi` → 0.5, `2Gi` → 2.0 |
-| `gpu` | whole devices | fractional values are accepted but not meaningful to the packer |
+| `gpu` | whole devices | a fraction of one device is stated with `gpuMilli` (§3.4); a bare fractional `gpu` is accepted only where no node declares `gpuDevices` |
 | `disk.read`, `disk.write` | MB/s | `5G` → 5000 |
 | `network.in`, `network.out` | MB/s | same scale as disk |
 
@@ -90,6 +90,7 @@ nodes:
       storage: 2Ti
       disk: { read: 2000, write: 2000 }
       network: { in: 10000, out: 10000 }
+    gpuDevices: 8                  # optional, see §3.4
 
 daemonsets:
   - name: node-exporter            # required
@@ -108,6 +109,7 @@ daemonsets:
 | `nodes[].taints[].key` | string | yes within a taint | — |
 | `nodes[].taints[].value`, `.effect` | string | no | `""` |
 | `nodes[].allocatable` | resource block | no | unconstrained per dimension |
+| `nodes[].gpuDevices` | integer ≥ 1 | no | absent: GPU is checked as one sum per node |
 | `daemonsets[].name` | string | yes | — |
 | `daemonsets[].resources` | resource block | no | zero |
 | `daemonsets[].nodeSelector` | map[string]string | no | `{}` |
@@ -117,6 +119,12 @@ daemonsets:
 planning begins — Phase 0, the "ballast water" deduction. Taints and tolerations are
 matched on `key` only; `value` and `effect` are accepted, preserved in the file, and
 not yet interpreted.
+
+**GPU devices.** A node with `gpuDevices: n` has `n` GPU devices of 1,000 milli-GPU
+each, and the Pods placed on it must fit device by device (§3.4). Its `allocatable.gpu`
+may be omitted, which sets it to `n`. A different value is an error that names the node
+and both values. DaemonSet GPU requests reduce `allocatable.gpu` only and occupy no
+device.
 
 ---
 
@@ -150,6 +158,9 @@ namespaces:
         topologyKey: zone
       gang: training-job                     # optional shorthand, see §3.2
       observed: { ... }                      # optional, see §3.3
+    - name: inference
+      requests: { cpu: 4, gpu: 1 }
+      gpuMilli: 500                          # optional, see §3.4
 
 groups:                                      # optional, see §3.2
   - name: training-job
@@ -261,6 +272,40 @@ over-provisioned.
 
 Selecting what to pack against (`--pack-against p95`, as proposed in issue #13) is a
 separate decision and is not part of IR v1.
+
+### 3.4 GPU devices
+
+A GPU-sharing device plugin lets several Pods share one GPU, each taking a fraction of
+it. Summing GPU per node cannot tell whether such a Pod fits. For example, a node with 8
+GPUs, each 60% used, has 3.2 GPUs free in total, yet no single device has room for a Pod
+that needs half a GPU. The `gpuMilli` field on a declaration and the `gpuDevices` field
+on a node (§2) state the problem per device.
+
+| Field | Type | Required | Default |
+|---|---|---|---|
+| `gpuMilli` | integer in `1..=1000` | no | 1000 |
+
+A _milli-GPU_ is one thousandth of a device. With `gpuMilli: m`, the declaration's
+`requests.gpu` counts devices, each Pod needs `m` milli-GPU on each of them, and its
+GPU demand is `gpu × m / 1000` devices. For example, `requests: { gpu: 1 }` with
+`gpuMilli: 500` is half a GPU, and `requests: { gpu: 2 }` without `gpuMilli` is two
+whole GPUs. With `gpuMilli`, `requests.gpu` must be a whole number of at least 1, and
+any other value is an error that names the Pod and the value.
+
+**Semantics.** The Pods placed on a node with `gpuDevices: n` fit when each Pod can be
+given `requests.gpu` distinct devices so that, on every device, the `gpuMilli` of the
+Pods that use it sums to at most 1,000. A Pod without `gpuMilli` uses whole devices. This
+check comes in addition to the per-node sum of `allocatable`. On a node without
+`gpuDevices`, `gpuMilli` changes only the GPU demand in that sum.
+
+A planner may decline a placement that fits by this rule, because finding a device
+assignment is itself a packing problem. It must not accept a placement that does not
+fit. The blueprint names a node for each Pod and no device: on a real cluster, the
+device plugin chooses the device.
+
+A Pod with a fractional `requests.gpu` and no `gpuMilli` cannot be checked per device.
+Such a Pod is an error, naming the Pod and the value, when any node declares
+`gpuDevices`.
 
 ---
 

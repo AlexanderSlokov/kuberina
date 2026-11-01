@@ -13,6 +13,7 @@ use clap::{Parser, Subcommand};
 
 use kuberina_solver::csp::{compute_overflow_by_dimension, compute_selector_violations};
 use kuberina_solver::fitness::compute_fitness;
+use kuberina_solver::gpu_ir::check_device_inputs;
 use kuberina_solver::model::{
     Blueprint, FfdWeights, FitnessWeights, GaConfig, Node, Pod, ResourceVector,
 };
@@ -143,6 +144,10 @@ fn run_plan(infra_path: &str, workloads_path: &str, headroom: Option<f64>) {
     });
     let (pods, groups) = load_workloads(workloads_path).unwrap_or_else(|e| {
         eprintln!("Error loading workloads: {e}");
+        std::process::exit(1);
+    });
+    check_device_inputs(&raw_nodes, &pods).unwrap_or_else(|e| {
+        eprintln!("Error in GPU device inputs: {e}");
         std::process::exit(1);
     });
 
@@ -666,6 +671,7 @@ mod tests {
             taints: Vec::new(),
             zone: "us-east-1a".to_string(),
             rack: "rack-0".to_string(),
+            gpu_devices: None,
         }
     }
 
@@ -738,6 +744,7 @@ mod verdict_tests {
             taints: Vec::new(),
             zone: String::new(),
             rack: String::new(),
+            gpu_devices: None,
         }
     }
 
@@ -753,6 +760,7 @@ mod verdict_tests {
             group_name: String::new(),
             topology_spread: None,
             observed: None,
+            gpu_share: None,
         }
     }
 

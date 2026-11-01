@@ -58,6 +58,9 @@ type Node struct {
 	Labels      map[string]string `yaml:"labels,omitempty"`
 	Taints      []Taint           `yaml:"taints,omitempty"`
 	Allocatable Resources         `yaml:"allocatable"`
+	// GPUDevices is the number of GPU devices, each 1,000 milli-GPU (ir-v1.md §2).
+	// Zero leaves GPU checked as one sum per node.
+	GPUDevices int `yaml:"gpuDevices,omitempty"`
 }
 
 type Taint struct {
@@ -93,6 +96,9 @@ type Pod struct {
 	TopologySpread *TopologySpread   `yaml:"topologySpread,omitempty"`
 	Gang           string            `yaml:"gang,omitempty"`
 	Observed       *Observed         `yaml:"observed,omitempty"`
+	// GPUMilli is the milli-GPU needed on each of Requests.GPU devices (ir-v1.md §3.4).
+	// Zero means whole devices.
+	GPUMilli int `yaml:"gpuMilli,omitempty"`
 }
 
 type Toleration struct {

@@ -48,3 +48,17 @@ def test_unresolvable_target_names_the_value():
     doc = {"namespaces": {"ai": [{"name": "web", "affinity": ["web"]}]}}
     with pytest.raises(ValueError, match="'web'"):
         resolve_targets(unroll_workloads(doc))
+
+
+def test_gpu_milli_turns_requests_gpu_into_devices_and_an_aggregate():
+    # ir-v1.md §3.4: with gpuMilli, requests.gpu counts devices.
+    pods = unroll_workloads({"namespaces": {"ai": [
+        {"name": "inference", "requests": {"gpu": 2}, "gpuMilli": 250}]}})
+    assert (pods[0]["requests"]["gpu"], pods[0]["gpuDevices"], pods[0]["gpuMilli"]) == (0.5, 2, 250)
+
+
+@pytest.mark.parametrize("gpu, milli", [(1, 0), (1, 1001), (0.5, 500), (0, 500)])
+def test_invalid_gpu_milli_or_device_count_names_the_declaration(gpu, milli):
+    with pytest.raises(ValueError, match="ai/inference"):
+        unroll_workloads({"namespaces": {"ai": [
+            {"name": "inference", "requests": {"gpu": gpu}, "gpuMilli": milli}]}})

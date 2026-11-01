@@ -53,11 +53,10 @@ Raw console output belongs in `docs/plans/benchmarks/`; the session record cites
 
 ## Writing documentation
 
-These rules apply to every Markdown file in this repository. They adapt the
+These rules apply to every documentation files in this repository. They adapt the
 [Kubernetes documentation style guide](https://kubernetes.io/docs/contribute/style/style-guide/)
 and the Kubernetes [page content types](https://kubernetes.io/docs/contribute/style/page-content-types/)
-to a repository that GitHub renders. Where this section is silent, follow the
-Kubernetes guide.
+to a repository that GitHub renders. In case of conflict, follow this document.
 
 ### Write for a reader who is new to the subject
 
@@ -152,7 +151,7 @@ report what was measured.
 
 ### Markdown formatting
 
-- **Headings.** The H1 is the page title, and a page has one. Use sentence case for H2
+- **Headings.** The H1 is the page title. Use sentence case for H2
   and below: "Plan a deployment". Keep the levels in order, avoid H4 to H6, and keep
   links out of headings.
 - **Line length.** Wrap lines at about 88 characters, at the end of a sentence or after
