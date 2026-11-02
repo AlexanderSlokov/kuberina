@@ -12,7 +12,7 @@ Every figure that reaches `PAPER.md` first appears in a session record under
 
 ## Progress
 
-Updated 2026-11-01. Each finished stage has a session record:
+Updated 2026-11-02. Each finished stage has a session record:
 
 | Stage | Status | Record |
 |---|---|---|
@@ -20,9 +20,10 @@ Updated 2026-11-01. Each finished stage has a session record:
 | 2. Trace adapter | Done | `docs/references/sessions/2026-11-01-alibaba-trace-adapter.md` |
 | 3. Per-device GPU model (G1) | Done | `docs/references/sessions/2026-11-01-per-device-gpu.md` |
 | 4. Admission (G2, G3) | Done, with provisional weights | `docs/references/sessions/2026-11-01-admission.md` |
-| S-2. Objective weights on this instance | Next; decisions needed from the maintainer | — |
+| S-2. Objective weights on this instance | Next; decided on 2026-11-02 (§8, decisions 7–9) | — |
 | 5. Scale check | Waits on S-2 | — |
 | 6. Experiments E1–E5 | Waits on stage 5 | — |
+| 6a. E1 cross-check and GA verdict, seed 42 | Waits on stage 5 | — |
 | 7. Paper section | Waits on stage 6 | — |
 
 Kuberina has not yet run on the trace. By *Purpose and stance*, it does not run there
@@ -222,7 +223,7 @@ fewer than ten seeds without saying so.
 
 | ID | Question | Kuberina mode | Compared against | Metric |
 |---|---|---|---|---|
-| **E1** (headline) | How far does each policy get before it first rejects a pod? | `in-order` on arrival prefixes. Binary-search the longest prefix placed in full. | First `failed to schedule` line in each policy's log | Arrived GPU % at first rejection, mean ± stdev over seeds |
+| **E1** (headline) | How far does each policy get before it first rejects a pod? | One `in-order` walk per seed; the first Pod it rejects (ADR-0003). | First `failed to schedule` line in each policy's log | Arrived GPU % at first rejection, mean ± stdev over seeds |
 | **E2** | What is moving placed pods worth? | `in-order` on the full 130% set | Published 130% allocation for each policy | GPU allocation %, plus pods rejected |
 | **E3** | What is the offline ceiling? | `free` on the full 130% set | — (upper bound) | GPU allocation %, and the trivial bound min(100%, demand) |
 | **E4** | What does it cost? | E2 runs | Simulator wall clock per seed | Seconds per run, and seconds per placed pod |
@@ -230,9 +231,16 @@ fewer than ten seeds without saying so.
 
 E1 is chosen as the headline because it is the only metric where neither side has an
 information advantage over the other: both see the same pods in the same order, and the
-number is the point where they first fail. E1 relies on prefix packability being
-monotone. It is monotone for an exact packer, but a heuristic may break it, so the
-binary search records every probe and reports any non-monotone pair it hits.
+number is the point where they first fail. Kuberina's walk may move one admitted Pod to
+make room, which FGD may not; the paper states this beside the number.
+
+**E1 cross-check (Stage 6a, seed 42 only, after Stage 5).** A binary search over arrival
+prefixes finds the longest prefix placed in full when the solver re-plans each prefix
+from scratch. Each probe records two verdicts: Phase 1 alone, and Phase 1 followed by
+the GA. The search relies on prefix packability being monotone, which a heuristic may
+break, so it records every probe and reports any non-monotone pair it hits. Its result
+decides the GA's future under ADR-0003: if the walk's first rejection comes at or after
+the GA-based boundary, the GA is planned for deprecation, sunset, and removal.
 
 E5 is optional and depends on whether the simulator honors `spec.nodeName` on input. If
 it does, it is the strongest result in this plan, because Kuberina's output is then
@@ -279,8 +287,9 @@ These are stated now so the paper does not have to discover them later:
 | Stage 1, 3 cells | ~30 min on 2 vCPU |
 | Stage 1, all 6 policies × 10 seeds, if the published values do not reproduce | ~10 h at the README's rate, parallelizable |
 | One Kuberina solve, ~10,800 pods | unknown. Scaling Irina's 185 s by pod count gives roughly 12 min, but this is not a measurement. |
-| E1 binary search, per seed | ~14 probes × one solve. Probes can be screened with FFD alone and confirmed by GA at the boundary. |
-| E1 + E2 + E3, ten seeds | dominated by E1. Plan for a day of machine time until Stage 5 says otherwise. |
+| E1, per seed | one in-order walk, without the GA (ADR-0003) |
+| E1 cross-check, seed 42 only | ~14 probes, each solved by Phase 1 alone and by Phase 1 with the GA |
+| E1 + E2 + E3, ten seeds | unknown until Stage 5 measures one solve |
 
 ---
 
@@ -315,3 +324,22 @@ Settled by the maintainer on 2026-11-01, for Stage 4:
 5. **Arrival order is an IR field,** an optional `arrival` on a declaration.
 6. **`kuberina-forge out` refuses a blueprint with unplaced Pods.** Admission serves the
    benchmark; applying a partial plan to a cluster is out of scope.
+
+Settled by the maintainer on 2026-11-02, for S-2 and Stage 6:
+
+7. **Fragmentation counts milli-GPU stranded on devices,** in the fitness term and in
+   the in-order walk's choice of node. Both affect what later Pods can use, and E1 and
+   E2 depend on the walk.
+8. **The unplaced-Pod charge keeps its dominance formula:** `W × (1 + gpu / g_min)`,
+   with `W = 2 × (w_node + w_frag × C_max)`, so that placing any Pod outweighs freeing
+   any node. S-2 computes `C_max` and `g_min` on the instance and records the
+   derivation. On seed 42, `g_min` is 50 milli-GPU, so one GPU of unplaced demand costs
+   20 times the per-Pod charge.
+9. **Free admission gains a swap operator** that declines one placed Pod and places
+   several unplaced Pods in one move. `UNPLACE_SHARE` stays 0.2 and is recorded as
+   untuned.
+10. **E1 is measured by one in-order walk per seed.** The binary search runs on seed 42
+    only, as a cross-check (ADR-0003).
+11. **The GA must beat the walk.** If the seed-42 cross-check finds no later boundary
+    with the GA than the walk's first rejection, the GA is planned for deprecation,
+    sunset, and removal (ADR-0003).

@@ -1,7 +1,7 @@
 # Todo — resume here
 
-Hand-off for the next session. Branch `24-challenge-alibaba`, updated 2026-11-01 in the
-evening. Delete this file once its items are done or moved into `BACKLOG.md`.
+Hand-off for the next session. Branch `24-challenge-alibaba`, updated 2026-11-02.
+Delete this file once its items are done or moved into `BACKLOG.md`.
 
 The plan of record is `docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`, issue
 [#24](https://github.com/AlexanderSlokov/kuberina/issues/24). Its *Progress* table shows
@@ -20,35 +20,37 @@ record in `docs/references/sessions/`:
 | X-3 | `gpuDevices` and `gpuMilli` (IR v1 §2, §3.4): GPUs checked device by device | `e6acca3` | `2026-11-01-per-device-gpu.md` |
 | X-4 | `arrival`, `unplaced:`, `--admission in-order \| free` (IR v1 §3.5, §4.1) | `cfee303` | `2026-11-01-admission.md` |
 
-Decisions the maintainer made on 2026-11-01, recorded in the plan, §8:
+Decisions the maintainer made, recorded in the plan, §8:
 
-- Finish #24 before the performance work (S-1).
-- In-order admission means skip and continue: FGD's rule, plus re-planning.
-- Arrival order is the IR field `arrival`.
-- `kuberina-forge out` refuses a blueprint with unplaced Pods.
+- 2026-11-01: finish #24 before the performance work (S-1). In-order admission means
+  skip and continue. Arrival order is the IR field `arrival`. `kuberina-forge out`
+  refuses a blueprint with unplaced Pods.
+- 2026-11-02: fragmentation counts milli-GPU stranded on devices, in fitness and in the
+  walk. The unplaced-Pod charge keeps its dominance formula, computed on the instance.
+  Free admission gains a swap operator. E1 is one in-order walk per seed, with a
+  binary-search cross-check on seed 42 only. The GA is deprecated, sunset, and removed
+  if it finds no later first rejection than the walk
+  ([ADR-0003](docs/explanation/adr/0003-ga-must-beat-the-walk.md)).
 
 ## Next, in order
 
-1. **S-2: objective weights on the Alibaba instance.** Open it in plan mode: it needs
-   the maintainer's decisions on the points below. Fix the weights, and record each
-   derivation in a session record, before Kuberina's first run on the trace.
-    - How to derive each weight from measured term ranges. The unplaced-Pod charge in
-      `solver/src/unplaced_term.rs` is provisional:
-      `W × (1 + gpu / g_min)` with `W = 2 × (w_node + w_frag × C_max)`.
-    - Whether the fragmentation term counts milli-GPU stranded on devices. X-3 left it
-      as a per-node sum.
-    - Whether to give free admission an operator that trades one large Pod for several
-      small ones. On the X-4 fixture, free admission stopped at the FFD seed: 16 GPUs
-      in 3 Pods, where 16 GPUs in 7 Pods exists.
-    - `UNPLACE_SHARE = 0.2` in `solver/src/phase2_ga.rs` is untuned.
+The task rows in `BACKLOG.md`, section *External validation on the Alibaba GPU trace*,
+hold the files and done-when conditions:
+
+1. **S-2a:** stranded milli-GPU in the fragmentation term and in the walk's node choice.
+1. **S-2b:** compute and record the unplaced-Pod weights on the seed-42 instance
+   (`g_min` is 50 milli-GPU there).
+1. **S-2c:** the free-admission swap operator. On the X-4 fixture, free admission
+   stopped at the FFD seed: 16 GPUs in 3 Pods, where 16 GPUs in 7 Pods exists.
+1. **S-2d:** a way to stop after the in-order walk, without the GA.
 1. **X-5: scale check.** One full solve of the seed-42 tuned set (`make bench-alibaba-fetch`,
    `make bench-alibaba-ir`, then the solver with `--admission in-order`). Measure wall
    clock and memory, and time the parts that may not scale: the depth-1 repair in
    `admission.rs`, the in-order rule check run after the GA, and the inspector's
-   in-order check (`inspector/admission_check.py`, pure Python, about 2,500 unplaced
-   Pods against 8,000 placed ones).
+   in-order check (`inspector/admission_check.py`, pure Python).
 1. **X-6: experiments E1–E5** over seeds 42–51. The simulator needs 27 more cells for
    seeds 43–51 (see *Things to know*).
+1. **X-7: E1 cross-check on seed 42.** Its result decides the GA's future (ADR-0003).
 
 ## Later, outside #24
 

@@ -130,9 +130,13 @@ These items run last, by the rule at the top of this file.
 
 | ID | Task | Touches | Depends on | Done when |
 |---|---|---|---|---|
-| S-2 | Derive objective weights from measured term ranges on the Alibaba instance, including X-4's provisional unplaced-Pod term; decide whether fragmentation counts milli-GPU stranded on devices; review the free-admission operators, which cannot trade one large Pod for several small ones | `solver/src/model.rs`, `unplaced_term.rs`, `phase2_ga.rs`, `docs/references/` | — | Each weight cites its derivation in a session record, fixed before Kuberina's first run on the trace (plan, *Purpose and stance*) |
-| X-5 | Scale check | `docs/references/sessions/` | S-2 | Measured wall clock and memory for one full solve |
-| X-6 | Experiments E1–E5 | `bench/alibaba/`, `docs/references/sessions/` | X-5 | One session record per experiment, seeds 42–51 |
+| S-2a | Count milli-GPU stranded on devices in the fragmentation term, and prefer the node that strands the least in the in-order walk (plan §8, decision 7) | `solver/src/fitness.rs`, `gpu_devices.rs`, `packing.rs`, `admission.rs` | — | A fixture shows the walk choosing the node that strands less; MSC Irina's FFD seed fitness is unchanged |
+| S-2b | Compute the unplaced-Pod charge on the Alibaba instance by its dominance formula (decision 8) and record each weight's derivation | `solver/src/unplaced_term.rs`, `docs/references/sessions/` | S-2a | A session record states `C_max`, `g_min`, and every weight, before Kuberina's first run on the trace |
+| S-2c | Add a free-admission swap operator that declines one placed Pod and places several unplaced Pods in one move (decision 9) | `solver/src/phase2_ga.rs` | — | On the X-4 fixture, free admission places more than 3 Pods at 16 GPUs |
+| S-2d | Let the solver stop after the in-order walk, without the GA (ADR-0003) | `solver/src/main.rs` | — | An in-order run without the GA writes a blueprint, and the in-order rule holds on it |
+| X-5 | Scale check | `docs/references/sessions/` | S-2a, S-2b, S-2d | Measured wall clock and memory for one full solve |
+| X-6 | Experiments E1–E5; E1 by one in-order walk per seed (ADR-0003) | `bench/alibaba/`, `docs/references/sessions/` | X-5 | One session record per experiment, seeds 42–51 |
+| X-7 | E1 cross-check on seed 42: binary search over arrival prefixes, each probe solved by Phase 1 alone and by Phase 1 with the GA | `bench/alibaba/`, `docs/references/sessions/` | X-5 | A session record gives every probe's two verdicts and states the ADR-0003 outcome for the GA |
 
 ---
 
