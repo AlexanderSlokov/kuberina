@@ -21,7 +21,7 @@ Updated 2026-11-03. Each finished stage has a session record:
 | 3. Per-device GPU model (G1) | Done | `docs/references/sessions/2026-11-01-per-device-gpu.md` |
 | 4. Admission (G2, G3) | Done | `docs/references/sessions/2026-11-01-admission.md` |
 | S-2. Objective weights on this instance | Done | `docs/references/sessions/2026-11-03-objective-weights.md` |
-| 5. Scale check | Next | — |
+| 5. Scale check | In progress; to repeat at `e5f520f` | `docs/references/sessions/2026-11-03-alibaba-scale-check.md` (partial) |
 | 6. Experiments E1–E5 | Waits on stage 5 | — |
 | 6a. E1 cross-check and GA verdict, seed 42 | Waits on stage 5 | — |
 | 7. Paper section | Waits on stage 6 | — |

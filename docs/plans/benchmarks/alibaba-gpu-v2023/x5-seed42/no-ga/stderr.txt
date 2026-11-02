@@ -1,0 +1,30 @@
+Loaded 1213 nodes, 0 daemonsets, 10866 pods, 0 groups
+Timing: load 0.16 s
+Unplaced-Pod weights: 2328.0000 per Pod, 46560.0000 per GPU
+Phase 1 (FFD): seed fitness = 109285356.4890
+Timing: Phase 1 16.84 s
+Phase 2 (GA): skipped (--no-ga)
+Timing: in-order rule 0.07 s
+	Command being timed: "../../../../../../solver/target/release/kuberina-solver plan --infra ../../../../../../bench/alibaba/out/seed42/infra.yaml --workloads ../../../../../../bench/alibaba/out/seed42/workloads.yaml --admission in-order --no-ga"
+	User time (seconds): 17.03
+	System time (seconds): 0.05
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:17.09
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 40376
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 11327
+	Voluntary context switches: 1
+	Involuntary context switches: 320
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 1192
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

@@ -1,0 +1,7 @@
+walk, total                      15.844 s
+walk, insertion only              1.509 s (2741 Pods rejected without repair)
+in-order rule, one full check     0.067 s
+fitness, one evaluation           3.676 ms
+  of which stranded GPU           0.796 ms
+  of which device overflow        0.775 ms
+17.65 s, 40268 KB

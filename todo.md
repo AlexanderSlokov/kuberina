@@ -19,6 +19,7 @@ record in `docs/references/sessions/`:
 | X-2 | Trace adapter `bench/alibaba/`; seed-42 IR: 1,213 nodes, 10,866 Pods, 8,075,080 milli-GPU | `df5895e` | `2026-11-01-alibaba-trace-adapter.md` |
 | X-3 | `gpuDevices` and `gpuMilli` (IR v1 §2, §3.4): GPUs checked device by device | `e6acca3` | `2026-11-01-per-device-gpu.md` |
 | X-4 | `arrival`, `unplaced:`, `--admission in-order \| free` (IR v1 §3.5, §4.1) | `cfee303` | `2026-11-01-admission.md` |
+| X-5 timing | Phase timing lines; partial scale check; breach fix `e5f520f` | `624db06` | `2026-11-03-alibaba-scale-check.md` (partial) |
 | S-2 | Stranded GPU in fragmentation and the walk; weights 2,328 per Pod and 46,560 per GPU on seed 42; free-admission trade; `--no-ga` | `112be75` | `2026-11-03-objective-weights.md` |
 
 Decisions the maintainer made, recorded in the plan, §8:
@@ -38,14 +39,23 @@ Decisions the maintainer made, recorded in the plan, §8:
 The task rows in `BACKLOG.md`, section *External validation on the Alibaba GPU trace*,
 hold the files and done-when conditions:
 
-1. **X-5: scale check.** One full solve of the seed-42 tuned set (`make bench-alibaba-fetch`,
-   `make bench-alibaba-ir`, then the solver with `--admission in-order`, with and
-   without `--no-ga`). Measure wall clock and memory, and time the parts that may not
-   scale: the depth-1 repair in `admission.rs`, the stranded-GPU decode in every
-   fitness evaluation (`gpu_stranding.rs`), the in-order rule check run after the GA,
-   and the inspector's in-order check (`inspector/admission_check.py`, pure Python).
-   A partial run on 2026-11-03 went through the walk and 100 GA generations in about
-   112 seconds; it was not timed, so measure properly.
+1. **Finish X-5 at `e5f520f`.** The record
+   `docs/references/sessions/2026-11-03-alibaba-scale-check.md` is partial. Repeat the
+   three seed-42 solves (`--admission in-order --no-ga`, `--admission in-order`,
+   `--admission free`) with `/usr/bin/time -v`, one at a time, raw output into
+   `docs/plans/benchmarks/alibaba-gpu-v2023/x5-seed42/` (replace the `624db06` files or
+   add an `e5f520f/` folder). Confirm that free admission now writes `feasible: true`,
+   run the inspector on each blueprint, fill the record's table, update the budget in
+   plan §6, then remove X-5 from `BACKLOG.md` and add a CHANGELOG line.
+    - Free admission took 1,286 s and ran all 1,000 generations at `624db06`. Its
+      place move almost always lands on a full node; consider whether that operator
+      should only pick nodes the Pod fits (a decision for the maintainer).
+1. **Ask the maintainer about an FGD-scored walk (proposed "E2b").** At `624db06`, the
+   walk reached 94.34% GPU allocation at 130%, between FGD (95.29%) and Best-Fit
+   (93.13%); first rejection at index 7,775 against FGD's 7,885. A walk that scores
+   nodes by FGD's fragmentation measure, plus the depth-1 repair, would isolate what
+   re-planning is worth. It is a post-hoc variant, so it is reported beside the
+   pre-registered result, never in its place. Open it in plan mode if approved.
 1. **X-6: experiments E1–E5** over seeds 42–51. The simulator needs 27 more cells for
    seeds 43–51 (see *Things to know*).
 1. **X-7: E1 cross-check on seed 42.** Its result decides the GA's future (ADR-0003).
