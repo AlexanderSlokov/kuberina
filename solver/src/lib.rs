@@ -1,10 +1,12 @@
 pub mod admission;
 pub mod admission_ir;
+pub mod admission_swap;
 pub mod blueprint_yaml;
 pub mod csp;
 pub mod fitness;
 pub mod gpu_devices;
 pub mod gpu_ir;
+pub mod gpu_stranding;
 pub mod model;
 pub mod packing;
 pub mod parser;

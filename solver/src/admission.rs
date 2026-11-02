@@ -8,7 +8,8 @@
 //! - **Free** may choose any set of Pods. FFD admits what fits, and the GA may place or
 //!   unplace Pods under the unplaced-Pod objective term.
 //!
-//! Re-planning here is a best-fit insertion followed by a depth-1 repair: move one
+//! Re-planning here is a best-fit insertion, which first minimizes the GPU room it strands
+//! (`gpu_stranding`, S-2a), followed by a depth-1 repair: move one
 //! admitted Pod to another node so that the new Pod fits where it was. IR v1 §4.1 allows
 //! a planner to reject a Pod that a deeper re-packing could admit.
 

@@ -4,8 +4,9 @@
 //! optimizer could improve its score by declining Pods (plan §3, gap G3). This term
 //! charges every unplaced Pod enough that placing any Pod outweighs freeing any node.
 //!
-//! The weights are provisional. Backlog S-2 derives the final values from measured term
-//! ranges on the Alibaba instance and records them before Kuberina's first run there.
+//! The maintainer kept this dominance formula on 2026-11-02 (plan #24, §8 decision 8).
+//! The weights derive from the instance at load; backlog S-2b recorded their values on
+//! the Alibaba seed-42 instance in `docs/references/sessions/`.
 
 use crate::model::{FitnessWeights, Node, Pod, placements};
 
@@ -22,17 +23,18 @@ pub struct UnplacedWeights {
     pub per_gpu: f64,
 }
 
-/// Provisional weights: `per_pod = 2 × (w_node + w_frag × C_max)`, `per_gpu = per_pod / g_min`.
+/// Weights from the instance: `per_pod = 2 × (w_node + w_frag × C_max)`, `per_gpu = per_pod / g_min`.
 ///
-/// `C_max` is the largest node's capacity summed over its constrained dimensions, which
-/// bounds what freeing one node can save in the node-count and fragmentation terms.
+/// `C_max` is the largest node's capacity summed over its constrained dimensions, plus
+/// its GPU device count, which bounds the milli-GPU it can strand (`gpu_stranding`).
+/// It bounds what freeing one node can save in the node-count and fragmentation terms.
 /// `g_min` is the smallest positive GPU request. The factor 2 keeps the inequality
 /// strict.
 ///
 /// ```ignore
-/// let w = provisional_unplaced_weights(&pods, &nodes, &FitnessWeights::default());
+/// let w = derive_unplaced_weights(&pods, &nodes, &FitnessWeights::default());
 /// ```
-pub fn provisional_unplaced_weights(
+pub fn derive_unplaced_weights(
     pods: &[Pod],
     nodes: &[Node],
     base: &FitnessWeights,
@@ -52,7 +54,8 @@ pub fn provisional_unplaced_weights(
     UnplacedWeights { per_pod, per_gpu }
 }
 
-/// Capacity summed over the dimensions a node constrains (`f64::MAX` means unconstrained).
+/// Capacity summed over the dimensions a node constrains (`f64::MAX` means unconstrained),
+/// plus one GPU of stranded room per device.
 fn constrained_capacity(node: &Node) -> f64 {
     let a = node.allocatable;
     [
@@ -67,7 +70,8 @@ fn constrained_capacity(node: &Node) -> f64 {
     ]
     .into_iter()
     .filter(|&dimension| dimension < f64::MAX)
-    .sum()
+    .sum::<f64>()
+        + f64::from(node.gpu_devices.unwrap_or(0))
 }
 
 /// The charge for every unplaced Pod in `assignment`; zero when every Pod is placed.
@@ -122,7 +126,7 @@ mod tests {
         let nodes = [eight_gpu_node("a"), eight_gpu_node("b")];
         let base = FitnessWeights::default();
         let weights = FitnessWeights {
-            unplaced: provisional_unplaced_weights(&pods, &nodes, &base),
+            unplaced: derive_unplaced_weights(&pods, &nodes, &base),
             ..base
         };
         let placed = fitness_of(vec![0, 1], &pods, &nodes, &weights);
@@ -138,9 +142,10 @@ mod tests {
         let pods = [shared_gpu_pod("a", 500), shared_gpu_pod("b", 50)];
         let nodes = [eight_gpu_node("n")];
         let base = FitnessWeights::default();
-        let w = provisional_unplaced_weights(&pods, &nodes, &base);
-        // C_max = 64 cores + 256 GiB + 8 GPUs; unconstrained dimensions are skipped.
-        let per_pod = 2.0 * (base.node_count + base.fragmentation * (64.0 + 256.0 + 8.0));
+        let w = derive_unplaced_weights(&pods, &nodes, &base);
+        // C_max = 64 cores + 256 GiB + 8 GPUs + 8 devices' stranded room; unconstrained
+        // dimensions are skipped.
+        let per_pod = 2.0 * (base.node_count + base.fragmentation * (64.0 + 256.0 + 8.0 + 8.0));
         assert_eq!(
             w,
             UnplacedWeights {
@@ -154,11 +159,7 @@ mod tests {
     fn cluster_without_gpu_requests_charges_nothing_per_gpu() {
         let mut pod = shared_gpu_pod("cpu-only", 1);
         pod.requests = ResourceVector::new(1.0, 1.0, 0.0);
-        let w = provisional_unplaced_weights(
-            &[pod],
-            &[eight_gpu_node("n")],
-            &FitnessWeights::default(),
-        );
+        let w = derive_unplaced_weights(&[pod], &[eight_gpu_node("n")], &FitnessWeights::default());
         assert_eq!(w.per_gpu, 0.0);
     }
 

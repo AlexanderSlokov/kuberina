@@ -12,22 +12,23 @@ Every figure that reaches `PAPER.md` first appears in a session record under
 
 ## Progress
 
-Updated 2026-11-02. Each finished stage has a session record:
+Updated 2026-11-03. Each finished stage has a session record:
 
 | Stage | Status | Record |
 |---|---|---|
 | 1. Calibrate the referee | Done | `docs/references/sessions/2026-10-31-fgd-simulator-calibration.md` |
 | 2. Trace adapter | Done | `docs/references/sessions/2026-11-01-alibaba-trace-adapter.md` |
 | 3. Per-device GPU model (G1) | Done | `docs/references/sessions/2026-11-01-per-device-gpu.md` |
-| 4. Admission (G2, G3) | Done, with provisional weights | `docs/references/sessions/2026-11-01-admission.md` |
-| S-2. Objective weights on this instance | Next; decided on 2026-11-02 (§8, decisions 7–9) | — |
-| 5. Scale check | Waits on S-2 | — |
+| 4. Admission (G2, G3) | Done | `docs/references/sessions/2026-11-01-admission.md` |
+| S-2. Objective weights on this instance | Done | `docs/references/sessions/2026-11-03-objective-weights.md` |
+| 5. Scale check | Next | — |
 | 6. Experiments E1–E5 | Waits on stage 5 | — |
 | 6a. E1 cross-check and GA verdict, seed 42 | Waits on stage 5 | — |
 | 7. Paper section | Waits on stage 6 | — |
 
-Kuberina has not yet run on the trace. By *Purpose and stance*, it does not run there
-until S-2 has fixed the weights.
+S-2 fixed the weights on 2026-11-03. One run on the trace went past its intended stop
+while the weights were read; its record states what it showed and that nothing was
+tuned after it.
 
 ## Purpose and stance
 

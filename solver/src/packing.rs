@@ -8,6 +8,7 @@
 
 use crate::csp::can_place_pod_on_node;
 use crate::gpu_devices::DeviceLedger;
+use crate::gpu_stranding::stranding_delta;
 use crate::model::{Blueprint, Node, Pod, ResourceVector, UNPLACED, placements};
 use crate::phase1_ffd::{compute_node_loads, max_node_capacity};
 
@@ -88,19 +89,23 @@ impl<'a> Packing<'a> {
         self.on_node[node_idx].retain(|&p| p != pod_idx);
     }
 
-    /// The fitting node that leaves the least normalized capacity behind, if any.
+    /// The fitting node where the Pod strands the least milli-GPU, then the one that
+    /// leaves the least normalized capacity behind, if any.
+    ///
+    /// WHY stranding first: room left on a partly used device serves only small Pods,
+    /// and the walk decides which later Pods fit (plan #24, §8 decision 7).
     pub fn best_fit_node(&self, pod_idx: usize) -> Option<usize> {
-        let demand = self.pods[pod_idx].requests;
+        let pod = &self.pods[pod_idx];
         (0..self.nodes.len())
             .filter(|&node_idx| self.fits(pod_idx, node_idx))
             .map(|node_idx| {
-                (
-                    leftover_share(self.residual[node_idx], demand, self.scale),
-                    node_idx,
-                )
+                let node = &self.nodes[node_idx];
+                let strands = stranding_delta(&self.devices, node, node_idx, pod);
+                let leftover = leftover_share(self.residual[node_idx], pod.requests, self.scale);
+                (strands, leftover, node_idx)
             })
-            .min_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)))
-            .map(|(_, node_idx)| node_idx)
+            .min_by(|a, b| a.0.cmp(&b.0).then(a.1.total_cmp(&b.1)).then(a.2.cmp(&b.2)))
+            .map(|(_, _, node_idx)| node_idx)
     }
 
     /// The fitting node with the lowest index, if any (FFD's rule).
@@ -213,6 +218,21 @@ mod tests {
         let packing = Packing::new(&pods, &nodes);
         assert_eq!(packing.best_fit_node(0), Some(1));
         assert_eq!(packing.first_fit_node(0), Some(0));
+    }
+
+    #[test]
+    fn best_fit_prefers_the_node_where_a_share_strands_less() {
+        // Node 0 is tighter overall (a 60-core Pod), but its devices are empty; the
+        // 400-milli Pod would strand 600 there. On node 1 it fills a device at 600 milli.
+        use crate::test_fixtures::shared_gpu_pod;
+        let pods = [
+            cpu_pod("heavy", 60.0),
+            shared_gpu_pod("sixty", 600),
+            shared_gpu_pod("forty", 400),
+        ];
+        let nodes = [eight_gpu_node("tight"), eight_gpu_node("shared")];
+        let packing = Packing::from_assignment(&pods, &nodes, &[0, 1, UNPLACED]);
+        assert_eq!(packing.best_fit_node(2), Some(1));
     }
 
     #[test]

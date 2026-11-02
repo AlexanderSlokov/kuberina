@@ -27,7 +27,7 @@ use kuberina_solver::parser::{load_infra, load_workloads};
 use kuberina_solver::phase0::pre_deduct_daemonsets;
 use kuberina_solver::phase1_ffd::ffd_warmstart;
 use kuberina_solver::phase2_ga::{GaOutcome, run_ga};
-use kuberina_solver::unplaced_term::provisional_unplaced_weights;
+use kuberina_solver::unplaced_term::derive_unplaced_weights;
 
 #[derive(Parser)]
 #[command(
@@ -55,6 +55,9 @@ enum Commands {
         /// Allow Pods to stay unplaced: `in-order` (by `arrival`) or `free` (IR v1 §4.1)
         #[arg(long)]
         admission: Option<Admission>,
+        /// Stop after Phase 1 (FFD or the admission walk) and skip the GA (ADR-0003)
+        #[arg(long)]
+        no_ga: bool,
     },
 }
 
@@ -67,7 +70,14 @@ fn main() {
             workloads,
             headroom,
             admission,
-        } => run_plan(&infra, &workloads, validate_headroom(headroom), admission),
+            no_ga,
+        } => run_plan(
+            &infra,
+            &workloads,
+            validate_headroom(headroom),
+            admission,
+            no_ga,
+        ),
     }
 }
 
@@ -151,6 +161,7 @@ fn run_plan(
     workloads_path: &str,
     headroom: Option<f64>,
     admission: Option<Admission>,
+    no_ga: bool,
 ) {
     let start = Instant::now();
 
@@ -201,26 +212,31 @@ fn run_plan(
     let mut fitness_weights = FitnessWeights::default();
     if admission.is_some() {
         fitness_weights.unplaced =
-            provisional_unplaced_weights(&pods, &planning_nodes, &fitness_weights);
+            derive_unplaced_weights(&pods, &planning_nodes, &fitness_weights);
+        eprintln!(
+            "Unplaced-Pod weights: {:.4} per Pod, {:.4} per GPU",
+            fitness_weights.unplaced.per_pod, fitness_weights.unplaced.per_gpu,
+        );
     }
     let mut seed = seed_blueprint(admission, order.as_deref(), &pods, &planning_nodes);
     score(&mut seed, &pods, &planning_nodes, &groups, &fitness_weights);
     eprintln!("Phase 1 (FFD): seed fitness = {:.4}", seed.fitness);
 
     // Phase 2: GA optimization (evolutionary stowage planning)
-    // WHY: auto-scale GA params based on problem size (ga_estimation.md §3).
-    let mut ga_config = select_ga_config(pods.len());
-    ga_config.free_admission = admission == Some(Admission::Free);
-    let outcome = run_ga(
-        &seed,
-        &pods,
-        &planning_nodes,
-        &groups,
-        &ga_config,
-        &fitness_weights,
-    );
-    report_ga_termination(&outcome, &ga_config);
-    let mut best = outcome.best;
+    let mut best = if no_ga {
+        eprintln!("Phase 2 (GA): skipped (--no-ga)");
+        seed
+    } else {
+        let free_admission = admission == Some(Admission::Free);
+        optimize(
+            &seed,
+            &pods,
+            &planning_nodes,
+            &groups,
+            &fitness_weights,
+            free_admission,
+        )
+    };
     if let Some(order) = &order {
         // WHY: the GA moves Pods without knowing the in-order rule (IR v1 §4.1).
         best = enforce_in_order_rule(&best.assignment, &pods, &planning_nodes, order);
@@ -241,6 +257,27 @@ fn run_plan(
     if verdict.exit_code() != 0 {
         std::process::exit(verdict.exit_code());
     }
+}
+
+/// Run the GA from `seed` and report how it ended.
+///
+/// ```ignore
+/// let best = optimize(&seed, &pods, &nodes, &groups, &weights, false);
+/// ```
+fn optimize(
+    seed: &Blueprint,
+    pods: &[Pod],
+    nodes: &[Node],
+    groups: &[kuberina_solver::model::PodGroup],
+    weights: &FitnessWeights,
+    free_admission: bool,
+) -> Blueprint {
+    // WHY: auto-scale GA params based on problem size (ga_estimation.md §3).
+    let mut ga_config = select_ga_config(pods.len());
+    ga_config.free_admission = free_admission;
+    let outcome = run_ga(seed, pods, nodes, groups, &ga_config, weights);
+    report_ga_termination(&outcome, &ga_config);
+    outcome.best
 }
 
 /// The Phase 1 placement for the admission mode: FFD, in-order admission, or FFD that

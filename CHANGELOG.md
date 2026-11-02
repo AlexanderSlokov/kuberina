@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The objective weights for the Alibaba trace are fixed, and fragmentation counts
+  stranded GPU room** ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24),
+  S-2). Free room on a partly used GPU device, such as 400 milli-GPU beside a 600
+  milli-GPU Pod, serves only small Pods. The fragmentation term now charges it, and
+  in-order admission places each Pod on the node where it strands the least. The
+  unplaced-Pod charge keeps its formula, and on the seed-42 instance it is 2,328 per
+  Pod and 46,560 per GPU. Free admission gains a move that declines one GPU Pod and
+  places several smaller Pods on its node; on the 134% fixture it raised the placed
+  Pods from 3 to 9, at 96.88% of the GPUs instead of 100%, because the objective values
+  one Pod at the smallest GPU request. The new `--no-ga` flag stops the solver after its
+  first placement, which experiment E1 uses ([ADR-0003](docs/explanation/adr/0003-ga-must-beat-the-walk.md)).
+  Clusters without GPU devices plan as before: the MSC Irina seed fitness is unchanged
+  to the digit. The record is `docs/references/sessions/2026-11-03-objective-weights.md`.
 - **The solver can leave Pods unplaced when demand exceeds capacity**
   ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24), X-4). With
   `--admission in-order`, the solver decides Pod by Pod in the order of the new
@@ -21,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   agreed. `kuberina-forge out` refuses a blueprint with unplaced Pods, because a
   partial plan serves benchmarks and is not applied to a cluster. Runs without
   `--admission` plan exactly as before: the MSC Irina seed fitness is unchanged to the
-  digit. The objective weight for unplaced Pods is provisional until S-2. The fields are
+  digit. The fields are
   specified in `docs/references/ir-v1.md` §3.5 and §4.1, and the record is
   `docs/references/sessions/2026-11-01-admission.md`.
 - **GPUs can be checked device by device**

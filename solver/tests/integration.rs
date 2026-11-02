@@ -15,6 +15,7 @@ use kuberina_solver::parser::{load_infra, load_workloads};
 use kuberina_solver::phase0::pre_deduct_daemonsets;
 use kuberina_solver::phase1_ffd::ffd_warmstart;
 use kuberina_solver::phase2_ga::run_ga;
+use kuberina_solver::unplaced_term::derive_unplaced_weights;
 
 const INFRA: &str = "testdata/homelab_infra.yaml";
 const WORKLOADS: &str = "testdata/homelab_workloads.yaml";
@@ -214,4 +215,68 @@ fn free_admission_at_134_percent_is_feasible_and_declines_pods() {
         0.0
     );
     assert!(seed.assignment.contains(&UNPLACED));
+}
+
+/// S-2c done-when: with the swap operator, free admission trades a training Pod for
+/// several inference Pods. At X-4, it stopped at the FFD seed: 16 GPUs in 3 Pods.
+///
+/// The objective (plan #24, §8 decision 8) values one Pod at `g_min` GPUs, 0.3 here, so
+/// 9 Pods at 15.5 GPUs scores better than 7 Pods at 16 GPUs, and the GA finds the former.
+#[test]
+fn free_admission_trades_one_large_pod_for_several_small_ones() {
+    let (nodes, pods) = admission_fixture();
+    let base = FitnessWeights::default();
+    let weights = FitnessWeights {
+        unplaced: derive_unplaced_weights(&pods, &nodes, &base),
+        ..base
+    };
+    let mut seed = ffd_with_admission(&pods, &nodes, &FfdWeights::default());
+    seed.fitness = compute_fitness(&seed, &pods, &nodes, &[], &weights).0;
+    let config = GaConfig {
+        free_admission: true,
+        ..GaConfig::default()
+    };
+    let best = run_ga(&seed, &pods, &nodes, &[], &config, &weights).best;
+
+    let placed = best.assignment.iter().filter(|&&n| n != UNPLACED).count();
+    assert_eq!(
+        compute_capacity_overflow(&best.assignment, &pods, &nodes),
+        0.0
+    );
+    assert!(placed > 3, "placed {placed} Pods");
+    assert!(best.fitness < seed.fitness);
+}
+
+/// S-2d done-when (ADR-0003): `--no-ga` stops after the in-order walk, writes the
+/// blueprint, and the in-order rule holds on it.
+#[test]
+fn no_ga_stops_after_the_walk_and_writes_a_blueprint() {
+    let dir = std::env::temp_dir().join(format!("kuberina-no-ga-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let fixture = |name: &str| format!("{}/{name}", env!("CARGO_MANIFEST_DIR"));
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_kuberina-solver"))
+        .current_dir(&dir)
+        .args(["plan", "--infra", &fixture(ADMISSION_INFRA), "--workloads"])
+        .args([
+            &fixture(ADMISSION_WORKLOADS),
+            "--admission",
+            "in-order",
+            "--no-ga",
+        ])
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let blueprint = std::fs::read_to_string(dir.join("kuberina_solution.yaml")).unwrap();
+    std::fs::remove_dir_all(&dir).unwrap();
+
+    assert!(output.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("Phase 2 (GA): skipped (--no-ga)"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("generation"), "{stderr}");
+    assert!(
+        blueprint.contains("admission: in-order\n  unplaced: 2\n"),
+        "{blueprint}"
+    );
 }

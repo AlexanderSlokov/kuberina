@@ -1,6 +1,6 @@
 # Todo — resume here
 
-Hand-off for the next session. Branch `24-challenge-alibaba`, updated 2026-11-02.
+Hand-off for the next session. Branch `24-challenge-alibaba`, updated 2026-11-03.
 Delete this file once its items are done or moved into `BACKLOG.md`.
 
 The plan of record is `docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`, issue
@@ -19,6 +19,7 @@ record in `docs/references/sessions/`:
 | X-2 | Trace adapter `bench/alibaba/`; seed-42 IR: 1,213 nodes, 10,866 Pods, 8,075,080 milli-GPU | `df5895e` | `2026-11-01-alibaba-trace-adapter.md` |
 | X-3 | `gpuDevices` and `gpuMilli` (IR v1 §2, §3.4): GPUs checked device by device | `e6acca3` | `2026-11-01-per-device-gpu.md` |
 | X-4 | `arrival`, `unplaced:`, `--admission in-order \| free` (IR v1 §3.5, §4.1) | `cfee303` | `2026-11-01-admission.md` |
+| S-2 | Stranded GPU in fragmentation and the walk; weights 2,328 per Pod and 46,560 per GPU on seed 42; free-admission trade; `--no-ga` | this commit | `2026-11-03-objective-weights.md` |
 
 Decisions the maintainer made, recorded in the plan, §8:
 
@@ -37,17 +38,14 @@ Decisions the maintainer made, recorded in the plan, §8:
 The task rows in `BACKLOG.md`, section *External validation on the Alibaba GPU trace*,
 hold the files and done-when conditions:
 
-1. **S-2a:** stranded milli-GPU in the fragmentation term and in the walk's node choice.
-1. **S-2b:** compute and record the unplaced-Pod weights on the seed-42 instance
-   (`g_min` is 50 milli-GPU there).
-1. **S-2c:** the free-admission swap operator. On the X-4 fixture, free admission
-   stopped at the FFD seed: 16 GPUs in 3 Pods, where 16 GPUs in 7 Pods exists.
-1. **S-2d:** a way to stop after the in-order walk, without the GA.
 1. **X-5: scale check.** One full solve of the seed-42 tuned set (`make bench-alibaba-fetch`,
-   `make bench-alibaba-ir`, then the solver with `--admission in-order`). Measure wall
-   clock and memory, and time the parts that may not scale: the depth-1 repair in
-   `admission.rs`, the in-order rule check run after the GA, and the inspector's
-   in-order check (`inspector/admission_check.py`, pure Python).
+   `make bench-alibaba-ir`, then the solver with `--admission in-order`, with and
+   without `--no-ga`). Measure wall clock and memory, and time the parts that may not
+   scale: the depth-1 repair in `admission.rs`, the stranded-GPU decode in every
+   fitness evaluation (`gpu_stranding.rs`), the in-order rule check run after the GA,
+   and the inspector's in-order check (`inspector/admission_check.py`, pure Python).
+   A partial run on 2026-11-03 went through the walk and 100 GA generations in about
+   112 seconds; it was not timed, so measure properly.
 1. **X-6: experiments E1–E5** over seeds 42–51. The simulator needs 27 more cells for
    seeds 43–51 (see *Things to know*).
 1. **X-7: E1 cross-check on seed 42.** Its result decides the GA's future (ADR-0003).
@@ -91,6 +89,9 @@ hold the files and done-when conditions:
 - **The E1 baseline exists for seed 42.** Each policy's first rejection: FGD at 94.89%
   of arrived GPU demand, Best-Fit at 92.86%, Random at 42.60%.
 - **The trace has arrivals only,** so E1 can use arrival prefixes.
+- **Stopping a background solver from zsh:** `grep -m1 <pattern> <(tail -f err.txt)`
+  waits for the `tail` to end in zsh, so the solver kept running. Kill by PID, and
+  never `pkill -f kuberina-solver`: it matches the shell running the command.
 - **MSC Irina is the regression check for every solver change.** Without
   `--admission`, the FFD seed fitness must stay 1,587,653.1260 (full packing) and
   2,311,466.1293 (`--headroom 20`). The line appears within 90 seconds of the start.

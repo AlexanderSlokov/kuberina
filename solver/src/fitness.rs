@@ -9,6 +9,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::csp::{compute_capacity_overflow, compute_selector_violations, node_within_capacity};
+use crate::gpu_stranding::stranded_gpu;
 use crate::model::{
     Blueprint, FitnessWeights, Node, Pod, PodGroup, ResourceVector, Scorecard, UNPLACED, placements,
 };
@@ -29,7 +30,10 @@ pub fn compute_fitness(
     let penalty = compute_hard_penalty(blueprint, pods, nodes, groups, &mut sc);
 
     let f_nodes = count_active_nodes(&blueprint.assignment, nodes.len()) as f64;
-    let f_frag = compute_fragmentation(&blueprint.node_load, nodes);
+    // WHY stranded GPUs: room left on a partly used device serves only small Pods
+    // (plan #24, §8 decision 7). Zero on clusters without devices.
+    let f_frag = compute_fragmentation(&blueprint.node_load, nodes)
+        + stranded_gpu(&blueprint.assignment, pods, nodes);
     let f_aff = compute_affinity_violations(&blueprint.assignment, pods) as f64;
     let f_var = compute_utilization_variance(&blueprint.node_load, nodes);
     let f_spread = compute_topology_spread_penalty(&blueprint.assignment, pods, nodes);

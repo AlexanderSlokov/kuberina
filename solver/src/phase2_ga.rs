@@ -13,6 +13,7 @@ use rand::rngs::StdRng;
 use rand::seq::IndexedRandom;
 use rayon::prelude::*;
 
+use crate::admission_swap::trade_at_random;
 use crate::csp::{can_place_pod_on_node, node_within_capacity};
 use crate::fitness::compute_fitness;
 use crate::model::{Blueprint, FitnessWeights, GaConfig, Node, Pod, PodGroup, UNPLACED};
@@ -504,8 +505,16 @@ fn mutate(
 /// S-2 measures it with the other settings on the Alibaba instance.
 const UNPLACE_SHARE: f64 = 0.2;
 
+/// Share of free-admission mutations that end with one trade of a placed GPU Pod for
+/// several unplaced Pods (`admission_swap`, S-2c).
+///
+/// WHY 0.2: untuned, like `UNPLACE_SHARE`; plan #24, §8 decision 9 records both as
+/// untuned. A trade rebuilds the packing bookkeeping, so it is kept to a share.
+const TRADE_SHARE: f64 = 0.2;
+
 /// Free-admission mutation: place selected unplaced Pods on a random eligible node,
-/// unplace a share of selected placed Pods, then run the ordinary operators.
+/// unplace a share of selected placed Pods, run the ordinary operators, and in a share
+/// of calls trade one placed GPU Pod for several unplaced Pods.
 ///
 /// Only `--admission free` uses it, so every other run draws the same random numbers
 /// as before X-4.
@@ -532,6 +541,10 @@ fn mutate_with_admission(
         }
     }
     mutate(blueprint, pods, nodes, groups, rate, rng);
+    // WHY last: the ordinary operators would scatter the refilled node before scoring.
+    if rng.random_bool(TRADE_SHARE) {
+        trade_at_random(&mut blueprint.assignment, pods, nodes, rng);
+    }
 }
 
 /// Mutation for the run's admission mode.

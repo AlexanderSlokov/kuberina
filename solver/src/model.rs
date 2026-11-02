@@ -436,7 +436,7 @@ pub struct FitnessWeights {
     pub utilization_variance: f64,
     pub topology_spread: f64,
     /// Charge for unplaced Pods (X-4). Zero unless admission is on; see
-    /// `unplaced_term::provisional_unplaced_weights`.
+    /// `unplaced_term::derive_unplaced_weights`.
     pub unplaced: UnplacedWeights,
 }
 

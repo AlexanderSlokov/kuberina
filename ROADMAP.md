@@ -47,10 +47,10 @@ The frontend "Forge" component. Scope is fixed by [ADR-0001](docs/explanation/ad
 
 [ ] **External Validation on Production Traces** ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24)). Run Kuberina on Alibaba's production-scale cluster data, and report what its results mean next to the Alibaba team's published results.
   - Plan: `docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`.
-  - *Alibaba `cluster-trace-gpu-v2023`:* compare with FGD and its baselines in the FGD authors' simulator, after reproducing FGD's published result. The simulator reproduces FGD's seed-42 result, and the trace adapter writes the instance as IR. **Shipped.** The comparison runs (E1–E5) wait on the objective weights and a scale check.
+  - *Alibaba `cluster-trace-gpu-v2023`:* compare with FGD and its baselines in the FGD authors' simulator, after reproducing FGD's published result. The simulator reproduces FGD's seed-42 result, and the trace adapter writes the instance as IR. **Shipped.** The comparison runs (E1–E5) wait on a scale check.
   - *Per-device GPU model:* a fractional GPU request must fit on a single device. **Shipped.**
-  - *Admission:* the solver can leave pods unplaced when demand exceeds capacity, in arrival order or freely. **Shipped**, with provisional objective weights.
-  - *Objective weights for the trace:* derive every weight, the unplaced-Pod charge included, from the Alibaba instance, count milli-GPU stranded on devices, and fix them before Kuberina's first run on it.
+  - *Admission:* the solver can leave pods unplaced when demand exceeds capacity, in arrival order or freely. **Shipped.**
+  - *Objective weights for the trace:* derive every weight, the unplaced-Pod charge included, from the Alibaba instance, count milli-GPU stranded on devices, and fix them before Kuberina's first run on it. **Shipped.**
   - *The GA's verdict:* on seed 42, compare the in-order walk with a GA-based re-plan. If the GA finds no later first rejection, deprecate, sunset, and remove it ([ADR-0003](docs/explanation/adr/0003-ga-must-beat-the-walk.md)).
   - *Later traces:* `cluster-trace-gpu-v2026`, then `cluster-trace-v2018`.
 

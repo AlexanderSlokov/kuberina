@@ -49,14 +49,38 @@ pub fn device_demand(pod: &Pod) -> Option<GpuShare> {
 /// assert_eq!(unplaced_device_milli(8, &demands), 500);
 /// ```
 pub fn unplaced_device_milli(device_count: u32, demands: &[GpuShare]) -> u64 {
+    decode_devices(device_count, demands).unplaced_milli
+}
+
+/// The device layout the decode reaches: free milli-GPU per device, and the milli-GPU it
+/// could not place.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeviceDecode {
+    pub free: Vec<u32>,
+    pub unplaced_milli: u64,
+}
+
+/// Decode `demands` onto `device_count` devices, largest share first, each best fit.
+///
+/// ```
+/// # use kuberina_solver::gpu_devices::decode_devices;
+/// # use kuberina_solver::model::GpuShare;
+/// let layout = decode_devices(2, &[GpuShare { devices: 1, milli: 600 }]);
+/// assert_eq!(layout.free, vec![400, 1000]);
+/// ```
+pub fn decode_devices(device_count: u32, demands: &[GpuShare]) -> DeviceDecode {
     let mut ordered = demands.to_vec();
     // WHY descending: large requests placed late find every device partly used.
     ordered.sort_by(|a, b| b.milli.cmp(&a.milli).then(b.devices.cmp(&a.devices)));
     let mut free = vec![MILLI_PER_DEVICE; device_count as usize];
-    ordered
+    let unplaced_milli = ordered
         .iter()
         .map(|&share| place_share(&mut free, share))
-        .sum()
+        .sum();
+    DeviceDecode {
+        free,
+        unplaced_milli,
+    }
 }
 
 /// Place one share best-fit; return its milli-GPU if it found too few devices.
@@ -137,6 +161,11 @@ impl DeviceLedger {
         Self {
             demands: vec![Vec::new(); num_nodes],
         }
+    }
+
+    /// The device demands recorded on node `node_idx`.
+    pub fn demands_on(&self, node_idx: usize) -> &[GpuShare] {
+        &self.demands[node_idx]
     }
 
     /// Whether `pod` still fits the devices of `node` (index `node_idx`).

@@ -48,7 +48,9 @@ before anything reaches the cluster.
 - **Admission for benchmarks.** With `--admission in-order` or `--admission free`, the
   solver may leave Pods unplaced when they ask for more than the cluster holds, and it
   lists them under `unplaced:` in the blueprint. This mode serves comparisons with
-  scheduler traces, and `kuberina-forge out` refuses such a partial plan.
+  scheduler traces, and `kuberina-forge out` refuses such a partial plan. The
+  `--no-ga` flag stops the solver after its first placement and skips the genetic
+  algorithm.
 - **A reviewable blueprint.** A _blueprint_ is the YAML file that maps each Pod to a
   node.
 - **Manifest output.** `kuberina-forge out` writes your manifests back out with a
