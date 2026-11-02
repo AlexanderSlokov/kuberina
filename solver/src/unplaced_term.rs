@@ -10,17 +10,21 @@
 
 use crate::model::{FitnessWeights, Node, Pod, placements};
 
-/// Per-Pod and per-GPU charges for an unplaced Pod.
+/// Per-Pod and per-GPU charges for an unplaced Pod, and the charge if every Pod were
+/// unplaced.
 ///
 /// ```
 /// # use kuberina_solver::unplaced_term::UnplacedWeights;
 /// let off = UnplacedWeights::default();
-/// assert_eq!((off.per_pod, off.per_gpu), (0.0, 0.0));
+/// assert_eq!((off.per_pod, off.per_gpu, off.ceiling), (0.0, 0.0, 0.0));
 /// ```
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct UnplacedWeights {
     pub per_pod: f64,
     pub per_gpu: f64,
+    /// WHY: a hard-constraint breach adds this to its penalty, so that no placement
+    /// that breaks capacity can save more in unplaced charges than it pays (X-5).
+    pub ceiling: f64,
 }
 
 /// Weights from the instance: `per_pod = 2 × (w_node + w_frag × C_max)`, `per_gpu = per_pod / g_min`.
@@ -51,7 +55,18 @@ pub fn derive_unplaced_weights(
     } else {
         0.0
     };
-    UnplacedWeights { per_pod, per_gpu }
+    let mut weights = UnplacedWeights {
+        per_pod,
+        per_gpu,
+        ceiling: 0.0,
+    };
+    weights.ceiling = pods.iter().map(|pod| charge(pod, &weights)).sum();
+    weights
+}
+
+/// The charge for leaving `pod` unplaced.
+fn charge(pod: &Pod, weights: &UnplacedWeights) -> f64 {
+    weights.per_pod + weights.per_gpu * pod.requests.gpu
 }
 
 /// Capacity summed over the dimensions a node constrains (`f64::MAX` means unconstrained),
@@ -91,7 +106,7 @@ pub fn compute_unplaced_penalty(
     pods.iter()
         .zip(placed)
         .filter(|&(_, is_placed)| !is_placed)
-        .map(|(pod, _)| weights.per_pod + weights.per_gpu * pod.requests.gpu)
+        .map(|(pod, _)| charge(pod, weights))
         .sum()
 }
 
@@ -138,6 +153,38 @@ mod tests {
     }
 
     #[test]
+    fn a_capacity_breach_scores_worse_than_declining_whatever_the_charge() {
+        // X-5 found free admission writing an infeasible blueprint on the trace: the
+        // breach penalty's 1,000,000 base is paid once, while the unplaced charge grows
+        // with every declined Pod. Here 2,000 small Pods overflow a full node.
+        let mut pods = vec![shared_gpu_pod("full", 1000)];
+        pods[0].requests.gpu = 8.0;
+        pods[0].gpu_share = Some(crate::model::GpuShare {
+            devices: 8,
+            milli: 1000,
+        });
+        for i in 0..2000 {
+            let mut small = shared_gpu_pod(&format!("small-{i}"), 50);
+            small.requests = ResourceVector::new(0.0, 0.0, 0.05);
+            pods.push(small);
+        }
+        let nodes = [eight_gpu_node("n")];
+        let base = FitnessWeights::default();
+        let weights = FitnessWeights {
+            unplaced: derive_unplaced_weights(&pods, &nodes, &base),
+            ..base
+        };
+        let mut declined = vec![UNPLACED; pods.len()];
+        declined[0] = 0;
+        let feasible = fitness_of(declined, &pods, &nodes, &weights);
+        let breach = fitness_of(vec![0; pods.len()], &pods, &nodes, &weights);
+        assert!(
+            feasible < breach,
+            "feasible {feasible} must beat breach {breach}"
+        );
+    }
+
+    #[test]
     fn weights_follow_the_formula() {
         let pods = [shared_gpu_pod("a", 500), shared_gpu_pod("b", 50)];
         let nodes = [eight_gpu_node("n")];
@@ -146,11 +193,14 @@ mod tests {
         // C_max = 64 cores + 256 GiB + 8 GPUs + 8 devices' stranded room; unconstrained
         // dimensions are skipped.
         let per_pod = 2.0 * (base.node_count + base.fragmentation * (64.0 + 256.0 + 8.0 + 8.0));
+        let per_gpu = per_pod / 0.05;
+        let ceiling = (per_pod + per_gpu * 0.5) + (per_pod + per_gpu * 0.05);
         assert_eq!(
             w,
             UnplacedWeights {
                 per_pod,
-                per_gpu: per_pod / 0.05
+                per_gpu,
+                ceiling,
             }
         );
     }
@@ -169,6 +219,7 @@ mod tests {
         let w = UnplacedWeights {
             per_pod: 10.0,
             per_gpu: 100.0,
+            ceiling: 0.0,
         };
         assert_eq!(
             compute_unplaced_penalty(&[0, UNPLACED], &pods, &w),

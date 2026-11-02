@@ -207,6 +207,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dimension is disk write throughput, not CPU, and the paper now says so. (#15, #8, #11)
 
 ### Fixed
+- **Free admission no longer trades a capacity breach for placed Pods**
+  ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24), found by X-5). On the
+  Alibaba seed-42 instance, free admission wrote an infeasible blueprint at 107.04% GPU
+  allocation: a breach paid its 1,000,000 base penalty once, while each placed GPU
+  saved 46,560 in unplaced charges. A breach now also pays the charge for leaving every
+  Pod unplaced, so any feasible blueprint scores better. Runs without `--admission`
+  score as before: the MSC Irina seed fitness is unchanged to the digit.
 - **The banner of an infeasible blueprint is aligned.** Its second line, "# Written for
   inspection only", carried 13 spaces of source indentation into the file. The writer
   now lives in `solver/src/blueprint_yaml.rs`, with tests for the banner and for the

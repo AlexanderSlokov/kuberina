@@ -27,7 +27,8 @@ pub fn compute_fitness(
 ) -> (f64, Scorecard) {
     let mut sc = Scorecard::default();
 
-    let penalty = compute_hard_penalty(blueprint, pods, nodes, groups, &mut sc);
+    let penalty = compute_hard_penalty(blueprint, pods, nodes, groups, &mut sc)
+        + breach_surcharge(&sc, weights);
 
     let f_nodes = count_active_nodes(&blueprint.assignment, nodes.len()) as f64;
     // WHY stranded GPUs: room left on a partly used device serves only small Pods
@@ -354,6 +355,21 @@ fn compute_hard_penalty(
     total += gp;
 
     total
+}
+
+/// The unplaced-charge ceiling, added once when any hard constraint is breached.
+///
+/// WHY: with admission, placing a Pod saves its unplaced charge. On the Alibaba trace
+/// (X-5), a breach of capacity saved more than its 1,000,000 base penalty, and free
+/// admission wrote an infeasible blueprint. With the ceiling added, a breach costs more
+/// than declining every Pod. Zero without admission, so other runs score as before.
+fn breach_surcharge(sc: &Scorecard, weights: &FitnessWeights) -> f64 {
+    let breached = sc.capacity_penalty > 0.0 || sc.selector_penalty > 0.0 || sc.gang_penalty > 1e-9;
+    if breached {
+        weights.unplaced.ceiling
+    } else {
+        0.0
+    }
 }
 
 /// Soft penalty if any gang pod can't fit on its assigned node.
