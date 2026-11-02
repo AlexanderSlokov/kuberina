@@ -19,7 +19,7 @@ record in `docs/references/sessions/`:
 | X-2 | Trace adapter `bench/alibaba/`; seed-42 IR: 1,213 nodes, 10,866 Pods, 8,075,080 milli-GPU | `df5895e` | `2026-11-01-alibaba-trace-adapter.md` |
 | X-3 | `gpuDevices` and `gpuMilli` (IR v1 §2, §3.4): GPUs checked device by device | `e6acca3` | `2026-11-01-per-device-gpu.md` |
 | X-4 | `arrival`, `unplaced:`, `--admission in-order \| free` (IR v1 §3.5, §4.1) | `cfee303` | `2026-11-01-admission.md` |
-| S-2 | Stranded GPU in fragmentation and the walk; weights 2,328 per Pod and 46,560 per GPU on seed 42; free-admission trade; `--no-ga` | this commit | `2026-11-03-objective-weights.md` |
+| S-2 | Stranded GPU in fragmentation and the walk; weights 2,328 per Pod and 46,560 per GPU on seed 42; free-admission trade; `--no-ga` | `112be75` | `2026-11-03-objective-weights.md` |
 
 Decisions the maintainer made, recorded in the plan, §8:
 

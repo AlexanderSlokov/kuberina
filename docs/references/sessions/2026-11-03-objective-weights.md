@@ -3,7 +3,7 @@
 **Backlog items:** S-2a to S-2d · **Issue:** [#24](https://github.com/AlexanderSlokov/kuberina/issues/24)
 **Plan:** `docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`, §8 decisions 7–11, and
 [ADR-0003](../../explanation/adr/0003-ga-must-beat-the-walk.md)
-**Kuberina commit:** the commit that adds this record. The measurements ran on its
+**Kuberina commit:** `112be75`, which adds the S-2 changes. The measurements ran on its
 working tree, on top of `05a0680`; the code is identical.
 **Compared against:** `cfee303`, recorded in `2026-11-01-admission.md`.
 **Host:** Linux 7.0.0-38-generic x86_64, 8 vCPU, 13 GiB RAM.
