@@ -191,6 +191,7 @@ fn run_plan(
         pods.len(),
         groups.len(),
     );
+    report_duration("load", start);
 
     // Phase 0: DaemonSet pre-deduction (ballast water)
     let net_nodes = pre_deduct_daemonsets(&raw_nodes, &daemon_sets);
@@ -218,9 +219,11 @@ fn run_plan(
             fitness_weights.unplaced.per_pod, fitness_weights.unplaced.per_gpu,
         );
     }
+    let phase1 = Instant::now();
     let mut seed = seed_blueprint(admission, order.as_deref(), &pods, &planning_nodes);
     score(&mut seed, &pods, &planning_nodes, &groups, &fitness_weights);
     eprintln!("Phase 1 (FFD): seed fitness = {:.4}", seed.fitness);
+    report_duration("Phase 1", phase1);
 
     // Phase 2: GA optimization (evolutionary stowage planning)
     let mut best = if no_ga {
@@ -239,8 +242,10 @@ fn run_plan(
     };
     if let Some(order) = &order {
         // WHY: the GA moves Pods without knowing the in-order rule (IR v1 §4.1).
+        let rule = Instant::now();
         best = enforce_in_order_rule(&best.assignment, &pods, &planning_nodes, order);
         score(&mut best, &pods, &planning_nodes, &groups, &fitness_weights);
+        report_duration("in-order rule", rule);
     }
 
     let elapsed = start.elapsed().as_secs_f64();
@@ -275,9 +280,20 @@ fn optimize(
     // WHY: auto-scale GA params based on problem size (ga_estimation.md §3).
     let mut ga_config = select_ga_config(pods.len());
     ga_config.free_admission = free_admission;
+    let ga = Instant::now();
     let outcome = run_ga(seed, pods, nodes, groups, &ga_config, weights);
     report_ga_termination(&outcome, &ga_config);
+    report_duration("Phase 2 (GA)", ga);
     outcome.best
+}
+
+/// Print how long one part of the run took, for cost measurements (backlog X-5).
+///
+/// ```ignore
+/// report_duration("Phase 1", phase1_start); // Timing: Phase 1 0.42 s
+/// ```
+fn report_duration(part: &str, since: Instant) {
+    eprintln!("Timing: {part} {:.2} s", since.elapsed().as_secs_f64());
 }
 
 /// The Phase 1 placement for the admission mode: FFD, in-order admission, or FFD that

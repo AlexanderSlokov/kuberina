@@ -279,4 +279,12 @@ fn no_ga_stops_after_the_walk_and_writes_a_blueprint() {
         blueprint.contains("admission: in-order\n  unplaced: 2\n"),
         "{blueprint}"
     );
+    // X-5 times each phase from these lines.
+    for phase in [
+        "Timing: load ",
+        "Timing: Phase 1 ",
+        "Timing: in-order rule ",
+    ] {
+        assert!(stderr.contains(phase), "missing {phase:?} in {stderr}");
+    }
 }
