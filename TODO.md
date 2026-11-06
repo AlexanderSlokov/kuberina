@@ -1,125 +1,159 @@
 # TODO
 
-Hand-off for the next session. Branch `24-challenge-alibaba`, updated 2026-11-06.
-Remove an item once it is done or moved into `BACKLOG.md`.
+This page tells the Founder and the next agent what to do next on branch
+`24-challenge-alibaba`. The branch works on
+[issue #24](https://github.com/AlexanderSlokov/kuberina/issues/24), which runs Kuberina on
+Alibaba's production GPU trace and reports the result beside the published figures. To use
+this page, find your section and start at its first item. Remove an item when it is done or
+when `BACKLOG.md` holds it. Updated 2026-11-07.
 
-The plan of record is `docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`, issue
-[#24](https://github.com/AlexanderSlokov/kuberina/issues/24). Its *Progress* table shows
-the stage status, and `BACKLOG.md` holds the remaining tasks.
+The [plan for #24](docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md) is the plan of
+record. Its *Progress* table shows the status of each stage, and its section 8 lists the
+Founder's decisions. `BACKLOG.md` holds the files and the done-when condition of each task.
+
+## Terms
+
+The following table defines the terms that this page uses:
+
+| Term | Meaning |
+|---|---|
+| _Walk_ | The solver's in-order placement. It takes Pods in arrival order and gives each one the node that fits it best. |
+| _Repair_ | A step of the walk. When a Pod fits nowhere, the walk moves one admitted Pod to another node to make room. |
+| _In-order admission_ | A rejected Pod stays rejected, and the next Pod is tried. Set it with `--admission in-order`. |
+| _Free admission_ | The solver may choose any set of Pods to place. Set it with `--admission free`. |
+| _First-fit decreasing (FFD)_ | The solver's other placement, which takes large Pods first. |
+| _Genetic algorithm (GA)_ | The solver's search phase, which runs after the walk or FFD. |
+| _Fragmentation Gradient Descent (FGD)_ | The scheduling policy published with the Alibaba trace. It is the comparison target. |
+| _E1 to E5_ | The five experiments of #24, defined in the plan, Stage 6. |
+| _MSC Irina_ | Kuberina's own benchmark cluster, which has 620 nodes and 2,714 Pods. |
 
 ## For the Founder
 
-These tasks belong to the Founder. Agents prepare material for them and do not decide
-them:
+These tasks belong to the Founder. Agents prepare material for them and do not decide them:
 
 1. **Discuss and complete
-   [RFC-0001](docs/explanation/rfc/0001-chia-tang-va-lo-trinh-thay-doi.md).** It records,
-   in Vietnamese, the ideas of 2026-11-06: decompose the problem as stowage planning does,
-   leave the second tier's algorithm open, and plan the order of workload changes. Its
-   section *Câu hỏi mở* lists the questions to settle. The RFC stays out of `ROADMAP.md`
-   until this debate ends.
-1. **Decide how E3 runs, before its runs start.** At `e5f520f`, free admission is feasible
-   but ends at 6,799 Pods and 93.05% GPU, behind the in-order walk's 8,312 Pods and 94.34%,
-   after 1,314 s and all 1,000 generations. It starts from FFD. Two options: seed it from
-   the walk, which elitism keeps from ending worse, and make its place move pick only nodes
-   the Pod fits. Either one changes E3's meaning.
-1. **Decide on an FGD-scored walk (proposed "E2b").** At `e5f520f`, the walk reaches 94.34%
-   GPU allocation at 130%, between FGD (95.29%) and Best-Fit (93.13%); first rejection at
-   index 7,775 against FGD's 7,885. A walk that scores nodes by FGD's fragmentation
-   measure, plus the depth-1 repair, would isolate what re-planning is worth. It is a
-   post-hoc variant, so it is reported beside the pre-registered result. Open it in plan
-   mode if approved.
-1. **Decide whether a tie counts as the GA losing.** ADR-0003 says "at or after"; X-7
-   applies this rule.
-1. **Decide on three derived files and folders the repository keeps:**
-    - `docs/references/PAPER.pdf` dates from 2026-07-26, and `PAPER.md` has changed since.
-      No document links to the PDF. Regenerate it or remove it.
+   [RFC-0001](docs/explanation/rfc/0001-chia-tang-va-lo-trinh-thay-doi.md).** The RFC records,
+   in Vietnamese, the ideas of 2026-11-06: split the problem into tiers as stowage planning
+   does, leave the second tier's algorithm open, and plan the order of workload changes. Its
+   section *Câu hỏi mở* lists the questions to settle. The RFC enters `ROADMAP.md` after this
+   discussion.
+1. **Decide on a walk scored by FGD's measure (proposed as E2b).** It would use FGD's
+   fragmentation score to choose nodes, and so isolate what the repair is worth. It came after
+   the first results, so it is reported beside the planned experiments. Agents open it in
+   plan mode if you approve it.
+1. **Confirm that a tie counts as the GA losing.**
+   [ADR-0003](docs/explanation/adr/0003-ga-must-beat-the-walk.md) says that the GA loses when
+   the walk's first rejection comes "at or after" the GA's boundary. X-7 applies this rule.
+1. **Decide on crossover after X-8.** The GA's uniform crossover breached capacity in 135 to
+   160 of 300 trials (`2026-11-06-free-ga-moves.md`, at `99a4b8a`). Decision 12 does not cover
+   it, and X-8 reports its rate after the change.
+1. **Decide on three sets of derived files:**
+    - `docs/references/PAPER.pdf` dates from 2026-07-26, and `PAPER.md` has changed since. No
+      document links to the PDF. Regenerate it or remove it.
     - `research/testdata/irina_*.yaml` comes from `make research-generate-testdata`. The
-      `full-pipeline` target also regenerates it, and it differs from the solver's copy.
-    - `*.out` in `.gitignore` also hides six small raw files in
-      `docs/plans/benchmarks/alibaba-gpu-v2023/x1-seed42/`. Add an exception to keep them
-      as evidence, or leave them out.
+      `full-pipeline` target regenerates it too, and it differs from the solver's copy. Keep
+      it or generate it on demand.
+    - The `*.out` rule in `.gitignore` also hides six small raw files in
+      `docs/plans/benchmarks/alibaba-gpu-v2023/x1-seed42/`. Add an exception to keep them as
+      evidence, or leave them out.
 
-## Done
+## For the next agent
 
-Everything below is committed and pushed. Each item names its commit and its session
-record in `docs/references/sessions/`:
+Work through these tasks in order. E1 needs X-9 only, so it can run before X-8 and X-10 are
+done:
 
-| Item | What it delivered | Commit | Record |
-|---|---|---|---|
-| X-1 | The FGD simulator reproduces the published seed-42 figures exactly | `0e30c94` | `2026-10-31-fgd-simulator-calibration.md` |
-| K-3 (#26) | Affinity rules reach the solver, the inspector checks them, MSC Irina is IR v1 | `096177e` | `2026-11-01-irina-with-affinity.md` |
-| X-2 | Trace adapter `bench/alibaba/`; seed-42 IR: 1,213 nodes, 10,866 Pods, 8,075,080 milli-GPU | `df5895e` | `2026-11-01-alibaba-trace-adapter.md` |
-| X-3 | `gpuDevices` and `gpuMilli` (IR v1 §2, §3.4): GPUs checked device by device | `e6acca3` | `2026-11-01-per-device-gpu.md` |
-| X-4 | `arrival`, `unplaced:`, `--admission in-order \| free` (IR v1 §3.5, §4.1) | `cfee303` | `2026-11-01-admission.md` |
-| X-5 | Phase timing lines; breach fix `e5f520f`; measured cost: walk 15 s, GA solve 196 s, free solve 1,314 s | `624db06`, `e5f520f` | `2026-11-03-alibaba-scale-check.md` |
-| S-2 | Stranded GPU in fragmentation and the walk; weights 2,328 per Pod and 46,560 per GPU on seed 42; free-admission trade; `--no-ga` | `112be75` | `2026-11-03-objective-weights.md` |
-
-Decisions the maintainer made, recorded in the plan, §8:
-
-- 2026-11-01: finish #24 before the performance work (S-1). In-order admission means
-  skip and continue. Arrival order is the IR field `arrival`. `kuberina-forge out`
-  refuses a blueprint with unplaced Pods.
-- 2026-11-02: fragmentation counts milli-GPU stranded on devices, in fitness and in the
-  walk. The unplaced-Pod charge keeps its dominance formula, computed on the instance.
-  Free admission gains a swap operator. E1 is one in-order walk per seed, with a
-  binary-search cross-check on seed 42 only. The GA is deprecated, sunset, and removed
-  if it finds no later first rejection than the walk
-  ([ADR-0003](docs/explanation/adr/0003-ga-must-beat-the-walk.md)).
-
-## Next, in order
-
-The task rows in `BACKLOG.md`, section *External validation on the Alibaba GPU trace*,
-hold the files and done-when conditions:
-
-1. **X-6: experiments E1–E5** over seeds 42–51. The simulator needs 27 more cells for
-   seeds 43–51 (see *Things to know*). E3 waits on the Founder's decision above.
-1. **X-7: E1 cross-check on seed 42.** Its result decides the GA's future (ADR-0003).
+1. **X-8:** make the GA's place, move, and swap operators choose targets where the Pod fits,
+   and start the initial population without a breach.
+1. **X-9:** add `--no-repair`, so that the walk can run by FGD's rule.
+1. **X-10:** start free admission from the walk.
+1. **Repeat the Stage 5 solves** on the changed solver, and replace the budget rows in the
+   plan, section 6.
+1. **X-6:** run E1 to E5 over seeds 42 to 51. The simulator needs 27 more cells for seeds 43
+   to 51.
+1. **X-7:** run the E1 cross-check on seed 42. Its result decides the GA's future under
+   ADR-0003.
 
 ## Later, outside #24
 
-- **S-1:** open a GitHub issue, then resolve affinity targets and spread groups to
-  indices once at load. The temporary timing example `solver/examples/fitness_timing.rs`
-  stays uncommitted on purpose until then.
-- **K-2:** topology spread ignores `topology.kubernetes.io/zone`.
-- **P-1:** correct PAPER §7 with the MSC Irina results of `096177e`, then close #26.
-- **The research Python parser** (`research/src/kuberina/parser.py`) does not read
-  `gpuDevices`, `gpuMilli`, or `arrival`. `ir-v1.md` still lists it as an
-  implementation. Either update it or say in the spec that it covers the pre-X-3
-  surface only.
-- **Documentation for users:** README describes shared GPUs and admission in one
-  bullet each. A how-to guide for either does not exist yet (`docs/how-to/`).
+The following tasks wait until #24 ends:
 
-## Things to know before continuing
+- **S-1:** open a GitHub issue, then resolve affinity targets and spread groups to indices
+  once at load. The example `solver/examples/fitness_timing.rs` measures the cost.
+- **K-2:** make topology spread read `topology.kubernetes.io/zone`, which it ignores.
+- **P-1:** correct PAPER section 7 with the MSC Irina results of `096177e`, then close
+  [issue #26](https://github.com/AlexanderSlokov/kuberina/issues/26).
+- **Research parser:** `research/src/kuberina/parser.py` does not read `gpuDevices`,
+  `gpuMilli`, or `arrival`, and `docs/references/ir-v1.md` still lists it as an
+  implementation. Update the parser, or state in the specification that it covers the
+  surface before X-3.
+- **User documentation:** `README.md` describes shared GPUs and admission in one bullet
+  each. Write a how-to guide for each in `docs/how-to/`.
 
-- **The simulator lived in `/tmp` and is gone after a reboot.** The committed logs in
-  `docs/plans/benchmarks/alibaba-gpu-v2023/x1-seed42/` are enough for the adapter. To
-  rebuild the simulator:
+## Before you continue
 
-    ```shell
-    git clone https://github.com/hkust-adsl/kubernetes-scheduler-simulator.git fgd-sim
-    git -C fgd-sim checkout 8f3d6417353c5083c6d56617f255fadd8dc306bc
-    cd fgd-sim && PATH=$HOME/sdk/go1.26.1/bin:$PATH make
-    uv venv --python 3.10 .venv && VIRTUAL_ENV=.venv uv pip install -r requirements.txt
-    ```
+The following facts save time on this branch.
 
-    Then prepare the trace and run cells as described in
-    `2026-10-31-fgd-simulator-calibration.md`. The command file is
-    `x1-seed42/cells_seed42.sh`. Set `GODEBUG=randseednop=0`.
-- **The trace CSV files are not in the repository.** `make bench-alibaba-fetch`
-  downloads them at the pinned commit into `bench/alibaba/data/`, and Git ignores it.
-- **Go is not on the default `PATH`.** The SDK is at `~/sdk/go1.26.1/bin`; run
-  `PATH=$HOME/sdk/go1.26.1/bin:$PATH make test`.
-- **One simulator cell takes about 36 minutes and 2.4–3.2 GB of RAM.** Ten seeds for
-  three policies is 30 cells, about 6 hours with three in parallel on this machine.
-- **The E1 baseline exists for seed 42.** Each policy's first rejection: FGD at 94.89%
-  of arrived GPU demand, Best-Fit at 92.86%, Random at 42.60%.
-- **The trace has arrivals only,** so E1 can use arrival prefixes.
-- **Stopping a background solver from zsh:** `grep -m1 <pattern> <(tail -f err.txt)`
-  waits for the `tail` to end in zsh, so the solver kept running. Kill by PID, and
-  never `pkill -f kuberina-solver`: it matches the shell running the command.
-- **MSC Irina is the regression check for every solver change.** Without
-  `--admission`, the FFD seed fitness must stay 1,587,653.1260 (full packing) and
-  2,311,466.1293 (`--headroom 20`). The line appears within 90 seconds of the start.
-- **Run `black` only on the files you changed.** Running it over `bench/tests` reformats
-  unrelated files.
+### Run the tests
+
+Go is not on the default `PATH`. To run every test, use this command:
+
+```shell
+PATH=$HOME/sdk/go1.26.1/bin:$PATH make test
+```
+
+Run `black` only on the files you changed. Running it over `bench/tests` reformats unrelated
+files.
+
+### Check the solver for regressions
+
+MSC Irina is the regression check for every solver change. Without `--admission`, the FFD
+seed fitness stays 1,587,653.1260 for full packing and 2,311,466.1293 with `--headroom 20`.
+The line appears within 90 seconds of the start.
+
+### Stop a background solver
+
+Stop a background solver by its process ID. The command `pkill -f kuberina-solver` also
+matches the shell that runs it, and it kills that shell. In `zsh`, the pattern
+`grep -m1 <pattern> <(tail -f <log>)` waits for `tail` to end, so the solver keeps running.
+
+### Get the trace
+
+The trace CSV files are not in the repository. The command `make bench-alibaba-fetch`
+downloads them at the pinned commit into `bench/alibaba/data/`, which Git ignores. The
+experiments use arrivals only, because the simulator's script drops the trace's
+`deletion_time` column (`2026-10-31-fgd-simulator-calibration.md`).
+
+### Rebuild the simulator
+
+The FGD simulator lived in `/tmp`, so it is gone after a reboot. The logs in
+`docs/plans/benchmarks/alibaba-gpu-v2023/x1-seed42/` are enough for the adapter. X-6 needs
+the simulator, so rebuild it in the repository root, where Git ignores `fgd-sim/`. These
+commands come from X-1, and they have not been run again since:
+
+```shell
+git clone https://github.com/hkust-adsl/kubernetes-scheduler-simulator.git fgd-sim
+git -C fgd-sim checkout 8f3d6417353c5083c6d56617f255fadd8dc306bc
+cd fgd-sim && PATH=$HOME/sdk/go1.26.1/bin:$PATH make
+uv venv --python 3.10 .venv && VIRTUAL_ENV=.venv uv pip install -r requirements.txt
+```
+
+To prepare the trace and run cells, follow `2026-10-31-fgd-simulator-calibration.md`. The
+command file is `docs/plans/benchmarks/alibaba-gpu-v2023/x1-seed42/cells_seed42.sh`. Set
+`GODEBUG=randseednop=0`. One cell takes about 36 minutes and 2.4 to 3.2 GB of RAM. Ten seeds
+for three policies is 30 cells, about 6 hours with three in parallel on this machine.
+
+## Completed
+
+The following table lists finished work. Each row names the commit that delivered or measured
+it, and its session record in `docs/references/sessions/`:
+
+| Item | Result | Commit | Record |
+|---|---|---|---|
+| X-1 | The FGD simulator reproduces the published seed-42 figures | `0e30c94` | `2026-10-31-fgd-simulator-calibration.md` |
+| K-3 | Affinity rules reach the solver, the inspector checks them, and MSC Irina is IR v1 | `096177e` | `2026-11-01-irina-with-affinity.md` |
+| X-2 | The trace adapter `bench/alibaba/` writes seed 42 as IR: 1,213 nodes, 10,866 Pods, 8,075,080 milli-GPU | `df5895e` | `2026-11-01-alibaba-trace-adapter.md` |
+| X-3 | `gpuDevices` and `gpuMilli` check GPUs device by device | `e6acca3` | `2026-11-01-per-device-gpu.md` |
+| X-4 | `arrival`, `unplaced:`, and `--admission in-order` or `free` | `cfee303` | `2026-11-01-admission.md` |
+| S-2 | Stranded GPU counts in fragmentation and the walk; seed-42 weights are 2,328 per Pod and 46,560 per GPU; free admission has a trade move; `--no-ga` exists | `112be75` | `2026-11-03-objective-weights.md` |
+| X-5 | One seed-42 solve costs 14.62 s for the walk, 196.42 s with the GA, and 1,313.81 s under free admission | `e5f520f` | `2026-11-03-alibaba-scale-check.md` |
+| GA probe | Place, move, and swap breach capacity on a nearly full cluster; the walk's lead over Best-Fit comes from its repair | `99a4b8a` | `2026-11-06-free-ga-moves.md` |

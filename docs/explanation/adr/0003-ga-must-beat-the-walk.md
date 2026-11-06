@@ -1,6 +1,6 @@
 # ADR-0003 — The genetic algorithm stays only if it beats the in-order walk
 
-**Status:** Accepted — 2026-11-02
+**Status:** Accepted — 2026-11-02, amended 2026-11-07
 **Deciders:** Dinh Tan Dung
 **Affects:** `solver/src/phase2_ga.rs`, `solver/src/admission.rs`, the #24 plan
 (`docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`), experiment E1, issue
@@ -65,9 +65,22 @@ unknown until X-5 measures it.
 1. If the GA-based search finds a later boundary, the GA stays, and the size of its gain
    is recorded next to its cost.
 
+### Amendment of 2026-11-07
+
+A probe on the seed-42 instance showed that the GA's place move breached capacity in 300
+of 300 trials, and that its move and swap operators breached in 179 to 295 of 300, because
+they choose targets without checking the fit
+(`docs/references/sessions/2026-11-06-free-ga-moves.md`). A verdict at that point would
+judge those moves. The following changes apply:
+
+1. The moves are repaired before the seed-42 cross-check runs (plan, decision 12). The
+   weights and GA settings stay.
+1. E1 reports the walk with and without repair (plan, decision 13). The verdict in this
+   ADR keeps comparing the GA with the walk with repair, because both may re-plan.
+
 ## Consequences
 
-- E1 costs one solve per seed. The solver needs a way to stop after the walk, so that
+- E1 costs two walks per seed since the amendment. The solver needs a way to stop after the walk, so that
   E1 does not pay for a GA that cannot change its result.
 - The binary search changes from the headline method to a cross-check. Its probe count
   and cost are reported from the seed-42 run.
@@ -92,4 +105,5 @@ unknown until X-5 measures it.
 - `docs/references/sessions/2026-11-01-irina-with-affinity.md`
 - `docs/references/sessions/2026-09-06-ga-early-stop-threshold.md`
 - `docs/references/sessions/2026-11-01-admission.md`
+- `docs/references/sessions/2026-11-06-free-ga-moves.md`
 - `docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`, §4 Stage 6 and §8

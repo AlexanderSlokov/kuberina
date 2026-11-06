@@ -12,7 +12,7 @@ Every figure that reaches `PAPER.md` first appears in a session record under
 
 ## Progress
 
-Updated 2026-11-06. Each finished stage has a session record:
+Updated 2026-11-07. Each finished stage has a session record:
 
 | Stage | Status | Record |
 |---|---|---|
@@ -22,8 +22,9 @@ Updated 2026-11-06. Each finished stage has a session record:
 | 4. Admission (G2, G3) | Done | `docs/references/sessions/2026-11-01-admission.md` |
 | S-2. Objective weights on this instance | Done | `docs/references/sessions/2026-11-03-objective-weights.md` |
 | 5. Scale check | Done | `docs/references/sessions/2026-11-03-alibaba-scale-check.md` |
-| 6. Experiments E1–E5 | Next | — |
-| 6a. E1 cross-check and GA verdict, seed 42 | Next | — |
+| 5a. Solver changes from decisions 12–14 | Next | Evidence: `docs/references/sessions/2026-11-06-free-ga-moves.md` |
+| 6. Experiments E1–E5 | Waits on stage 5a | — |
+| 6a. E1 cross-check and GA verdict, seed 42 | Waits on stage 5a | — |
 | 7. Paper section | Waits on stage 6 | — |
 
 S-2 fixed the weights on 2026-11-03. One run on the trace went past its intended stop
@@ -64,13 +65,16 @@ When the plan is complete, PAPER.md gains one evaluation section with evidence:
    tolerance.
 2. **How Kuberina compares under arrival order.** Pods arrive in the same seeded order
    the simulator uses, and Kuberina may choose only *where* each one goes. We report how
-   far each policy gets before it first rejects a pod.
+   far each policy gets before it first rejects a pod. The walk without repair follows
+   FGD's rule, so it is the like-for-like figure. The walk with repair is reported beside
+   it, as the worth of moving one admitted Pod.
 3. **What re-planning is worth.** We report Kuberina's GPU allocation at 130% of
    capacity under in-order admission, next to FGD's 95.39%. Kuberina may move pods it
    has already placed and FGD may not, so the label on the figure says so.
-4. **The offline ceiling.** We report the best allocation Kuberina reaches when it may
-   choose freely which pods to admit. The paper presents this figure as an upper
-   bound.
+4. **The best offline result found.** We report the best allocation Kuberina reaches
+   when it may choose freely which pods to admit. A heuristic's result is a lower bound
+   on what free admission can reach, so the paper does not call it a ceiling. The only
+   upper bound the plan claims is the trivial one, min(100%, demand).
 5. **The cost.** We report wall clock per run against the simulator's per-decision
    latency. If a solve takes minutes, the paper says that Kuberina cannot stand in for
    `kube-scheduler`.
@@ -217,6 +221,27 @@ record wall clock and memory before committing to the experiment grid.
 **Done when:** a session record gives a measured cost per solve. §6 is then re-budgeted
 from that number.
 
+### Stage 5a — Solver changes from decisions 12–14
+
+The seed-42 runs of Stage 5 and the probe in
+`docs/references/sessions/2026-11-06-free-ga-moves.md` showed that the GA's blind moves
+fail on a nearly full cluster, that free admission ends behind the walk, and that the
+walk's lead over Best-Fit comes from its repair. Decisions 12–14 respond. Each task is in
+`BACKLOG.md`:
+
+- **X-8.** The place, move, and swap operators choose only targets where the Pod fits,
+  and the initial population starts without a breach. Weights and GA settings stay as
+  they are. On the seed-42 walk and FFD seed, no unplaced Pod fits anywhere, so the place
+  move does nothing until a trade or an unplace makes room. This change stops blind moves
+  from discarding a child. It does not promise a gain. Uniform crossover also breaches,
+  in 135 to 160 of 300 trials, and stays out of the decision's scope. X-8 reports its
+  breach rate after the change, and the maintainer decides on it.
+- **X-9.** A solver flag runs the in-order walk without its depth-1 repair.
+- **X-10.** Free admission starts from the walk.
+
+**Done when:** the three rows are complete, and the Stage 5 solves are repeated so that §6
+holds the cost of the changed solver.
+
 ### Stage 6 — Experiments
 
 All runs use `default` with seeds 42–51, the published seed set. Nothing is reported for
@@ -224,16 +249,19 @@ fewer than ten seeds without saying so.
 
 | ID | Question | Kuberina mode | Compared against | Metric |
 |---|---|---|---|---|
-| **E1** (headline) | How far does each policy get before it first rejects a pod? | One `in-order` walk per seed; the first Pod it rejects (ADR-0003). | First `failed to schedule` line in each policy's log | Arrived GPU % at first rejection, mean ± stdev over seeds |
+| **E1** (headline) | How far does each policy get before it first rejects a pod? | Two `in-order` walks per seed, without repair and with it; the first Pod each rejects (ADR-0003, decision 13). | First `failed to schedule` line in each policy's log | Arrived GPU % at first rejection, mean ± stdev over seeds |
 | **E2** | What is moving placed pods worth? | `in-order` on the full 130% set | Published 130% allocation for each policy | GPU allocation %, plus pods rejected |
-| **E3** | What is the offline ceiling? | `free` on the full 130% set | — (upper bound) | GPU allocation %, and the trivial bound min(100%, demand) |
+| **E3** | What is the best offline result found? | `free` on the full 130% set, starting from the walk (decision 14) | E2, which E3 starts from | GPU allocation %, and the trivial bound min(100%, demand) |
 | **E4** | What does it cost? | E2 runs | Simulator wall clock per seed | Seconds per run, and seconds per placed pod |
 | **E5** (referee cross-check) | Does the simulator agree with our inspector? | Kuberina's E2 placements, loaded back into the simulator if it accepts pre-bound pods | Inspector verdict | Allocation and fragmentation as *the simulator* computes them |
 
 E1 is chosen as the headline because it is the only metric where neither side has an
 information advantage over the other: both see the same pods in the same order, and the
-number is the point where they first fail. Kuberina's walk may move one admitted Pod to
-make room, which FGD may not; the paper states this beside the number.
+number is the point where they first fail. FGD cannot move a Pod it has placed, so the walk
+without repair is the like-for-like figure. The walk with repair may move one admitted
+Pod to make room, and the paper reports it beside the first figure as the worth of that
+move. On seed 42, the repair moves the first rejection from arrival index 7,653 to 7,775,
+past Best-Fit's 7,727 (`docs/references/sessions/2026-11-06-free-ga-moves.md`).
 
 **E1 cross-check (Stage 6a, seed 42 only, after Stage 5).** A binary search over arrival
 prefixes finds the longest prefix placed in full when the solver re-plans each prefix
@@ -264,8 +292,13 @@ with a record, the claim is wrong.
 These are stated now so the paper does not have to discover them later:
 
 - **Offline against online.** E2 and E3 measure a different problem from the one FGD
-  solves. Only E1 is like for like, and even E1 lets Kuberina re-plan the prefix from
-  scratch.
+  solves. Only E1 without repair is like for like. With repair, the walk moves Pods inside
+  the plan, and a running cluster would have to restart them.
+- **Changes after seeing results.** Decisions 12–14 came after Kuberina's first runs on
+  seed 42, which departs from the stance that the protocol is fixed first. They change how
+  the GA searches, what E1 reports, and where E3 starts. They leave the weights and GA
+  settings alone. The paper states this, and the earlier results stay in the session
+  records.
 - **Departures.** Resolved on 2026-10-31: `data/pod_csv_to_yaml.py` writes no
   deletion-time annotation (lines 119–120 are commented out), so the benchmark contains
   arrivals only and E1 can use arrival prefixes.
@@ -285,7 +318,8 @@ These are stated now so the paper does not have to discover them later:
 
 Stage 5 measured one solve on seed 42 at `e5f520f`
 (`docs/references/sessions/2026-11-03-alibaba-scale-check.md`). Ten-seed figures multiply
-that cost; other seeds may differ.
+that cost; other seeds may differ. Stage 5a changes the GA and the start of E3, so it
+replaces the E2, E3, and cross-check rows.
 
 | Item | Cost |
 |---|---|
@@ -350,3 +384,16 @@ Settled by the maintainer on 2026-11-02, for S-2 and Stage 6:
 11. **The GA must beat the walk.** If the seed-42 cross-check finds no later boundary
     with the GA than the walk's first rejection, the GA is planned for deprecation,
     sunset, and removal (ADR-0003).
+
+Settled by the maintainer on 2026-11-07, after the seed-42 runs of Stage 5 and the probe in
+`docs/references/sessions/2026-11-06-free-ga-moves.md`:
+
+12. **The GA's moves are repaired before E3 and the GA's verdict.** Place, move, and swap
+    choose targets where the Pod fits, and the initial population starts without a breach.
+    Weights and GA settings stay. ADR-0003 needs a GA whose moves work before it judges
+    the GA.
+13. **E1 reports the walk with and without repair.** The walk without repair is compared
+    with FGD, because neither moves a placed Pod. The walk with repair shows what moving
+    one admitted Pod is worth.
+14. **E3 starts from the walk.** Elitism keeps the result from ending behind its start, so
+    the gap to E2 measures what free choice adds. The result is reported as the best found.

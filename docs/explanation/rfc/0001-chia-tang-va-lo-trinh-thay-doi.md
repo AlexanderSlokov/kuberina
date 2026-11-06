@@ -174,6 +174,14 @@ số Pod đều không còn gì để thắng. Theo ADR-0003, trên MSC Irina fr
 fitness còn affinity chỉ 0,30%. Trong điều kiện đó, SA có thể cũng chỉ giảm vài phần tỷ. Vì
 vậy câu hỏi "tầng 2 cần tối ưu cái gì" nên được trả lời trước câu "dùng thuật toán gì".
 
+**Đã đo thêm, cũng trong ngày 2026-11-06: các toán tử của GA là một giới hạn khác, và rất có
+thể lớn hơn.** Theo `docs/references/sessions/2026-11-06-free-ga-moves.md`, trên cluster gần
+đầy, toán tử đặt Pod vi phạm sức chứa 300/300 lần, còn di chuyển và hoán đổi vi phạm 60% đến
+98% số lần, vì chúng chọn node mà không kiểm tra Pod có vừa không. Vì vậy, kết quả yếu của GA
+trên trace chưa đủ để kết luận về hàm mục tiêu hay về bản thân GA. SA dùng các nước đi mù
+tương tự cũng sẽ gặp đúng vấn đề này. Bài học cho tầng 2: nước đi phải hiểu ràng buộc, bất kể
+chọn thuật toán nào.
+
 Một lưu ý về chi phí: SA thường cần rất nhiều bước đơn lẻ. Với 3,676 ms mỗi lần đánh giá
 toàn bộ, một triệu bước tốn khoảng một giờ nếu chạy tuần tự. SA chỉ thực tế khi có đánh giá
 gia tăng, là việc đã có trong mục *Fitness evaluation cost* của ROADMAP (S-1 trong

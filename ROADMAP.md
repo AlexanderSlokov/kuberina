@@ -51,6 +51,7 @@ The frontend "Forge" component. Scope is fixed by [ADR-0001](docs/explanation/ad
   - *Per-device GPU model:* a fractional GPU request must fit on a single device. **Shipped.**
   - *Admission:* the solver can leave pods unplaced when demand exceeds capacity, in arrival order or freely. **Shipped.**
   - *Objective weights for the trace:* derive every weight, the unplaced-Pod charge included, from the Alibaba instance, count milli-GPU stranded on devices, and fix them before Kuberina's first run on it. **Shipped.**
+  - *GA moves that respect capacity:* place, move, and swap choose targets where the Pod fits, before the GA is judged on the trace.
   - *The GA's verdict:* on seed 42, compare the in-order walk with a GA-based re-plan. If the GA finds no later first rejection, deprecate, sunset, and remove it ([ADR-0003](docs/explanation/adr/0003-ga-must-beat-the-walk.md)).
   - *Later traces:* `cluster-trace-gpu-v2026`, then `cluster-trace-v2018`.
 
