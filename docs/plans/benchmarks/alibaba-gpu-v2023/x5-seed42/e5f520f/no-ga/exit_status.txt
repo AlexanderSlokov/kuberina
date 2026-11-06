@@ -1,0 +1,2 @@
+solver exit status: 0
+inspector exit status: 0

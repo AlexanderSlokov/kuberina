@@ -1,0 +1,113 @@
+Loaded 1213 nodes, 0 daemonsets, 10866 pods, 0 groups
+Timing: load 0.12 s
+Unplaced-Pod weights: 2328.0000 per Pod, 46560.0000 per GPU
+Phase 1 (FFD): seed fitness = 109285356.4890
+Timing: Phase 1 14.11 s
+Datacenter-scale detected (10866 pods) — cranking GA to maximum
+[2KGen    0/1000 | best=109285356.4890 | stale=1   | ░░░░░░░░░░░░░░░░░░░░ 0%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205960.72 | Aff: 0 | Var: 0.0842
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   10/1000 | best=109285356.4890 | stale=11  | ░░░░░░░░░░░░░░░░░░░░ 1%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205960.72 | Aff: 0 | Var: 0.0842
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   20/1000 | best=109285356.4882 | stale=21  | ░░░░░░░░░░░░░░░░░░░░ 2%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205960.72 | Aff: 0 | Var: 0.0838
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   30/1000 | best=109285355.4889 | stale=31  | ░░░░░░░░░░░░░░░░░░░░ 3%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0841
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   40/1000 | best=109285355.4884 | stale=41  | ░░░░░░░░░░░░░░░░░░░░ 4%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0839
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   50/1000 | best=109285355.4867 | stale=51  | █░░░░░░░░░░░░░░░░░░░ 5%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0830
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   60/1000 | best=109285355.4861 | stale=61  | █░░░░░░░░░░░░░░░░░░░ 6%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0827
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   70/1000 | best=109285355.4853 | stale=71  | █░░░░░░░░░░░░░░░░░░░ 7%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0824
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   80/1000 | best=109285355.4845 | stale=81  | █░░░░░░░░░░░░░░░░░░░ 8%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0819
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   90/1000 | best=109285355.4836 | stale=91  | █░░░░░░░░░░░░░░░░░░░ 9%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0815
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen  100/1000 | best=109285355.4829 | stale=101 | ██░░░░░░░░░░░░░░░░░░ 10%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0811
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen  110/1000 | best=109285355.4821 | stale=111 | ██░░░░░░░░░░░░░░░░░░ 11%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0807
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen  120/1000 | best=109285355.4810 | stale=121 | ██░░░░░░░░░░░░░░░░░░ 12%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0802
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen  130/1000 | best=109285355.4794 | stale=131 | ██░░░░░░░░░░░░░░░░░░ 13%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0794
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen  140/1000 | best=109285355.4779 | stale=141 | ██░░░░░░░░░░░░░░░░░░ 14%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0786
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen  150/1000 | best=109285355.4767 | stale=151 | ███░░░░░░░░░░░░░░░░░ 15%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0780
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen  160/1000 | best=109285355.4753 | stale=161 | ███░░░░░░░░░░░░░░░░░ 16%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0773
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen  170/1000 | best=109285355.4745 | stale=171 | ███░░░░░░░░░░░░░░░░░ 17%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0769
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen  180/1000 | best=109285355.4731 | stale=181 | ███░░░░░░░░░░░░░░░░░ 18%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0762
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen  190/1000 | best=109285355.4716 | stale=191 | ███░░░░░░░░░░░░░░░░░ 19%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205959.72 | Aff: 0 | Var: 0.0755
+[2K  [Nodes] Active: 1213 / 1213
+Early stop at generation 199 (gain under 0.0100% for 200 gens)
+Phase 2 (GA): converged at generation 200 of 1000 — gain stayed under 0.0100% for 200 generations
+Timing: Phase 2 (GA) 182.06 s
+Timing: in-order rule 0.08 s
+	Command being timed: "/home/stella/workspace/kuberina/solver/target/release/kuberina-solver plan --infra /home/stella/workspace/kuberina/bench/alibaba/out/seed42/infra.yaml --workloads /home/stella/workspace/kuberina/bench/alibaba/out/seed42/workloads.yaml --admission in-order"
+	User time (seconds): 1239.41
+	System time (seconds): 3.31
+	Percent of CPU this job got: 632%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:16.42
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 450472
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 120430
+	Voluntary context switches: 4816
+	Involuntary context switches: 167458
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 1248
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

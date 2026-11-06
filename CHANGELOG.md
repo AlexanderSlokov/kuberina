@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **One solve of the Alibaba seed-42 instance has a measured cost, and the solver prints
+  how long each phase takes** ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24),
+  X-5). On 1,213 nodes and 10,866 Pods at `e5f520f`, an in-order walk without the GA took
+  14.62 seconds and 40 MB, a solve with the GA 196.42 seconds and 450 MB, and a
+  free-admission solve 1,313.81 seconds and 440 MB, and the inspector found no violation in
+  any of them. The GA changed neither the admitted set nor the GPU allocation of 94.34%.
+  Free admission ended at 93.05%, behind the walk, so read its results with that gap in
+  mind. The record is `docs/references/sessions/2026-11-03-alibaba-scale-check.md`.
 - **The objective weights for the Alibaba trace are fixed, and fragmentation counts
   stranded GPU room** ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24),
   S-2). Free room on a partly used GPU device, such as 400 milli-GPU beside a 600

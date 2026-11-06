@@ -108,8 +108,9 @@ and that decision waits for real data.
 
 S-1 gets its own GitHub issue and its own work session, after #24. It does not block
 #24: the Alibaba `openb_pod_list_default` trace carries no affinity or topology spread
-rule, and those two terms hold all of the measured fitness cost. The cost on the Alibaba
-instance is measured separately by X-5.
+rule, and those two terms hold all of the measured fitness cost. The stranded-GPU term and
+the device overflow check cost the Alibaba instance 0.787 and 0.765 of 3.568 ms per
+evaluation at `e5f520f` (`docs/references/sessions/2026-11-03-alibaba-scale-check.md`).
 
 ---
 
@@ -130,9 +131,8 @@ These items run last, by the rule at the top of this file.
 
 | ID | Task | Touches | Depends on | Done when |
 |---|---|---|---|---|
-| X-5 | Scale check, including the stranded-GPU decode that every fitness evaluation now runs | `docs/references/sessions/` | — | Measured wall clock and memory for one full solve, with and without `--no-ga` |
-| X-6 | Experiments E1–E5; E1 by one in-order walk per seed (ADR-0003) | `bench/alibaba/`, `docs/references/sessions/` | X-5 | One session record per experiment, seeds 42–51 |
-| X-7 | E1 cross-check on seed 42: binary search over arrival prefixes, each probe solved by Phase 1 alone and by Phase 1 with the GA | `bench/alibaba/`, `docs/references/sessions/` | X-5 | A session record gives every probe's two verdicts and states the ADR-0003 outcome for the GA |
+| X-6 | Experiments E1–E5; E1 by one in-order walk per seed (ADR-0003) | `bench/alibaba/`, `docs/references/sessions/` | — | One session record per experiment, seeds 42–51 |
+| X-7 | E1 cross-check on seed 42: binary search over arrival prefixes, each probe solved by Phase 1 alone and by Phase 1 with the GA | `bench/alibaba/`, `docs/references/sessions/` | — | A session record gives every probe's two verdicts and states the ADR-0003 outcome for the GA |
 
 ---
 

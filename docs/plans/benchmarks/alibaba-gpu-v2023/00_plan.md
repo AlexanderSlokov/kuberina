@@ -12,7 +12,7 @@ Every figure that reaches `PAPER.md` first appears in a session record under
 
 ## Progress
 
-Updated 2026-11-03. Each finished stage has a session record:
+Updated 2026-11-06. Each finished stage has a session record:
 
 | Stage | Status | Record |
 |---|---|---|
@@ -21,9 +21,9 @@ Updated 2026-11-03. Each finished stage has a session record:
 | 3. Per-device GPU model (G1) | Done | `docs/references/sessions/2026-11-01-per-device-gpu.md` |
 | 4. Admission (G2, G3) | Done | `docs/references/sessions/2026-11-01-admission.md` |
 | S-2. Objective weights on this instance | Done | `docs/references/sessions/2026-11-03-objective-weights.md` |
-| 5. Scale check | In progress; to repeat at `e5f520f` | `docs/references/sessions/2026-11-03-alibaba-scale-check.md` (partial) |
-| 6. Experiments E1–E5 | Waits on stage 5 | — |
-| 6a. E1 cross-check and GA verdict, seed 42 | Waits on stage 5 | — |
+| 5. Scale check | Done | `docs/references/sessions/2026-11-03-alibaba-scale-check.md` |
+| 6. Experiments E1–E5 | Next | — |
+| 6a. E1 cross-check and GA verdict, seed 42 | Next | — |
 | 7. Paper section | Waits on stage 6 | — |
 
 S-2 fixed the weights on 2026-11-03. One run on the trace went past its intended stop
@@ -281,16 +281,22 @@ These are stated now so the paper does not have to discover them later:
 
 ---
 
-## 6. Budget (estimate, to be replaced by Stage 5)
+## 6. Budget
 
-| Item | Estimate |
+Stage 5 measured one solve on seed 42 at `e5f520f`
+(`docs/references/sessions/2026-11-03-alibaba-scale-check.md`). Ten-seed figures multiply
+that cost; other seeds may differ.
+
+| Item | Cost |
 |---|---|
 | Stage 1, 3 cells | ~30 min on 2 vCPU |
 | Stage 1, all 6 policies × 10 seeds, if the published values do not reproduce | ~10 h at the README's rate, parallelizable |
-| One Kuberina solve, ~10,800 pods | unknown. Scaling Irina's 185 s by pod count gives roughly 12 min, but this is not a measurement. |
-| E1, per seed | one in-order walk, without the GA (ADR-0003) |
-| E1 cross-check, seed 42 only | ~14 probes, each solved by Phase 1 alone and by Phase 1 with the GA |
-| E1 + E2 + E3, ten seeds | unknown until Stage 5 measures one solve |
+| E1, one in-order walk without the GA (ADR-0003) | 15 s per seed, about 2.5 min for ten seeds |
+| E2, one in-order solve with the GA | 196 s per seed, about 33 min for ten seeds |
+| E3, one free-admission solve | 1,314 s per seed, no early stop, about 3.7 h for ten seeds |
+| Inspector, per blueprint | about 23 s for in-order, about 10 s for free |
+| E1 cross-check, seed 42 only | ~14 probes, each solved by Phase 1 alone and by Phase 1 with the GA; prefixes are shorter than the full instance, so the upper bound is about 14 × 196 s, or 46 min. Not measured. |
+| Simulator, 27 more cells for seeds 43–51 | about 36 min per cell, about 5.4 h with three in parallel |
 
 ---
 

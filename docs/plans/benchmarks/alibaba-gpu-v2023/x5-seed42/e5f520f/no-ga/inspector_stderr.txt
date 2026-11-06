@@ -1,0 +1,23 @@
+	Command being timed: "uv run -q --with pyyaml python /home/stella/workspace/kuberina/inspector/inspector.py --infra /home/stella/workspace/kuberina/bench/alibaba/out/seed42/infra.yaml --workloads /home/stella/workspace/kuberina/bench/alibaba/out/seed42/workloads.yaml --solution kuberina_solution.yaml --output dashboard.html"
+	User time (seconds): 22.15
+	System time (seconds): 0.25
+	Percent of CPU this job got: 96%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:23.11
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 141400
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 527
+	Minor (reclaiming a frame) page faults: 44333
+	Voluntary context switches: 821
+	Involuntary context switches: 268
+	Swaps: 0
+	File system inputs: 95288
+	File system outputs: 4456
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
