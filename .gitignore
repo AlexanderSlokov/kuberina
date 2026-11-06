@@ -25,8 +25,12 @@ go.work.sum
 .env
 /solver/target
 *.html
-solver/kuberina_solution.yaml
+# The solver writes its blueprint to the directory it runs in. Benchmark records keep
+# theirs gzipped (kuberina_solution.yaml.gz), which this pattern does not match.
+kuberina_solution.yaml
 /.idea
+/.vscode
+.claude/settings.local.json
 
 # Compiled Go binaries (make forge-build)
 /bin
@@ -34,7 +38,10 @@ solver/kuberina_solution.yaml
 # Python stuffs
 .pytest_cache/
 __pycache__/
+.venv/
 
 # Alibaba trace downloads and adapter output (make bench-alibaba-fetch / -ir)
 /bench/alibaba/data/
 /bench/alibaba/out/
+# The FGD simulator clone that X-6 rebuilds, with its own Git history.
+/fgd-sim/

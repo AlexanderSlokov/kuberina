@@ -1,11 +1,44 @@
-# Todo — resume here
+# TODO
 
-Hand-off for the next session. Branch `24-challenge-alibaba`, updated 2026-11-03.
-Delete this file once its items are done or moved into `BACKLOG.md`.
+Hand-off for the next session. Branch `24-challenge-alibaba`, updated 2026-11-06.
+Remove an item once it is done or moved into `BACKLOG.md`.
 
 The plan of record is `docs/plans/benchmarks/alibaba-gpu-v2023/00_plan.md`, issue
 [#24](https://github.com/AlexanderSlokov/kuberina/issues/24). Its *Progress* table shows
 the stage status, and `BACKLOG.md` holds the remaining tasks.
+
+## For the Founder
+
+These tasks belong to the Founder. Agents prepare material for them and do not decide
+them:
+
+1. **Discuss and complete
+   [RFC-0001](docs/explanation/rfc/0001-chia-tang-va-lo-trinh-thay-doi.md).** It records,
+   in Vietnamese, the ideas of 2026-11-06: decompose the problem as stowage planning does,
+   leave the second tier's algorithm open, and plan the order of workload changes. Its
+   section *Câu hỏi mở* lists the questions to settle. The RFC stays out of `ROADMAP.md`
+   until this debate ends.
+1. **Decide how E3 runs, before its runs start.** At `e5f520f`, free admission is feasible
+   but ends at 6,799 Pods and 93.05% GPU, behind the in-order walk's 8,312 Pods and 94.34%,
+   after 1,314 s and all 1,000 generations. It starts from FFD. Two options: seed it from
+   the walk, which elitism keeps from ending worse, and make its place move pick only nodes
+   the Pod fits. Either one changes E3's meaning.
+1. **Decide on an FGD-scored walk (proposed "E2b").** At `e5f520f`, the walk reaches 94.34%
+   GPU allocation at 130%, between FGD (95.29%) and Best-Fit (93.13%); first rejection at
+   index 7,775 against FGD's 7,885. A walk that scores nodes by FGD's fragmentation
+   measure, plus the depth-1 repair, would isolate what re-planning is worth. It is a
+   post-hoc variant, so it is reported beside the pre-registered result. Open it in plan
+   mode if approved.
+1. **Decide whether a tie counts as the GA losing.** ADR-0003 says "at or after"; X-7
+   applies this rule.
+1. **Decide on three derived files and folders the repository keeps:**
+    - `docs/references/PAPER.pdf` dates from 2026-07-26, and `PAPER.md` has changed since.
+      No document links to the PDF. Regenerate it or remove it.
+    - `research/testdata/irina_*.yaml` comes from `make research-generate-testdata`. The
+      `full-pipeline` target also regenerates it, and it differs from the solver's copy.
+    - `*.out` in `.gitignore` also hides six small raw files in
+      `docs/plans/benchmarks/alibaba-gpu-v2023/x1-seed42/`. Add an exception to keep them
+      as evidence, or leave them out.
 
 ## Done
 
@@ -19,7 +52,7 @@ record in `docs/references/sessions/`:
 | X-2 | Trace adapter `bench/alibaba/`; seed-42 IR: 1,213 nodes, 10,866 Pods, 8,075,080 milli-GPU | `df5895e` | `2026-11-01-alibaba-trace-adapter.md` |
 | X-3 | `gpuDevices` and `gpuMilli` (IR v1 §2, §3.4): GPUs checked device by device | `e6acca3` | `2026-11-01-per-device-gpu.md` |
 | X-4 | `arrival`, `unplaced:`, `--admission in-order \| free` (IR v1 §3.5, §4.1) | `cfee303` | `2026-11-01-admission.md` |
-| X-5 timing | Phase timing lines; partial scale check; breach fix `e5f520f` | `624db06` | `2026-11-03-alibaba-scale-check.md` (partial) |
+| X-5 | Phase timing lines; breach fix `e5f520f`; measured cost: walk 15 s, GA solve 196 s, free solve 1,314 s | `624db06`, `e5f520f` | `2026-11-03-alibaba-scale-check.md` |
 | S-2 | Stranded GPU in fragmentation and the walk; weights 2,328 per Pod and 46,560 per GPU on seed 42; free-admission trade; `--no-ga` | `112be75` | `2026-11-03-objective-weights.md` |
 
 Decisions the maintainer made, recorded in the plan, §8:
@@ -39,25 +72,8 @@ Decisions the maintainer made, recorded in the plan, §8:
 The task rows in `BACKLOG.md`, section *External validation on the Alibaba GPU trace*,
 hold the files and done-when conditions:
 
-1. **Finish X-5 at `e5f520f`.** The record
-   `docs/references/sessions/2026-11-03-alibaba-scale-check.md` is partial. Repeat the
-   three seed-42 solves (`--admission in-order --no-ga`, `--admission in-order`,
-   `--admission free`) with `/usr/bin/time -v`, one at a time, raw output into
-   `docs/plans/benchmarks/alibaba-gpu-v2023/x5-seed42/` (replace the `624db06` files or
-   add an `e5f520f/` folder). Confirm that free admission now writes `feasible: true`,
-   run the inspector on each blueprint, fill the record's table, update the budget in
-   plan §6, then remove X-5 from `BACKLOG.md` and add a CHANGELOG line.
-    - Free admission took 1,286 s and ran all 1,000 generations at `624db06`. Its
-      place move almost always lands on a full node; consider whether that operator
-      should only pick nodes the Pod fits (a decision for the maintainer).
-1. **Ask the maintainer about an FGD-scored walk (proposed "E2b").** At `624db06`, the
-   walk reached 94.34% GPU allocation at 130%, between FGD (95.29%) and Best-Fit
-   (93.13%); first rejection at index 7,775 against FGD's 7,885. A walk that scores
-   nodes by FGD's fragmentation measure, plus the depth-1 repair, would isolate what
-   re-planning is worth. It is a post-hoc variant, so it is reported beside the
-   pre-registered result, never in its place. Open it in plan mode if approved.
 1. **X-6: experiments E1–E5** over seeds 42–51. The simulator needs 27 more cells for
-   seeds 43–51 (see *Things to know*).
+   seeds 43–51 (see *Things to know*). E3 waits on the Founder's decision above.
 1. **X-7: E1 cross-check on seed 42.** Its result decides the GA's future (ADR-0003).
 
 ## Later, outside #24
