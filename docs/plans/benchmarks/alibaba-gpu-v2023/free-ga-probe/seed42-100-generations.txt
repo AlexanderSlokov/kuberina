@@ -1,0 +1,20 @@
+FFD seed: fitness 117862657.8318, 6756 Pods placed, 5753.83 GPUs
+  unplaced Pods that fit on some node as it stands: 0 of 4110
+  place on random node     breach 300/300  better   0/300  best gain          0.0
+  move to random node      breach 295/300  better   5/300  best gain          0.0
+  swap two Pods            breach 179/300  better  97/300  best gain          0.0
+  unplace                  breach   0/300  better   0/300  best gain          0.0
+  trade                    breach   0/300  better  75/300  best gain     195459.7
+  crossover of two trades  breach 160/300  better  21/300  best gain     146614.1
+Walk seed: fitness 109285356.4890, 8312 Pods placed, 5860.27 GPUs
+  unplaced Pods that fit on some node as it stands: 0 of 2554
+  place on random node     breach 300/300  better   0/300  best gain          0.0
+  move to random node      breach 290/300  better  10/300  best gain          0.0
+  swap two Pods            breach 249/300  better  18/300  best gain          0.0
+  unplace                  breach   0/300  better   0/300  best gain          0.0
+  trade                    breach   0/300  better 163/300  best gain      92677.0
+  crossover of two trades  breach 135/300  better  36/300  best gain      51686.2
+walk with repair: first rejection at 7775, 93.40% of cluster GPU arrived
+walk without repair: first rejection Some((7653, 92.00193174501011)), 2741 rejected, 5733.55 GPUs (92.30%)
+free GA from the walk, 100 generations: fitness 109276509.7090, breach false, 8312 Pods, 5860.46 GPUs
+wall 174.62 s, peak 438300 KB
