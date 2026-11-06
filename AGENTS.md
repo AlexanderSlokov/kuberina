@@ -53,7 +53,7 @@ Raw console output belongs in `docs/plans/benchmarks/`; the session record cites
 
 ## Writing documentation
 
-These rules apply to every documentation files in this repository. They adapt the
+These rules apply to every documentation files (every `.md` files) in this repository. They adapt the
 [Kubernetes documentation style guide](https://kubernetes.io/docs/contribute/style/style-guide/)
 and the Kubernetes [page content types](https://kubernetes.io/docs/contribute/style/page-content-types/)
 to a repository that GitHub renders. In case of conflict, follow this document.
