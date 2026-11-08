@@ -23,16 +23,25 @@ pub fn trade_at_random(
     nodes: &[Node],
     rng: &mut StdRng,
 ) {
-    let gpu_pods: Vec<usize> = placements(assignment)
+    let mut packing = Packing::from_assignment(pods, nodes, assignment);
+    trade_random_gpu_pod(&mut packing, rng);
+    *assignment = packing.into_assignment();
+}
+
+/// `trade_at_random` on a packing the caller already holds (the GA's mutation, X-8).
+///
+/// ```ignore
+/// trade_random_gpu_pod(&mut packing, &mut rng);
+/// ```
+pub fn trade_random_gpu_pod(packing: &mut Packing, rng: &mut StdRng) {
+    let pods = packing.pods();
+    let gpu_pods: Vec<usize> = placements(packing.assignment())
         .map(|(pod_idx, _)| pod_idx)
         .filter(|&pod_idx| pods[pod_idx].requests.gpu > 0.0)
         .collect();
-    let Some(&declined) = gpu_pods.choose(rng) else {
-        return;
-    };
-    let mut packing = Packing::from_assignment(pods, nodes, assignment);
-    trade_one_for_several(&mut packing, declined);
-    *assignment = packing.assignment().to_vec();
+    if let Some(&declined) = gpu_pods.choose(rng) {
+        trade_one_for_several(packing, declined);
+    }
 }
 
 /// Decline Pod `declined` and refill its node with unplaced Pods, largest GPU first.

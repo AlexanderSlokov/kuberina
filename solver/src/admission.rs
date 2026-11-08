@@ -61,22 +61,52 @@ impl FromStr for Admission {
 /// let seed = admit_in_order(&pods, &nodes, &arrival_order(&pods)?);
 /// ```
 pub fn admit_in_order(pods: &[Pod], nodes: &[Node], order: &[usize]) -> Blueprint {
-    let mut packing = Packing::new(pods, nodes);
-    for &pod_idx in order {
-        admit_one(&mut packing, pod_idx);
-    }
+    let mut packing = walk_in_order(pods, nodes, order, admit_one);
     // WHY: a repair move can open room that an earlier rejected Pod could use.
     enforce_on(&mut packing, order);
     packing.into_blueprint()
 }
 
+/// In-order admission by best fit alone: no admitted Pod ever moves (`--no-repair`, X-9).
+///
+/// This is the rule an online scheduler such as FGD follows, so E1 can compare the walk
+/// with FGD by the same rule (plan #24, §8 decision 13). The in-order rule of IR v1 §4.1
+/// holds without enforcement: room on a node only shrinks after a Pod is rejected, so the
+/// Pod cannot fit in the place of a single later Pod.
+///
+/// ```ignore
+/// let seed = admit_in_order_without_repair(&pods, &nodes, &arrival_order(&pods)?);
+/// ```
+pub fn admit_in_order_without_repair(pods: &[Pod], nodes: &[Node], order: &[usize]) -> Blueprint {
+    walk_in_order(pods, nodes, order, admit_best_fit).into_blueprint()
+}
+
+/// Offer each Pod of `order` to `admit`, which places it or leaves it unplaced.
+fn walk_in_order<'a>(
+    pods: &'a [Pod],
+    nodes: &'a [Node],
+    order: &[usize],
+    admit: fn(&mut Packing, usize) -> bool,
+) -> Packing<'a> {
+    let mut packing = Packing::new(pods, nodes);
+    for &pod_idx in order {
+        admit(&mut packing, pod_idx);
+    }
+    packing
+}
+
+/// Place Pod `pod_idx` on its best-fit node; false if it fits nowhere.
+fn admit_best_fit(packing: &mut Packing, pod_idx: usize) -> bool {
+    let Some(node_idx) = packing.best_fit_node(pod_idx) else {
+        return false;
+    };
+    packing.place(pod_idx, node_idx);
+    true
+}
+
 /// Place Pod `pod_idx` best-fit, or by moving one admitted Pod; false if neither works.
 fn admit_one(packing: &mut Packing, pod_idx: usize) -> bool {
-    if let Some(node_idx) = packing.best_fit_node(pod_idx) {
-        packing.place(pod_idx, node_idx);
-        return true;
-    }
-    relocate_one(packing, pod_idx)
+    admit_best_fit(packing, pod_idx) || relocate_one(packing, pod_idx)
 }
 
 /// Depth-1 repair: move one admitted Pod off a node so that `incoming` fits there.
@@ -90,7 +120,9 @@ fn relocate_one(packing: &mut Packing, incoming: usize) -> bool {
             let pod = &packing.pods()[leaving];
             let targets = destinations
                 .entry(shape_of(pod))
-                .or_insert_with(|| fitting_nodes(packing, leaving));
+                // WHY caching by shape is exact for the repair: the repair changes only
+                // the node the moving Pod leaves, and that node is never its destination.
+                .or_insert_with(|| packing.fitting_nodes(leaving));
             let Some(&target) = targets.iter().find(|&&t| t != node_idx) else {
                 continue;
             };
@@ -101,16 +133,6 @@ fn relocate_one(packing: &mut Packing, incoming: usize) -> bool {
         }
     }
     false
-}
-
-/// Nodes Pod `pod_idx` fits as the packing stands.
-///
-/// WHY it is exact for the repair: the repair changes only the node the moving Pod
-/// leaves, and that node is never its destination.
-fn fitting_nodes(packing: &Packing, pod_idx: usize) -> Vec<usize> {
-    (0..packing.nodes().len())
-        .filter(|&node_idx| packing.fits(pod_idx, node_idx))
-        .collect()
 }
 
 /// What decides where a Pod fits; Pods of one shape fit the same nodes.
@@ -291,6 +313,19 @@ mod tests {
         let nodes = [cpu_node("five", 5.0), cpu_node("four", 4.0)];
         let bp = admit_in_order(&pods, &nodes, &[0, 1, 2]);
         assert_eq!(bp.assignment, vec![0, 0, 1]);
+    }
+
+    #[test]
+    fn without_repair_the_walk_rejects_the_pod_a_move_would_admit() {
+        // The fixture above: no admitted Pod moves, so the 4-core Pod stays out (X-9).
+        let pods = [
+            cpu_pod("three", 3.0),
+            cpu_pod("two", 2.0),
+            cpu_pod("four", 4.0),
+        ];
+        let nodes = [cpu_node("five", 5.0), cpu_node("four", 4.0)];
+        let bp = admit_in_order_without_repair(&pods, &nodes, &[0, 1, 2]);
+        assert_eq!(bp.assignment, vec![1, 0, UNPLACED]);
     }
 
     #[test]

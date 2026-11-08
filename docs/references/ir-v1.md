@@ -324,8 +324,12 @@ another, in replica order. For example, a declaration with `replicas: 3` and
 before a declaration with `arrival: 6`. Two declarations with the same `arrival` are an
 error that names both.
 
-`arrival` changes nothing unless the planner admits Pods in order. A planner that does
-treats a declaration without `arrival` as an error that names the declaration.
+Under `in-order` admission (§4.1), the planner admits Pods in this order, and a
+declaration without `arrival` is an error that names the declaration. Under `free`
+admission, the order does not restrict which Pods are placed, and a planner may use it
+to build its first placement. Kuberina does so when every declaration has `arrival`:
+it walks the Pods in this order, and it starts from first-fit decreasing (FFD)
+otherwise. Without admission, `arrival` changes nothing.
 
 ---
 
@@ -370,7 +374,7 @@ are two modes:
 
 | Mode | The planner may | Used for |
 |---|---|---|
-| `free` | choose any set of Pods to place | an upper bound on what an offline planner can place |
+| `free` | choose any set of Pods to place | the best result an offline planner finds |
 | `in-order` | decide Pod by Pod in `arrival` order (§3.5); a rejected Pod stays rejected, and the next Pod is tried | comparison with an online scheduler that sees the same order |
 
 **In-order rule.** Pod *i* is admitted if, and only if, the Pods admitted before it,

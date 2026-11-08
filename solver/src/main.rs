@@ -12,7 +12,8 @@ use std::time::Instant;
 use clap::{Parser, Subcommand};
 
 use kuberina_solver::admission::{
-    Admission, admit_in_order, enforce_in_order_rule, ffd_with_admission, gpu_allocation,
+    Admission, admit_in_order, admit_in_order_without_repair, enforce_in_order_rule,
+    ffd_with_admission, gpu_allocation,
 };
 use kuberina_solver::admission_ir::arrival_order;
 use kuberina_solver::blueprint_yaml::{BlueprintVerdict, render_blueprint_yaml};
@@ -58,6 +59,9 @@ enum Commands {
         /// Stop after Phase 1 (FFD or the admission walk) and skip the GA (ADR-0003)
         #[arg(long)]
         no_ga: bool,
+        /// Run the in-order walk by best fit alone, moving no admitted Pod (FGD's rule)
+        #[arg(long)]
+        no_repair: bool,
     },
 }
 
@@ -71,12 +75,13 @@ fn main() {
             headroom,
             admission,
             no_ga,
+            no_repair,
         } => run_plan(
             &infra,
             &workloads,
             validate_headroom(headroom),
             admission,
-            no_ga,
+            Phase1Switches { no_ga, no_repair },
         ),
     }
 }
@@ -161,7 +166,7 @@ fn run_plan(
     workloads_path: &str,
     headroom: Option<f64>,
     admission: Option<Admission>,
-    no_ga: bool,
+    switches: Phase1Switches,
 ) {
     let start = Instant::now();
 
@@ -177,12 +182,8 @@ fn run_plan(
         eprintln!("Error in GPU device inputs: {e}");
         std::process::exit(1);
     });
-    let order = (admission == Some(Admission::InOrder)).then(|| {
-        arrival_order(&pods).unwrap_or_else(|e| {
-            eprintln!("Error in arrival order: {e}");
-            std::process::exit(1);
-        })
-    });
+    let order = walk_order(admission, &pods);
+    check_no_repair(switches.no_repair, order.is_some());
 
     eprintln!(
         "Loaded {} nodes, {} daemonsets, {} pods, {} groups",
@@ -220,13 +221,19 @@ fn run_plan(
         );
     }
     let phase1 = Instant::now();
-    let mut seed = seed_blueprint(admission, order.as_deref(), &pods, &planning_nodes);
+    let mut seed = seed_blueprint(
+        admission,
+        order.as_deref(),
+        switches.no_repair,
+        &pods,
+        &planning_nodes,
+    );
     score(&mut seed, &pods, &planning_nodes, &groups, &fitness_weights);
     eprintln!("Phase 1 (FFD): seed fitness = {:.4}", seed.fitness);
     report_duration("Phase 1", phase1);
 
     // Phase 2: GA optimization (evolutionary stowage planning)
-    let mut best = if no_ga {
+    let mut best = if switches.no_ga {
         eprintln!("Phase 2 (GA): skipped (--no-ga)");
         seed
     } else {
@@ -240,7 +247,7 @@ fn run_plan(
             free_admission,
         )
     };
-    if let Some(order) = &order {
+    if let (Some(Admission::InOrder), Some(order)) = (admission, &order) {
         // WHY: the GA moves Pods without knowing the in-order rule (IR v1 §4.1).
         let rule = Instant::now();
         best = enforce_in_order_rule(&best.assignment, &pods, &planning_nodes, order);
@@ -296,24 +303,79 @@ fn report_duration(part: &str, since: Instant) {
     eprintln!("Timing: {part} {:.2} s", since.elapsed().as_secs_f64());
 }
 
-/// The Phase 1 placement for the admission mode: FFD, in-order admission, or FFD that
-/// leaves Pods unplaced.
+/// The two switches that change Phase 1 and what follows it.
+#[derive(Debug, Clone, Copy)]
+struct Phase1Switches {
+    /// Stop after Phase 1 (`--no-ga`, S-2d).
+    no_ga: bool,
+    /// Walk by best fit alone (`--no-repair`, X-9).
+    no_repair: bool,
+}
+
+/// The arrival order the walk follows, if the run walks.
+///
+/// In-order admission always walks, and a Pod without `arrival` is an error. Free
+/// admission walks when every Pod has `arrival`, and starts from FFD otherwise (X-10):
+/// on the Alibaba seed-42 instance, the walk is the better start
+/// (`2026-11-06-free-ga-moves.md`, plan #24, §8 decision 14).
 ///
 /// ```ignore
-/// let seed = seed_blueprint(Some(Admission::Free), None, &pods, &nodes);
+/// let order = walk_order(Some(Admission::Free), &pods); // None if a Pod has no arrival
+/// ```
+fn walk_order(admission: Option<Admission>, pods: &[Pod]) -> Option<Vec<usize>> {
+    let walks = match admission {
+        Some(Admission::InOrder) => true,
+        Some(Admission::Free) => !pods.is_empty() && pods.iter().all(|p| p.arrival.is_some()),
+        None => false,
+    };
+    walks.then(|| {
+        arrival_order(pods).unwrap_or_else(|e| {
+            eprintln!("Error in arrival order: {e}");
+            std::process::exit(1);
+        })
+    })
+}
+
+/// Exit when `--no-repair` is set on a run that does not walk.
+fn check_no_repair(no_repair: bool, walks: bool) {
+    if no_repair && !walks {
+        eprintln!(
+            "Error: --no-repair changes the in-order walk, which runs under --admission \
+             in-order, or under --admission free when every Pod has `arrival`"
+        );
+        std::process::exit(1);
+    }
+}
+
+/// The Phase 1 placement: the in-order walk when there is an order, FFD that leaves Pods
+/// unplaced for free admission without one, and FFD otherwise.
+///
+/// ```ignore
+/// let seed = seed_blueprint(Some(Admission::Free), None, false, &pods, &nodes);
 /// ```
 fn seed_blueprint(
     admission: Option<Admission>,
     order: Option<&[usize]>,
+    no_repair: bool,
     pods: &[Pod],
     nodes: &[Node],
 ) -> Blueprint {
     let ffd_weights = FfdWeights::default();
     match (admission, order) {
-        (Some(Admission::InOrder), Some(order)) => admit_in_order(pods, nodes, order),
-        (Some(Admission::Free), _) => ffd_with_admission(pods, nodes, &ffd_weights),
+        (Some(_), Some(order)) => walk_seed(order, no_repair, pods, nodes),
+        (Some(Admission::Free), None) => ffd_with_admission(pods, nodes, &ffd_weights),
         _ => ffd_warmstart(pods, nodes, &ffd_weights),
     }
+}
+
+/// The in-order walk, with or without its depth-1 repair, and a line that says which.
+fn walk_seed(order: &[usize], no_repair: bool, pods: &[Pod], nodes: &[Node]) -> Blueprint {
+    if no_repair {
+        eprintln!("Phase 1 seed: the in-order walk without repair (--no-repair)");
+        return admit_in_order_without_repair(pods, nodes, order);
+    }
+    eprintln!("Phase 1 seed: the in-order walk with depth-1 repair");
+    admit_in_order(pods, nodes, order)
 }
 
 /// Set a blueprint's fitness and scorecard.

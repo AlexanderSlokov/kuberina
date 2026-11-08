@@ -10,12 +10,11 @@
 use rand::Rng;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
-use rand::seq::IndexedRandom;
 use rayon::prelude::*;
 
-use crate::admission_swap::trade_at_random;
-use crate::csp::{can_place_pod_on_node, node_within_capacity};
+use crate::csp::node_within_capacity;
 use crate::fitness::compute_fitness;
+use crate::ga_mutation::mutate_within_capacity;
 use crate::model::{Blueprint, FitnessWeights, GaConfig, Node, Pod, PodGroup, UNPLACED};
 use crate::phase1_ffd::compute_node_loads;
 
@@ -52,7 +51,7 @@ pub fn run_ga(
     fitness_weights: &FitnessWeights,
 ) -> GaOutcome {
     let mut rng = StdRng::seed_from_u64(config.random_seed);
-    let mut population = init_population(seed, pods, nodes, groups, config, &mut rng);
+    let mut population = init_population(seed, pods, nodes, config, &mut rng);
     evaluate_all(&mut population, pods, nodes, groups, fitness_weights);
 
     let mut best = find_best(&population).clone();
@@ -193,7 +192,6 @@ fn init_population(
     seed: &Blueprint,
     pods: &[Pod],
     nodes: &[Node],
-    groups: &[PodGroup],
     config: &GaConfig,
     rng: &mut StdRng,
 ) -> Vec<Blueprint> {
@@ -205,13 +203,34 @@ fn init_population(
     // individual worthless at datacenter scale — 20% of 2,714 pods is 543 random
     // relocations, and no such individual ever beats the seed it came from.
     let rate = per_gene_rate(config.init_mutations, pods.len());
-    for _ in 1..config.population_size {
-        let mut variant = seed.clone();
-        mutate_for_run(config, &mut variant, pods, nodes, groups, rate, rng);
-        population.push(variant);
-    }
-
+    let variants = (1..config.population_size).map(|_| seed.clone()).collect();
+    population.extend(mutate_in_parallel(variants, pods, nodes, config, rate, rng));
     population
+}
+
+/// Mutate every blueprint on its own random stream, in parallel (X-8).
+///
+/// WHY: a mutation that checks fits rebuilds a `Packing` per child, which doubled the
+/// time of a generation on the Alibaba seed-42 instance when it ran serially. Each
+/// stream is seeded from `rng`, so a run stays reproducible from `GaConfig::seed`.
+fn mutate_in_parallel(
+    mut blueprints: Vec<Blueprint>,
+    pods: &[Pod],
+    nodes: &[Node],
+    config: &GaConfig,
+    rate: f64,
+    rng: &mut StdRng,
+) -> Vec<Blueprint> {
+    let streams: Vec<u64> = blueprints.iter().map(|_| rng.random()).collect();
+    blueprints
+        .par_iter_mut()
+        .zip(streams)
+        .for_each(|(blueprint, stream)| {
+            let mut child_rng = StdRng::seed_from_u64(stream);
+            let free = config.free_admission;
+            mutate_within_capacity(free, blueprint, pods, nodes, rate, &mut child_rng);
+        });
+    blueprints
 }
 
 /// Evaluate fitness for every individual in the population.
@@ -249,7 +268,7 @@ fn breed_generation(
         let p1 = tournament_select(population, config.tournament_size, rng);
         let p2 = tournament_select(population, config.tournament_size, rng);
 
-        let mut child = if rng.random::<f64>() < config.crossover_rate {
+        let child = if rng.random::<f64>() < config.crossover_rate {
             let c = uniform_crossover(p1, p2, rng);
             repair_gangs_on(c, p1, p2, groups, pods, nodes)
         } else {
@@ -260,13 +279,11 @@ fn breed_generation(
             }
         };
 
-        let rate = per_gene_rate(config.mutations_per_child, pods.len());
-        mutate_for_run(config, &mut child, pods, nodes, groups, rate, rng);
         offspring.push(child);
     }
 
-    offspring.truncate(config.population_size);
-    offspring
+    let rate = per_gene_rate(config.mutations_per_child, pods.len());
+    mutate_in_parallel(offspring, pods, nodes, config, rate, rng)
 }
 
 /// Elitism: keep best from parents + offspring combined.
@@ -384,186 +401,6 @@ fn repair_gangs_on(
     child
 }
 
-/// Random reset mutation with CSP rollback for gang pods.
-///
-/// - Regular pod: move to random eligible node
-/// - Gang pod: try move, rollback if gang becomes infeasible
-fn mutate(
-    blueprint: &mut Blueprint,
-    pods: &[Pod],
-    nodes: &[Node],
-    groups: &[PodGroup],
-    rate: f64,
-    rng: &mut StdRng,
-) {
-    let group_lookup = build_group_lookup(groups, pods.len());
-    let num_nodes = nodes.len();
-
-    for i in 0..blueprint.assignment.len() {
-        if rng.random::<f64>() > rate {
-            continue;
-        }
-        // WHY: admission is decided outside these operators (X-4); a declined Pod
-        // has no node to swap or move from.
-        if blueprint.assignment[i] == UNPLACED {
-            continue;
-        }
-
-        let is_swap = rng.random_bool(0.5);
-
-        if is_swap {
-            // Swap operator
-            let j = rng.random_range(0..pods.len());
-            if i == j {
-                continue;
-            }
-
-            let node_i = blueprint.assignment[i];
-            let node_j = blueprint.assignment[j];
-            if node_i == node_j || node_j == UNPLACED {
-                continue;
-            }
-
-            // Check if nodes are eligible for each other
-            if !can_place_pod_on_node(&pods[i], &nodes[node_j])
-                || !can_place_pod_on_node(&pods[j], &nodes[node_i])
-            {
-                continue;
-            }
-
-            let group_i = group_lookup[i];
-            let group_j = group_lookup[j];
-
-            let mut was_feasible_i = false;
-            let mut was_feasible_j = false;
-
-            if let Some(g_idx) = group_i {
-                was_feasible_i = gang_is_feasible(blueprint, &groups[g_idx], pods, nodes);
-            }
-            if let Some(g_idx) = group_j {
-                was_feasible_j = gang_is_feasible(blueprint, &groups[g_idx], pods, nodes);
-            }
-
-            // Perform swap
-            blueprint.assignment[i] = node_j;
-            blueprint.assignment[j] = node_i;
-
-            let mut rollback = false;
-
-            if group_i.is_some() || group_j.is_some() {
-                blueprint.node_load = compute_node_loads(&blueprint.assignment, pods, num_nodes);
-
-                if group_i.is_some_and(|g_idx| {
-                    was_feasible_i && !gang_is_feasible(blueprint, &groups[g_idx], pods, nodes)
-                }) {
-                    rollback = true;
-                }
-
-                if group_j.is_some_and(|g_idx| {
-                    was_feasible_j && !gang_is_feasible(blueprint, &groups[g_idx], pods, nodes)
-                }) {
-                    rollback = true;
-                }
-            }
-
-            if rollback {
-                blueprint.assignment[i] = node_i;
-                blueprint.assignment[j] = node_j;
-            }
-        } else {
-            // Move operator
-            let old_node = blueprint.assignment[i];
-            let eligible = eligible_nodes_for_pod(&pods[i], nodes);
-            if eligible.is_empty() {
-                continue;
-            }
-
-            let &new_node = eligible.choose(rng).unwrap();
-            let group_idx = group_lookup[i];
-            let mut was_feasible = false;
-
-            if let Some(g_idx) = group_idx {
-                was_feasible = gang_is_feasible(blueprint, &groups[g_idx], pods, nodes);
-            }
-
-            blueprint.assignment[i] = new_node;
-
-            if let Some(g_idx) = group_idx {
-                blueprint.node_load = compute_node_loads(&blueprint.assignment, pods, num_nodes);
-                if was_feasible && !gang_is_feasible(blueprint, &groups[g_idx], pods, nodes) {
-                    blueprint.assignment[i] = old_node; // rollback
-                }
-            }
-        }
-    }
-}
-
-/// Share of selected placed genes that free admission unplaces (X-4).
-///
-/// WHY 0.2: untuned. It keeps most selected genes on the relocation operators that
-/// improve packing, while the unplaced-Pod term (`unplaced_term`) judges each unplace.
-/// S-2 measures it with the other settings on the Alibaba instance.
-const UNPLACE_SHARE: f64 = 0.2;
-
-/// Share of free-admission mutations that end with one trade of a placed GPU Pod for
-/// several unplaced Pods (`admission_swap`, S-2c).
-///
-/// WHY 0.2: untuned, like `UNPLACE_SHARE`; plan #24, §8 decision 9 records both as
-/// untuned. A trade rebuilds the packing bookkeeping, so it is kept to a share.
-const TRADE_SHARE: f64 = 0.2;
-
-/// Free-admission mutation: place selected unplaced Pods on a random eligible node,
-/// unplace a share of selected placed Pods, run the ordinary operators, and in a share
-/// of calls trade one placed GPU Pod for several unplaced Pods.
-///
-/// Only `--admission free` uses it, so every other run draws the same random numbers
-/// as before X-4.
-fn mutate_with_admission(
-    blueprint: &mut Blueprint,
-    pods: &[Pod],
-    nodes: &[Node],
-    groups: &[PodGroup],
-    rate: f64,
-    rng: &mut StdRng,
-) {
-    for (pod, gene) in pods.iter().zip(blueprint.assignment.iter_mut()) {
-        if rng.random::<f64>() > rate {
-            continue;
-        }
-        if *gene != UNPLACED {
-            if rng.random_bool(UNPLACE_SHARE) {
-                *gene = UNPLACED;
-            }
-            continue;
-        }
-        if let Some(&node_idx) = eligible_nodes_for_pod(pod, nodes).choose(rng) {
-            *gene = node_idx;
-        }
-    }
-    mutate(blueprint, pods, nodes, groups, rate, rng);
-    // WHY last: the ordinary operators would scatter the refilled node before scoring.
-    if rng.random_bool(TRADE_SHARE) {
-        trade_at_random(&mut blueprint.assignment, pods, nodes, rng);
-    }
-}
-
-/// Mutation for the run's admission mode.
-fn mutate_for_run(
-    config: &GaConfig,
-    blueprint: &mut Blueprint,
-    pods: &[Pod],
-    nodes: &[Node],
-    groups: &[PodGroup],
-    rate: f64,
-    rng: &mut StdRng,
-) {
-    if config.free_admission {
-        mutate_with_admission(blueprint, pods, nodes, groups, rate, rng);
-    } else {
-        mutate(blueprint, pods, nodes, groups, rate, rng);
-    }
-}
-
 /// Check if all gang pods fit on their assigned nodes.
 fn gang_is_feasible(blueprint: &Blueprint, group: &PodGroup, pods: &[Pod], nodes: &[Node]) -> bool {
     group.pod_indices.iter().all(|&pod_idx| {
@@ -577,27 +414,6 @@ fn gang_is_feasible(blueprint: &Blueprint, group: &PodGroup, pods: &[Pod], nodes
                 nodes,
             )
     })
-}
-
-/// Map pod_idx → Some(group_idx) or None if pod is not in any gang.
-fn build_group_lookup(groups: &[PodGroup], num_pods: usize) -> Vec<Option<usize>> {
-    let mut lookup = vec![None; num_pods];
-    for (g_idx, group) in groups.iter().enumerate() {
-        for &pod_idx in &group.pod_indices {
-            lookup[pod_idx] = Some(g_idx);
-        }
-    }
-    lookup
-}
-
-/// Return indices of nodes that pass taint+selector checks for a pod.
-fn eligible_nodes_for_pod(pod: &Pod, nodes: &[Node]) -> Vec<usize> {
-    nodes
-        .iter()
-        .enumerate()
-        .filter(|(_, n)| can_place_pod_on_node(pod, n))
-        .map(|(i, _)| i)
-        .collect()
 }
 
 #[cfg(test)]
@@ -633,39 +449,6 @@ mod tests {
             rack: String::new(),
             gpu_devices: None,
         }
-    }
-
-    #[test]
-    fn group_lookup_maps_correctly() {
-        let groups = vec![PodGroup {
-            name: "g".into(),
-            pod_indices: vec![1, 3],
-            min_members: 2,
-            node_selector: HashMap::new(),
-            colocate: false,
-        }];
-        let lookup = build_group_lookup(&groups, 5);
-        assert_eq!(lookup[0], None);
-        assert_eq!(lookup[1], Some(0));
-        assert_eq!(lookup[2], None);
-        assert_eq!(lookup[3], Some(0));
-    }
-
-    #[test]
-    fn eligible_nodes_filters_by_selector() {
-        let p = Pod {
-            node_selector: HashMap::from([("gpu".into(), "true".into())]),
-            ..pod("p", 1.0, 1.0)
-        };
-        let nodes = vec![
-            node("n0", 4.0, 16.0),
-            Node {
-                labels: HashMap::from([("gpu".into(), "true".into())]),
-                ..node("n1", 4.0, 16.0)
-            },
-        ];
-        let eligible = eligible_nodes_for_pod(&p, &nodes);
-        assert_eq!(eligible, vec![1]);
     }
 
     #[test]
@@ -804,60 +587,36 @@ mod tests {
         assert!(!gang_is_feasible(&blueprint, &group, &pods, &nodes));
     }
 
-    // ─── Unplaced Pods (IR v1 §4.1, X-4) ────────────────────────────────
+    // ─── Operators within capacity (X-8) ────────────────────────────────
+
+    use crate::test_fixtures::{breaches_a_node, nearly_full_cluster};
 
     #[test]
-    fn mutation_leaves_unplaced_pods_unplaced() {
-        use crate::model::UNPLACED;
-        let pods: Vec<Pod> = (0..4).map(|i| pod(&format!("p{i}"), 1.0, 1.0)).collect();
-        let nodes = vec![node("a", 8.0, 8.0), node("b", 8.0, 8.0)];
-        let assignment = vec![0, UNPLACED, 1, UNPLACED];
-        let node_load = compute_node_loads(&assignment, &pods, 2);
-        let mut bp = Blueprint {
+    fn initial_population_starts_within_capacity() {
+        let (pods, nodes, assignment) = nearly_full_cluster();
+        let seed = Blueprint {
+            node_load: compute_node_loads(&assignment, &pods, nodes.len()),
             assignment,
             fitness: 0.0,
-            node_load,
             scorecard: Default::default(),
         };
-        let mut rng = StdRng::seed_from_u64(7);
-        mutate(&mut bp, &pods, &nodes, &[], 1.0, &mut rng);
-        assert_eq!((bp.assignment[1], bp.assignment[3]), (UNPLACED, UNPLACED));
-        assert!(bp.assignment[0] != UNPLACED && bp.assignment[2] != UNPLACED);
-    }
-
-    #[test]
-    fn free_admission_mutation_places_unplaced_pods() {
-        use crate::model::UNPLACED;
-        let pods: Vec<Pod> = (0..4).map(|i| pod(&format!("p{i}"), 1.0, 1.0)).collect();
-        let nodes = vec![node("a", 8.0, 8.0), node("b", 8.0, 8.0)];
-        let assignment = vec![UNPLACED; 4];
-        let node_load = compute_node_loads(&assignment, &pods, 2);
-        let mut bp = Blueprint {
-            assignment,
-            fitness: 0.0,
-            node_load,
-            scorecard: Default::default(),
+        let config = GaConfig {
+            population_size: 64,
+            init_mutations: 6.0,
+            free_admission: true,
+            ..GaConfig::default()
         };
-        let mut rng = StdRng::seed_from_u64(7);
-        mutate_with_admission(&mut bp, &pods, &nodes, &[], 1.0, &mut rng);
-        assert!(bp.assignment.iter().all(|&n| n != UNPLACED));
-    }
-
-    #[test]
-    fn free_admission_mutation_can_unplace_a_pod() {
-        use crate::model::UNPLACED;
-        let pods: Vec<Pod> = (0..64).map(|i| pod(&format!("p{i}"), 1.0, 1.0)).collect();
-        let nodes = vec![node("a", 99.0, 99.0), node("b", 99.0, 99.0)];
-        let assignment = vec![0; 64];
-        let node_load = compute_node_loads(&assignment, &pods, 2);
-        let mut bp = Blueprint {
-            assignment,
-            fitness: 0.0,
-            node_load,
-            scorecard: Default::default(),
-        };
-        let mut rng = StdRng::seed_from_u64(7);
-        mutate_with_admission(&mut bp, &pods, &nodes, &[], 1.0, &mut rng);
-        assert!(bp.assignment.contains(&UNPLACED));
+        let mut rng = StdRng::seed_from_u64(42);
+        let population = init_population(&seed, &pods, &nodes, &config, &mut rng);
+        let breached = population
+            .iter()
+            .filter(|bp| breaches_a_node(&bp.assignment, &pods, &nodes))
+            .count();
+        assert_eq!(
+            breached,
+            0,
+            "{breached} of {} individuals breach",
+            population.len()
+        );
     }
 }

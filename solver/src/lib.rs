@@ -4,6 +4,7 @@ pub mod admission_swap;
 pub mod blueprint_yaml;
 pub mod csp;
 pub mod fitness;
+pub mod ga_mutation;
 pub mod gpu_devices;
 pub mod gpu_ir;
 pub mod gpu_stranding;

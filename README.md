@@ -50,7 +50,9 @@ before anything reaches the cluster.
   lists them under `unplaced:` in the blueprint. This mode serves comparisons with
   scheduler traces, and `kuberina-forge out` refuses such a partial plan. The
   `--no-ga` flag stops the solver after its first placement and skips the genetic
-  algorithm.
+  algorithm. The `--no-repair` flag makes the in-order walk place each Pod by best fit
+  alone and move no Pod it admitted earlier, which is the rule an online scheduler
+  follows.
 - **A reviewable blueprint.** A _blueprint_ is the YAML file that maps each Pod to a
   node.
 - **Manifest output.** `kuberina-forge out` writes your manifests back out with a

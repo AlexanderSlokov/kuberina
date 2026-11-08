@@ -3,7 +3,9 @@
 //! Ported from `research/tests/test_integration.py`.
 //! Load testdata → Phase 0 → Phase 1 → Phase 2 → verify constraints.
 
-use kuberina_solver::admission::{admit_in_order, ffd_with_admission, in_order_violation};
+use kuberina_solver::admission::{
+    admit_in_order, admit_in_order_without_repair, ffd_with_admission, in_order_violation,
+};
 use kuberina_solver::admission_ir::arrival_order;
 use kuberina_solver::csp::{compute_capacity_overflow, compute_overflow_by_dimension};
 use kuberina_solver::fitness::{compute_affinity_violations, compute_fitness};
@@ -287,4 +289,110 @@ fn no_ga_stops_after_the_walk_and_writes_a_blueprint() {
     ] {
         assert!(stderr.contains(phase), "missing {phase:?} in {stderr}");
     }
+}
+
+/// What one CLI run printed and wrote.
+struct CliRun {
+    succeeded: bool,
+    stderr: String,
+    blueprint: Option<String>,
+}
+
+/// Run `kuberina-solver plan` on two fixtures in a fresh directory, then remove it.
+fn run_plan_cli(tag: &str, infra: &str, workloads: &str, flags: &[&str]) -> CliRun {
+    let dir = std::env::temp_dir().join(format!("kuberina-{tag}-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let fixture = |name: &str| format!("{}/{name}", env!("CARGO_MANIFEST_DIR"));
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_kuberina-solver"))
+        .current_dir(&dir)
+        .args([
+            "plan",
+            "--infra",
+            &fixture(infra),
+            "--workloads",
+            &fixture(workloads),
+        ])
+        .args(flags)
+        .output()
+        .unwrap();
+    let blueprint = std::fs::read_to_string(dir.join("kuberina_solution.yaml")).ok();
+    std::fs::remove_dir_all(&dir).unwrap();
+    CliRun {
+        succeeded: output.status.success(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        blueprint,
+    }
+}
+
+/// X-9 done-when, on the fixture: `--no-repair` walks by best fit alone, and the in-order
+/// rule holds without enforcement.
+#[test]
+fn no_repair_walks_by_best_fit_alone() {
+    let flags = ["--admission", "in-order", "--no-repair", "--no-ga"];
+    let run = run_plan_cli("no-repair", ADMISSION_INFRA, ADMISSION_WORKLOADS, &flags);
+    assert!(run.succeeded, "{}", run.stderr);
+    assert!(
+        run.stderr
+            .contains("Phase 1 seed: the in-order walk without repair"),
+        "{}",
+        run.stderr
+    );
+    assert!(
+        run.blueprint
+            .is_some_and(|b| b.contains("admission: in-order"))
+    );
+
+    let (nodes, pods) = admission_fixture();
+    let order = arrival_order(&pods).unwrap();
+    let walk = admit_in_order_without_repair(&pods, &nodes, &order);
+    let packing = Packing::from_assignment(&pods, &nodes, &walk.assignment);
+    assert_eq!(in_order_violation(&packing, &order), None);
+}
+
+#[test]
+fn no_repair_on_a_run_that_does_not_walk_is_an_error() {
+    let run = run_plan_cli("no-repair-ffd", INFRA, WORKLOADS, &["--no-repair"]);
+    assert!(!run.succeeded);
+    assert!(
+        run.stderr.contains("--no-repair changes the in-order walk"),
+        "{}",
+        run.stderr
+    );
+}
+
+/// X-10 done-when, on the fixture: free admission starts from the walk when every Pod has
+/// `arrival`, and the in-order rule is not enforced on the result.
+#[test]
+fn free_admission_starts_from_the_walk_when_every_pod_has_arrival() {
+    let flags = ["--admission", "free", "--no-ga"];
+    let run = run_plan_cli("free-walk", ADMISSION_INFRA, ADMISSION_WORKLOADS, &flags);
+    assert!(run.succeeded, "{}", run.stderr);
+    assert!(
+        run.stderr
+            .contains("Phase 1 seed: the in-order walk with depth-1 repair"),
+        "{}",
+        run.stderr
+    );
+    assert!(
+        !run.stderr.contains("Timing: in-order rule"),
+        "{}",
+        run.stderr
+    );
+    assert!(run.blueprint.is_some_and(|b| b.contains("admission: free")));
+}
+
+#[test]
+fn free_admission_without_arrivals_starts_from_ffd() {
+    let run = run_plan_cli(
+        "free-ffd",
+        INFRA,
+        WORKLOADS,
+        &["--admission", "free", "--no-ga"],
+    );
+    assert!(run.succeeded, "{}", run.stderr);
+    assert!(
+        !run.stderr.contains("Phase 1 seed: the in-order walk"),
+        "{}",
+        run.stderr
+    );
 }

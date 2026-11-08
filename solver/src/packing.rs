@@ -113,6 +113,17 @@ impl<'a> Packing<'a> {
         (0..self.nodes.len()).find(|&node_idx| self.fits(pod_idx, node_idx))
     }
 
+    /// Every node Pod `pod_idx` fits as the packing stands, in index order.
+    ///
+    /// ```ignore
+    /// let targets = packing.fitting_nodes(pod_idx);
+    /// ```
+    pub fn fitting_nodes(&self, pod_idx: usize) -> Vec<usize> {
+        (0..self.nodes.len())
+            .filter(|&node_idx| self.fits(pod_idx, node_idx))
+            .collect()
+    }
+
     pub fn node_of(&self, pod_idx: usize) -> usize {
         self.assignment[pod_idx]
     }
@@ -131,6 +142,11 @@ impl<'a> Packing<'a> {
 
     pub fn nodes(&self) -> &'a [Node] {
         self.nodes
+    }
+
+    /// The assignment alone, for a caller that recomputes loads itself (the GA).
+    pub fn into_assignment(self) -> Vec<usize> {
+        self.assignment
     }
 
     /// The packing as a blueprint, with node loads computed and fitness unset.
@@ -233,6 +249,15 @@ mod tests {
         let nodes = [eight_gpu_node("tight"), eight_gpu_node("shared")];
         let packing = Packing::from_assignment(&pods, &nodes, &[0, 1, UNPLACED]);
         assert_eq!(packing.best_fit_node(2), Some(1));
+    }
+
+    #[test]
+    fn fitting_nodes_lists_every_node_with_room() {
+        let pods = [cpu_pod("p", 3.0), cpu_pod("q", 2.0)];
+        let nodes = [cpu_node("a", 4.0), cpu_node("b", 2.0), cpu_node("c", 4.0)];
+        let mut packing = Packing::new(&pods, &nodes);
+        packing.place(1, 0);
+        assert_eq!(packing.fitting_nodes(0), vec![2]);
     }
 
     #[test]

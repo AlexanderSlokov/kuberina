@@ -7,8 +7,8 @@
 //! cargo run --release --example free_ga_probe -- <infra.yaml> <workloads.yaml> <generations>
 //! ```
 //!
-//! The GA's mutation is private to `phase2_ga.rs`, so this example rebuilds each move
-//! from the same rule and scores it alone with the solver's fitness.
+//! Place, move, and swap are the solver's own operators (`ga_mutation`, X-8). Uniform
+//! crossover is private to `phase2_ga.rs`, so this example rebuilds it from the same rule.
 
 use rand::rngs::StdRng;
 use rand::seq::IndexedRandom;
@@ -17,8 +17,8 @@ use rand::{Rng, SeedableRng};
 use kuberina_solver::admission::{admit_in_order, ffd_with_admission};
 use kuberina_solver::admission_ir::arrival_order;
 use kuberina_solver::admission_swap::trade_at_random;
-use kuberina_solver::csp::can_place_pod_on_node;
 use kuberina_solver::fitness::compute_fitness;
+use kuberina_solver::ga_mutation::{move_to_fitting_node, place_on_fitting_node, swap_if_both_fit};
 use kuberina_solver::model::{
     Blueprint, FfdWeights, FitnessWeights, GaConfig, Node, Pod, UNPLACED,
 };
@@ -50,13 +50,6 @@ impl Probe<'_> {
             compute_fitness(&blueprint, self.pods, self.nodes, &[], &self.weights);
         (fitness, card.capacity_penalty > 0.0)
     }
-
-    fn random_eligible_node(&self, pod_idx: usize, rng: &mut StdRng) -> Option<usize> {
-        let eligible: Vec<usize> = (0..self.nodes.len())
-            .filter(|&n| can_place_pod_on_node(&self.pods[pod_idx], &self.nodes[n]))
-            .collect();
-        eligible.choose(rng).copied()
-    }
 }
 
 fn indices_where(assignment: &[usize], placed: bool) -> Vec<usize> {
@@ -65,22 +58,35 @@ fn indices_where(assignment: &[usize], placed: bool) -> Vec<usize> {
         .collect()
 }
 
+/// Apply `operator` to a packing of `genes` and write the result back.
+fn on_packing(probe: &Probe, genes: &mut [usize], operator: impl FnOnce(&mut Packing)) {
+    let mut packing = Packing::from_assignment(probe.pods, probe.nodes, genes);
+    operator(&mut packing);
+    genes.copy_from_slice(packing.assignment());
+}
+
 fn place_at_random(probe: &Probe, genes: &mut [usize], rng: &mut StdRng) {
     if let Some(&pod) = indices_where(genes, false).choose(rng) {
-        genes[pod] = probe.random_eligible_node(pod, rng).unwrap_or(UNPLACED);
+        on_packing(probe, genes, |packing| {
+            place_on_fitting_node(packing, pod, rng);
+        });
     }
 }
 
 fn move_at_random(probe: &Probe, genes: &mut [usize], rng: &mut StdRng) {
     if let Some(&pod) = indices_where(genes, true).choose(rng) {
-        genes[pod] = probe.random_eligible_node(pod, rng).unwrap_or(genes[pod]);
+        on_packing(probe, genes, |packing| {
+            move_to_fitting_node(packing, pod, rng);
+        });
     }
 }
 
-fn swap_at_random(_probe: &Probe, genes: &mut [usize], rng: &mut StdRng) {
+fn swap_at_random(probe: &Probe, genes: &mut [usize], rng: &mut StdRng) {
     let placed = indices_where(genes, true);
     if let (Some(&a), Some(&b)) = (placed.choose(rng), placed.choose(rng)) {
-        genes.swap(a, b);
+        on_packing(probe, genes, |packing| {
+            swap_if_both_fit(packing, a, b);
+        });
     }
 }
 
@@ -150,9 +156,9 @@ fn report_state(label: &str, probe: &Probe, seed: &Blueprint) {
         "  unplaced Pods that fit on some node as it stands: {could_fit} of {}",
         unplaced.len()
     );
-    report_operator("place on random node", place_at_random, probe, genes);
-    report_operator("move to random node", move_at_random, probe, genes);
-    report_operator("swap two Pods", swap_at_random, probe, genes);
+    report_operator("place where it fits", place_at_random, probe, genes);
+    report_operator("move where it fits", move_at_random, probe, genes);
+    report_operator("swap if both fit", swap_at_random, probe, genes);
     report_operator("unplace", unplace_at_random, probe, genes);
     report_operator("trade", trade, probe, genes);
     report_operator(
