@@ -25,7 +25,7 @@ The frontend "Forge" component. Scope is fixed by [ADR-0001](docs/explanation/ad
 
 [ ] *Native Helm and Kustomize rendering:* an optional convenience over the pipe, deferred until operators ask for it. Cloud API state (AWS, GCP) ingestion likewise.
 
-  - *Optional `observed` usage block:* an additive per-pod record of steady-state consumption (percentiles, peak, and the fraction of the window spent above request), in the existing 8-dimensional vector shape. Absent, behavior is unchanged. **Schema shipped**; packing against it (`--pack-against p95`) remains a separate decision, to be made once real data exists.
+  - *Optional `observed` usage block:* an additive per-pod record of steady-state consumption (percentiles, peak, and the fraction of the window spent above request), in the existing 8-dimensional vector shape. Absent, behavior is unchanged. **Schema shipped**; packing against it is planned for v0.4.0 as `--pack-memory-by` ([#29](https://github.com/AlexanderSlokov/kuberina/issues/29)).
 
 - **Search Quality and Termination.** The optimizer's own search behavior, as distinct from the interfaces around it.
   - *Improvement threshold on early stopping:* the convergence test accepted any improvement, however small, as progress, so a run that was still gaining ~0.0003 in fitness never terminated early and spent its full generation budget for a fraction of a percent. Termination now tests for improvement that matters, against a relative threshold. **Shipped.**
@@ -54,6 +54,11 @@ The frontend "Forge" component. Scope is fixed by [ADR-0001](docs/explanation/ad
   - *GA moves that respect capacity:* place, move, and swap choose targets where the Pod fits, before the GA is judged on the trace.
   - *The GA's verdict:* on seed 42, compare the in-order walk with a GA-based re-plan. If the GA finds no later first rejection, deprecate, sunset, and remove it ([ADR-0003](docs/explanation/adr/0003-ga-must-beat-the-walk.md)).
   - *Later traces:* `cluster-trace-gpu-v2026`, then `cluster-trace-v2018`.
+
+[ ] **Memory safety and clearer names** ([#28](https://github.com/AlexanderSlokov/kuberina/issues/28)). Let operators choose how much protection from OOM kills a plan gives, and give the operator-facing names a meaning without project history. Both changes ship together, after #28 is settled.
+  - *Pack memory by a chosen value* ([#29](https://github.com/AlexanderSlokov/kuberina/issues/29)): `--pack-memory-by request | usage-p99 | usage-peak | limit`, an optional memory limit in the IR, and `observed` read as `usage`.
+  - *`--headroom` for growth only:* the flag keeps its rule, and its documentation says that it does not prevent OOM kills.
+  - *Rename `kuberina-forge` to `kuberina-manifest`* ([#30](https://github.com/AlexanderSlokov/kuberina/issues/30)).
 
 ## Phase 3: Kalena Interoperability (v0.5.0)
 
