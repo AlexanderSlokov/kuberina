@@ -22,7 +22,7 @@ Updated 2026-11-07. Each finished stage has a session record:
 | 4. Admission (G2, G3) | Done | `docs/references/sessions/2026-11-01-admission.md` |
 | S-2. Objective weights on this instance | Done | `docs/references/sessions/2026-11-03-objective-weights.md` |
 | 5. Scale check | Done | `docs/references/sessions/2026-11-03-alibaba-scale-check.md` |
-| 5a. Solver changes from decisions 12–14 | Next | Evidence: `docs/references/sessions/2026-11-06-free-ga-moves.md` |
+| 5a. Solver changes from decisions 12–14 | In progress: X-8 and X-9 done; X-10's seed-42 run remains | `docs/references/sessions/2026-11-08-ga-moves-within-capacity.md`; evidence: `2026-11-06-free-ga-moves.md` |
 | 6. Experiments E1–E5 | Waits on stage 5a | — |
 | 6a. E1 cross-check and GA verdict, seed 42 | Waits on stage 5a | — |
 | 7. Paper section | Waits on stage 6 | — |
@@ -325,8 +325,8 @@ replaces the E2, E3, and cross-check rows.
 |---|---|
 | Stage 1, 3 cells | ~30 min on 2 vCPU |
 | Stage 1, all 6 policies × 10 seeds, if the published values do not reproduce | ~10 h at the README's rate, parallelizable |
-| E1, one in-order walk without the GA (ADR-0003) | 15 s per seed, about 2.5 min for ten seeds |
-| E2, one in-order solve with the GA | 196 s per seed, about 33 min for ten seeds |
+| E1, two in-order walks without the GA (ADR-0003) | 14.62 s with repair (`e5f520f`) and 1.58 s without (`7da3068`) per seed, about 2.7 min for ten seeds |
+| E2, one in-order solve with the GA | 244 s per seed at `7da3068`, about 41 min for ten seeds |
 | E3, one free-admission solve | 1,314 s per seed, no early stop, about 3.7 h for ten seeds |
 | Inspector, per blueprint | about 23 s for in-order, about 10 s for free |
 | E1 cross-check, seed 42 only | ~14 probes, each solved by Phase 1 alone and by Phase 1 with the GA; prefixes are shorter than the full instance, so the upper bound is about 14 × 196 s, or 46 min. Not measured. |

@@ -1,0 +1,8 @@
+Loaded 620 nodes, 4 daemonsets, 2714 pods, 0 groups
+Timing: load 0.04 s
+
+[Headroom Mode] Reserving 20.0% of every node — the optimizer sees 80.0% of real capacity.
+Phase 1 (FFD): seed fitness = 2311466.1293
+Timing: Phase 1 0.02 s
+Phase 2 (GA): skipped (--no-ga)
+0.07 s, 16968 KB

@@ -131,11 +131,9 @@ These items run last, by the rule at the top of this file.
 
 | ID | Task | Touches | Depends on | Done when |
 |---|---|---|---|---|
-| X-8 | Make the GA's moves respect capacity: place, move, and swap choose only targets where the Pod fits, and the initial population starts without a breach. Weights and GA settings stay (plan, decision 12) | `solver/src/phase2_ga.rs`, `solver/examples/free_ga_probe.rs`, `docs/references/sessions/` | — | Regression tests fail before the change and pass after it. The probe reports 0 breaches for place, move, and swap, and gives crossover's breach rate for the maintainer. The MSC Irina FFD seed fitness stays 1,587,653.1260 and 2,311,466.1293, and a session record reports the changed GA results on MSC Irina and seed 42 |
-| X-9 | Add `--no-repair`, which runs the in-order walk without its depth-1 repair (plan, decision 13) | `solver/src/admission.rs`, `solver/src/main.rs`, `solver/tests/integration.rs`, `README.md` | — | On seed 42, the walk's first rejection is at arrival index 7,653 and its allocation is 92.30%, as in `2026-11-06-free-ga-moves.md`, and the inspector reports no violation |
-| X-10 | Start `--admission free` from the walk when every Pod has `arrival`, and from FFD otherwise (plan, decision 14) | `solver/src/main.rs`, `docs/references/ir-v1.md`, `solver/tests/integration.rs` | — | On seed 42, the final fitness is at or below the walk's, the inspector reports no violation, and IR v1 states what `arrival` does under free admission |
-| X-6 | Experiments E1–E5; E1 by two in-order walks per seed, without repair and with it (ADR-0003); E3 from the walk | `bench/alibaba/`, `docs/references/sessions/` | X-8, X-9, X-10 | One session record per experiment, seeds 42–51 |
-| X-7 | E1 cross-check on seed 42: binary search over arrival prefixes, each probe solved by Phase 1 alone and by Phase 1 with the GA | `bench/alibaba/`, `docs/references/sessions/` | X-8 | A session record gives every probe's two verdicts and states the ADR-0003 outcome for the GA |
+| X-10 | Start `--admission free` from the walk when every Pod has `arrival`, and from FFD otherwise (plan, decision 14). The code is in `7da3068`; the seed-42 run remains | `solver/src/main.rs`, `docs/references/ir-v1.md`, `solver/tests/integration.rs` | — | On seed 42, the final fitness is at or below the walk's, the inspector reports no violation, and IR v1 states what `arrival` does under free admission |
+| X-6 | Experiments E1–E5; E1 by two in-order walks per seed, without repair and with it (ADR-0003); E3 from the walk | `bench/alibaba/`, `docs/references/sessions/` | X-10 | One session record per experiment, seeds 42–51 |
+| X-7 | E1 cross-check on seed 42: binary search over arrival prefixes, each probe solved by Phase 1 alone and by Phase 1 with the GA | `bench/alibaba/`, `docs/references/sessions/` | — | A session record gives every probe's two verdicts and states the ADR-0003 outcome for the GA |
 
 ---
 

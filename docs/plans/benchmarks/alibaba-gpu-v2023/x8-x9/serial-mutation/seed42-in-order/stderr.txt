@@ -1,0 +1,91 @@
+Loaded 1213 nodes, 0 daemonsets, 10866 pods, 0 groups
+Timing: load 0.15 s
+Unplaced-Pod weights: 2328.0000 per Pod, 46560.0000 per GPU
+Phase 1 (FFD): seed fitness = 109285356.4890
+Timing: Phase 1 16.34 s
+Datacenter-scale detected (10866 pods) — cranking GA to maximum
+[2KGen    0/1000 | best=109285356.4862 | stale=1   | ░░░░░░░░░░░░░░░░░░░░ 0%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205960.72 | Aff: 0 | Var: 0.0828
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   10/1000 | best=109285354.4815 | stale=11  | ░░░░░░░░░░░░░░░░░░░░ 1%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205958.72 | Aff: 0 | Var: 0.0805
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   20/1000 | best=109285274.4751 | stale=21  | ░░░░░░░░░░░░░░░░░░░░ 2%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205888.72 | Aff: 0 | Var: 0.0772
+[2K  [Nodes] Active: 1212 / 1213
+[4A[2KGen   30/1000 | best=109285274.4649 | stale=31  | ░░░░░░░░░░░░░░░░░░░░ 3%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205888.72 | Aff: 0 | Var: 0.0721
+[2K  [Nodes] Active: 1212 / 1213
+[4A[2KGen   40/1000 | best=109285274.4545 | stale=41  | ░░░░░░░░░░░░░░░░░░░░ 4%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205888.72 | Aff: 0 | Var: 0.0669
+[2K  [Nodes] Active: 1212 / 1213
+[4A[2KGen   50/1000 | best=109285274.4414 | stale=51  | █░░░░░░░░░░░░░░░░░░░ 5%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205888.72 | Aff: 0 | Var: 0.0604
+[2K  [Nodes] Active: 1212 / 1213
+[4A[2KGen   60/1000 | best=109285274.4341 | stale=61  | █░░░░░░░░░░░░░░░░░░░ 6%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205888.72 | Aff: 0 | Var: 0.0567
+[2K  [Nodes] Active: 1212 / 1213
+[4A[2KGen   70/1000 | best=109285273.4279 | stale=71  | █░░░░░░░░░░░░░░░░░░░ 7%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205887.72 | Aff: 0 | Var: 0.0537
+[2K  [Nodes] Active: 1212 / 1213
+[4A[2KGen   80/1000 | best=109285222.4230 | stale=81  | █░░░░░░░░░░░░░░░░░░░ 8%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205846.72 | Aff: 0 | Var: 0.0512
+[2K  [Nodes] Active: 1211 / 1213
+[4A[2KGen   90/1000 | best=109285194.4197 | stale=91  | █░░░░░░░░░░░░░░░░░░░ 9%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205818.72 | Aff: 0 | Var: 0.0495
+[2K  [Nodes] Active: 1211 / 1213
+[4A[2KGen  100/1000 | best=109285125.4173 | stale=101 | ██░░░░░░░░░░░░░░░░░░ 10%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205749.72 | Aff: 0 | Var: 0.0483
+[2K  [Nodes] Active: 1211 / 1213
+[4A[2KGen  110/1000 | best=109285125.4134 | stale=111 | ██░░░░░░░░░░░░░░░░░░ 11%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205749.72 | Aff: 0 | Var: 0.0464
+[2K  [Nodes] Active: 1211 / 1213
+[4A[2KGen  120/1000 | best=109285125.4107 | stale=121 | ██░░░░░░░░░░░░░░░░░░ 12%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205749.72 | Aff: 0 | Var: 0.0450
+[2K  [Nodes] Active: 1211 / 1213
+[4A[2KGen  130/1000 | best=109285124.4095 | stale=131 | ██░░░░░░░░░░░░░░░░░░ 13%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205748.72 | Aff: 0 | Var: 0.0444
+[2K  [Nodes] Active: 1211 / 1213
+[4A[2KGen  140/1000 | best=109285073.4086 | stale=141 | ██░░░░░░░░░░░░░░░░░░ 14%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205707.72 | Aff: 0 | Var: 0.0440
+[2K  [Nodes] Active: 1210 / 1213
+[4A[2KGen  150/1000 | best=109285073.4051 | stale=151 | ███░░░░░░░░░░░░░░░░░ 15%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205707.72 | Aff: 0 | Var: 0.0422
+[2K  [Nodes] Active: 1210 / 1213
+[4A[2KGen  160/1000 | best=109284994.4031 | stale=161 | ███░░░░░░░░░░░░░░░░░ 16%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205638.72 | Aff: 0 | Var: 0.0412
+[2K  [Nodes] Active: 1209 / 1213
+[4A[2KGen  170/1000 | best=109284994.4008 | stale=171 | ███░░░░░░░░░░░░░░░░░ 17%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205638.72 | Aff: 0 | Var: 0.0401
+[2K  [Nodes] Active: 1209 / 1213
+[4A[2KGen  180/1000 | best=109284966.3997 | stale=181 | ███░░░░░░░░░░░░░░░░░ 18%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205610.72 | Aff: 0 | Var: 0.0395
+[2K  [Nodes] Active: 1209 / 1213
+[4A[2KGen  190/1000 | best=109284966.3965 | stale=191 | ███░░░░░░░░░░░░░░░░░ 19%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205610.72 | Aff: 0 | Var: 0.0379
+[2K  [Nodes] Active: 1209 / 1213
+Early stop at generation 199 (gain under 0.0100% for 200 gens)
+Phase 2 (GA): converged at generation 200 of 1000 — gain stayed under 0.0100% for 200 generations
+Timing: Phase 2 (GA) 327.15 s
+Timing: in-order rule 0.14 s
+343.86 s, 465748 KB

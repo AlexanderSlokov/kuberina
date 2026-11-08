@@ -1,0 +1,41 @@
+[2KGen    0/100 | best=109225712.8272 | stale=1   | ░░░░░░░░░░░░░░░░░░░░ 1%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 205913.86 | Aff: 0 | Var: 0.0842
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   10/100 | best=109056462.1396 | stale=1   | ██░░░░░░░░░░░░░░░░░░ 11%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 206141.57 | Aff: 0 | Var: 0.0839
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   20/100 | best=108962562.2083 | stale=0   | ████░░░░░░░░░░░░░░░░ 21%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 206292.84 | Aff: 0 | Var: 0.0839
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   30/100 | best=108806921.7194 | stale=0   | ██████░░░░░░░░░░░░░░ 31%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 206628.35 | Aff: 0 | Var: 0.0834
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   40/100 | best=108717999.8291 | stale=0   | ████████░░░░░░░░░░░░ 41%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 206636.07 | Aff: 0 | Var: 0.0820
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   50/100 | best=108618430.8254 | stale=3   | ██████████░░░░░░░░░░ 51%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 206705.46 | Aff: 0 | Var: 0.0829
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   60/100 | best=108523571.9598 | stale=0   | ████████████░░░░░░░░ 61%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 206363.39 | Aff: 0 | Var: 0.0829
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   70/100 | best=108401161.9389 | stale=0   | ██████████████░░░░░░ 71%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 206406.17 | Aff: 0 | Var: 0.0820
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   80/100 | best=108322762.9193 | stale=0   | ████████████████░░░░ 81%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 206227.96 | Aff: 0 | Var: 0.0812
+[2K  [Nodes] Active: 1213 / 1213
+[4A[2KGen   90/100 | best=108235954.0416 | stale=0   | ██████████████████░░ 91%
+[2K  [Scorecard] Cap: 0 | Sel: 0 | Gang: 0
+[2K              Frag: 206486.28 | Aff: 0 | Var: 0.0811
+[2K  [Nodes] Active: 1213 / 1213
+142.14 s, 536008 KB

@@ -1,0 +1,9 @@
+Loaded 1213 nodes, 0 daemonsets, 10866 pods, 0 groups
+Timing: load 0.12 s
+Unplaced-Pod weights: 2328.0000 per Pod, 46560.0000 per GPU
+Phase 1 seed: the in-order walk without repair (--no-repair)
+Phase 1 (FFD): seed fitness = 115627725.9790
+Timing: Phase 1 1.37 s
+Phase 2 (GA): skipped (--no-ga)
+Timing: in-order rule 0.08 s
+1.58 s, 40328 KB

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The walk can run without its repair** ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24),
+  X-9). With `--admission in-order --no-repair`, the solver places each Pod by best fit
+  and moves no Pod it admitted earlier, the rule an online scheduler such as FGD follows.
+  On the Alibaba seed-42 instance at `7da3068`, it first rejects a Pod at arrival index
+  7,653 and places 92.30% of the GPUs, against 7,775 and 94.34% with the repair, and the
+  inspector found no violation. With `--admission free`, the solver now starts from the
+  walk when every Pod has `arrival` (X-10). The record is
+  `docs/references/sessions/2026-11-08-ga-moves-within-capacity.md`.
 - **One solve of the Alibaba seed-42 instance has a measured cost, and the solver prints
   how long each phase takes** ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24),
   X-5). On 1,213 nodes and 10,866 Pods at `e5f520f`, an in-order walk without the GA took
@@ -165,6 +173,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for what shipped — is recorded in `AGENTS.md`.
 
 ### Changed
+- **The genetic algorithm's moves keep every node within capacity**
+  ([#24](https://github.com/AlexanderSlokov/kuberina/issues/24), X-8). Place, move, and
+  swap now pick only nodes where the Pod fits. On the Alibaba seed-42 instance, they had
+  breached capacity in 179 to 300 of 300 trials, and they breach in none at `7da3068`.
+  On MSC Irina full packing, the GA now ends with 527 active nodes and 566 affinity
+  violations, against 540 and 964 at `096177e`; it ran its full 1,000 generations in
+  2,727 seconds, against 865 seconds. On seed 42 in order, it places 6 more Pods, for
+  94.42% of the GPUs. Results of earlier GA runs are not comparable with new ones. The
+  record is `docs/references/sessions/2026-11-08-ga-moves-within-capacity.md`.
 - **Component naming disambiguation.** Three distinct artifacts were all named
   `kuberina`, so which one a bare `kuberina plan` invoked depended on `PATH`
   ordering. The Rust binary is now `kuberina-solver` (`solver/Cargo.toml`) and the

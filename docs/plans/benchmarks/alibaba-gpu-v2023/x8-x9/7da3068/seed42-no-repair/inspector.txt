@@ -1,0 +1,23 @@
+Loading infra: bench/alibaba/out/seed42/infra.yaml
+Loading workloads: bench/alibaba/out/seed42/workloads.yaml
+Loading solution: /tmp/claude-1000/-home-stella-workspace-kuberina/8beeed01-b038-4830-a031-431c7f6debc7/scratchpad/x8/seed42-no-repair/kuberina_solution.yaml
+
+--- Validation Results ---
+Selector Violations: 0
+Capacity Overflow (CPU): 0.00
+Capacity Overflow (RAM): 0.00
+Capacity Overflow (GPU): 0.00
+Capacity Overflow (Storage): 0.00
+Capacity Overflow (Disk Read): 0.00
+Capacity Overflow (Disk Write): 0.00
+Capacity Overflow (Net In): 0.00
+Capacity Overflow (Net Out): 0.00
+GPU Device Violations: 0
+Unassigned Pods: 0
+Affinity Violations: 0
+Placement Problems: 0
+GPU Allocation: 5733.55 of 6212 GPUs (92.30%)
+In-Order Violations: 0
+--------------------------
+
+Heatmap dashboard generated: /tmp/claude-1000/-home-stella-workspace-kuberina/8beeed01-b038-4830-a031-431c7f6debc7/scratchpad/x8/seed42-no-repair/dashboard.html
