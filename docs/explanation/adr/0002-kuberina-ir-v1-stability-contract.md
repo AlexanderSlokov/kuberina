@@ -1,6 +1,6 @@
 # ADR-0002 — Kuberina IR v1 stability contract
 
-**Status:** Accepted — 2026-09-06
+**Status:** Accepted — 2026-09-06, amended 2026-11-08
 **Deciders:** Dinh Tan Dung
 **Affects:** `solver/src/parser.rs`, `kuberina-forge`, `bench/gen_irina_testdata.py`,
 `research/`, issues #9 and #13
@@ -73,6 +73,19 @@ GiB, GPU in whole units, disk and network throughput in MB/s. String quantities 
 Kubernetes notation (`512Mi`, `2500m`, `1Gi`) are accepted wherever a number is, and
 parse through one shared implementation. A future dimension arrives with its unit
 declared in the specification or it does not arrive.
+
+### Amendment of 2026-11-08
+
+The Founder decided that clauses 3 and 4 take effect at release 1.0.0. Before 1.0.0,
+Kuberina has no production users and no published package, so a change may rename,
+remove, or reinterpret an IR field without a new `apiVersion` and without an alias.
+Each such change still updates `docs/references/ir-v1.md` in the same commit, and
+`CHANGELOG.md` names the old and the new form. Clauses 1 and 2 stay in force.
+
+The first changes under this amendment are the rename of `observed` to `usage`
+([#29](https://github.com/AlexanderSlokov/kuberina/issues/29)) and the rename of
+`kuberina-forge` to `kuberina-manifest`
+([#30](https://github.com/AlexanderSlokov/kuberina/issues/30)).
 
 ## Consequences
 

@@ -56,7 +56,7 @@ The frontend "Forge" component. Scope is fixed by [ADR-0001](docs/explanation/ad
   - *Later traces:* `cluster-trace-gpu-v2026`, then `cluster-trace-v2018`.
 
 [ ] **Memory safety and clearer names** ([#28](https://github.com/AlexanderSlokov/kuberina/issues/28)). Let operators choose how much protection from OOM kills a plan gives, and give the operator-facing names a meaning without project history. Both changes ship together, after #28 is settled.
-  - *Pack memory by a chosen value* ([#29](https://github.com/AlexanderSlokov/kuberina/issues/29)): `--pack-memory-by request | usage-p99 | usage-peak | limit`, an optional memory limit in the IR, and `observed` read as `usage`.
+  - *Pack memory by a chosen value* ([#29](https://github.com/AlexanderSlokov/kuberina/issues/29)): `--pack-memory-by request | usage-p99 | usage-peak | limit`, an optional memory limit in the IR, and `observed` renamed to `usage`.
   - *`--headroom` for growth only:* the flag keeps its rule, and its documentation says that it does not prevent OOM kills.
   - *Rename `kuberina-forge` to `kuberina-manifest`* ([#30](https://github.com/AlexanderSlokov/kuberina/issues/30)).
 
